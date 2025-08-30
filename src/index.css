@@ -2,39 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* RP CARS Design System - Blue & White Theme for Trust and Speed */
 
 @layer base {
   :root {
+    /* Brand Colors */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 215 25% 27%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 27%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 25% 27%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary Blue - Trust & Action */
+    --primary: 217 100% 56%; /* #1E6FFF */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217 100% 51%;
+    --primary-light: 217 100% 96%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Accent Blue - Depth */
+    --accent-blue: 217 100% 46%; /* #0B61D1 */
+    --accent-blue-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary: 210 17% 96%;
+    --secondary-foreground: 215 25% 27%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 17% 96%;
+    --muted-foreground: 215 13% 55%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 210 17% 96%;
+    --accent-foreground: 215 25% 27%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 100% 56%;
+
+    /* Success & Status */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 100% 56%) 0%, hsl(217 100% 46%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(217 100% 56%) 0%, hsl(217 100% 46%) 50%, hsl(217 100% 40%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(210 17% 98%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(217 100% 56% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(217 100% 56% / 0.1), 0 2px 4px -1px hsl(217 100% 56% / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(217 100% 56% / 0.1), 0 4px 6px -2px hsl(217 100% 56% / 0.05);
+    --shadow-xl: 0 20px 25px -5px hsl(217 100% 56% / 0.1), 0 10px 10px -5px hsl(217 100% 56% / 0.04);
+    --shadow-card: 0 4px 20px -2px hsl(217 100% 56% / 0.08);
+    --shadow-hover: 0 8px 30px -4px hsl(217 100% 56% / 0.15);
+
+    /* Animation Timing */
+    --animate-fast: 150ms;
+    --animate-normal: 200ms;
+    --animate-slow: 300ms;
+    --animate-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --animate-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
     --radius: 0.5rem;
 
@@ -94,12 +126,65 @@ All colors MUST be HSL.
   }
 }
 
+/* Animation Classes */
 @layer base {
   * {
     @apply border-border;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-smooth antialiased;
+  }
+}
+
+@layer components {
+  /* Car Card Animations */
+  .car-card {
+    @apply transition-all duration-200 ease-out hover:shadow-hover hover:-translate-y-1 hover:scale-[1.02];
+  }
+
+  .car-card-image {
+    @apply transition-transform duration-300 ease-out group-hover:scale-105;
+  }
+
+  /* Button Variants */
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary to-accent-blue text-primary-foreground font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+
+  .btn-glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all duration-200;
+  }
+
+  /* Staggered Animation */
+  .stagger-item {
+    @apply opacity-0 translate-y-4 animate-fade-in;
+  }
+
+  .stagger-item:nth-child(1) { animation-delay: 0ms; }
+  .stagger-item:nth-child(2) { animation-delay: 40ms; }
+  .stagger-item:nth-child(3) { animation-delay: 80ms; }
+  .stagger-item:nth-child(4) { animation-delay: 120ms; }
+  .stagger-item:nth-child(5) { animation-delay: 160ms; }
+  .stagger-item:nth-child(6) { animation-delay: 200ms; }
+
+  /* Glass Morphism */
+  .glass {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-xl;
+  }
+
+  /* Hover Lift */
+  .hover-lift {
+    @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-hover;
+  }
+
+  /* Text Gradient */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-accent-blue bg-clip-text text-transparent;
+  }
+
+  /* Smooth Scroll */
+  .smooth-scroll {
+    scroll-behavior: smooth;
   }
 }
