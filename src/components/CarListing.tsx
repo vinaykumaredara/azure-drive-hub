@@ -1,98 +1,14 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CarCard } from "@/components/CarCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, SlidersHorizontal } from "lucide-react";
-
-// Mock car data
-const mockCars = [
-  {
-    id: "1",
-    name: "Honda City",
-    image: "https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=400&q=80",
-    rating: 4.8,
-    reviewCount: 124,
-    seats: 5,
-    fuel: "Petrol",
-    transmission: "Manual",
-    pricePerDay: 1200,
-    location: "Banjara Hills",
-    isAvailable: true,
-    badges: ["Popular", "Fuel Efficient"]
-  },
-  {
-    id: "2",
-    name: "Hyundai Creta",
-    image: "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=400&q=80",
-    rating: 4.9,
-    reviewCount: 89,
-    seats: 5,
-    fuel: "Diesel",
-    transmission: "Automatic",
-    pricePerDay: 2200,
-    location: "HITEC City",
-    isAvailable: true,
-    badges: ["Premium", "SUV"]
-  },
-  {
-    id: "3",
-    name: "Maruti Swift",
-    image: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=400&q=80",
-    rating: 4.6,
-    reviewCount: 156,
-    seats: 5,
-    fuel: "Petrol",
-    transmission: "Manual",
-    pricePerDay: 999,
-    location: "Secunderabad",
-    isAvailable: true,
-    badges: ["Budget Friendly"]
-  },
-  {
-    id: "4",
-    name: "Toyota Innova",
-    image: "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=400&q=80",
-    rating: 4.7,
-    reviewCount: 78,
-    seats: 7,
-    fuel: "Diesel",
-    transmission: "Manual",
-    pricePerDay: 2800,
-    location: "Gachibowli",
-    isAvailable: false,
-    badges: ["Family Car", "Spacious"]
-  },
-  {
-    id: "5",
-    name: "Honda Amaze",
-    image: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400&q=80",
-    rating: 4.5,
-    reviewCount: 92,
-    seats: 5,
-    fuel: "Petrol",
-    transmission: "Automatic",
-    pricePerDay: 1500,
-    location: "Kukatpally",
-    isAvailable: true,
-    badges: ["Comfortable"]
-  },
-  {
-    id: "6",
-    name: "Mahindra XUV500",
-    image: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=400&q=80",
-    rating: 4.8,
-    reviewCount: 65,
-    seats: 7,
-    fuel: "Diesel",
-    transmission: "Manual",
-    pricePerDay: 3200,
-    location: "Madhapur",
-    isAvailable: true,
-    badges: ["Luxury", "Off-road"]
-  }
-];
+import { useCars } from "@/hooks/use-cars";
+import { CarListSkeleton } from "@/components/ui/skeleton";
+import { ApiErrorState, EmptyState } from "@/components/ErrorBoundary";
 
 const filterOptions = [
   { label: "All Seats", value: "all" },
@@ -121,21 +37,66 @@ export const CarListing = () => {
   const [fuelFilter, setFuelFilter] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
 
+  // Use the custom hook with filters
+  const { cars, loading, error, totalCount, refetch, clearError } = useCars({
+    q: searchQuery,
+    seats: seatFilter !== "all" ? parseInt(seatFilter) : undefined,
+    fuelType: fuelFilter,
+    sortBy,
+    from: new Date().toISOString().split('T')[0], // Today
+    to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Tomorrow
+  });
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.06,
+        delayChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut" as const
+      }
+    }
+  };
+
   return (
-    <section className="py-16 bg-gradient-to-b from-white to-primary-light/30">
+    <section id="cars-section" className="py-16 bg-gradient-to-b from-white to-primary-light/30">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-12">
+        <motion.div 
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
             <span className="text-foreground">Choose Your</span> <span className="text-gradient">Perfect Ride</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Browse our diverse fleet of well-maintained vehicles. From budget-friendly options to luxury cars.
           </p>
-        </div>
+        </motion.div>
 
         {/* Search & Filters */}
-        <div className="bg-white rounded-2xl shadow-card p-6 mb-8">
+        <motion.div 
+          className="bg-white rounded-2xl shadow-card p-6 mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Search */}
             <div className="lg:col-span-2 relative">
@@ -209,32 +170,101 @@ export const CarListing = () => {
               </Badge>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Results Summary */}
-        <div className="flex items-center justify-between mb-8">
+        <motion.div 
+          className="flex items-center justify-between mb-8"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
           <p className="text-muted-foreground">
-            Found <span className="font-semibold text-foreground">{mockCars.length} cars</span> available
+            Found <span className="font-semibold text-foreground">{totalCount} cars</span> available
           </p>
           <Button variant="outline" size="sm" className="flex items-center space-x-2">
             <SlidersHorizontal className="w-4 h-4" />
             <span>Advanced Filters</span>
           </Button>
-        </div>
+        </motion.div>
 
-        {/* Car Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {mockCars.map((car, index) => (
-            <CarCard key={car.id} car={car} />
-          ))}
-        </div>
+        {/* Content */}
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CarListSkeleton />
+            </motion.div>
+          ) : error ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ApiErrorState error={error} onRetry={refetch} />
+            </motion.div>
+          ) : cars.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <EmptyState
+                title="No cars found"
+                description="Try adjusting your filters or search terms to find more cars."
+                action={
+                  <Button onClick={() => {
+                    setSearchQuery("");
+                    setSeatFilter("all");
+                    setFuelFilter("all");
+                    setSortBy("popular");
+                  }}>
+                    Clear Filters
+                  </Button>
+                }
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="cars"
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              {cars.map((car, index) => (
+                <motion.div key={car.id} variants={itemVariants}>
+                  <CarCard car={{ ...car, name: car.model }} />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Load More */}
-        <div className="text-center mt-12">
-          <Button variant="outline" size="lg" className="px-8">
-            Load More Cars
-          </Button>
-        </div>
+        {!loading && !error && cars.length > 0 && (
+          <motion.div 
+            className="text-center mt-12"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+          >
+            <Button variant="outline" size="lg" className="px-8">
+              Load More Cars
+            </Button>
+          </motion.div>
+        )}
       </div>
     </section>
   );
