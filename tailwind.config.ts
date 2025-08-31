@@ -30,9 +30,9 @@ export default {
 					hover: 'hsl(var(--primary-hover))',
 					light: 'hsl(var(--primary-light))'
 				},
-				'accent-blue': {
-					DEFAULT: 'hsl(var(--accent-blue))',
-					foreground: 'hsl(var(--accent-blue-foreground))'
+				'accent-purple': {
+					DEFAULT: 'hsl(var(--accent-purple))',
+					foreground: 'hsl(var(--accent-purple-foreground))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
