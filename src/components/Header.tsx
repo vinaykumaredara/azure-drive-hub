@@ -1,8 +1,10 @@
 import { Car, Menu, User, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useNavigate } from "react-router-dom";
 
 export const Header = () => {
+  const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-border shadow-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -34,7 +36,7 @@ export const Header = () => {
 
           {/* Action Buttons */}
           <div className="hidden md:flex items-center space-x-3">
-            <Button variant="ghost" size="sm" className="text-foreground hover:text-primary">
+            <Button variant="ghost" size="sm" className="text-foreground hover:text-primary" onClick={() => navigate('/login')}>
               <User className="w-4 h-4 mr-2" />
               Login
             </Button>
@@ -72,7 +74,7 @@ export const Header = () => {
                 </nav>
 
                 <div className="space-y-3 pt-4 border-t">
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/login')}>
                     <User className="w-4 h-4 mr-2" />
                     Login
                   </Button>

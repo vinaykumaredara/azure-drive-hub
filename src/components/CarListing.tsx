@@ -244,7 +244,7 @@ export const CarListing = () => {
             >
               {cars.map((car, index) => (
                 <motion.div key={car.id} variants={itemVariants}>
-                  <CarCard car={{ ...car, name: car.model }} />
+                  <CarCard car={car} />
                 </motion.div>
               ))}
             </motion.div>

@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 export interface CarCardProps {
   car: {
     id: string;
-    name: string;
+    model: string;
     image: string;
     rating: number;
     reviewCount: number;
@@ -24,9 +24,13 @@ export interface CarCardProps {
 
 export const CarCard = ({ car, className = "" }: CarCardProps) => {
   const handleBookNow = () => {
-    const message = encodeURIComponent(`Hi! I'm interested in booking the ${car.name} (ID: ${car.id}) for ₹${car.pricePerDay}/day.`);
-    const whatsappUrl = `https://wa.me/919876543210?text=${message}`;
-    window.open(whatsappUrl, '_blank');
+    window.location.href = `/booking/${car.id}`;
+  };
+
+  const handleWhatsAppContact = () => {
+    const text = encodeURIComponent(`Hello RP CARS, I'm interested in ${car.model} (${car.id})`);
+    const waUrl = `https://wa.me/919876543210?text=${text}`;
+    window.open(waUrl, "_blank");
   };
 
   return (
@@ -43,7 +47,7 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
         <div className="relative aspect-video overflow-hidden">
           <img
             src={car.image}
-            alt={car.name}
+            alt={car.model}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
           />
@@ -71,8 +75,8 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
         <CardContent className="p-6">
           <div className="space-y-4">
             <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-lg text-foreground leading-tight">{car.name}</h3>
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg text-foreground leading-tight">{car.model}</h3>
                 <div className="flex items-center text-sm text-muted-foreground mt-1">
                   <MapPin className="w-3 h-3 mr-1" />
                   {car.location}
@@ -110,14 +114,24 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
                 <div className="text-sm text-muted-foreground">per day</div>
               </div>
               
-              <Button
-                size="sm"
-                disabled={!car.isAvailable}
-                onClick={handleBookNow}
-                className="bg-gradient-primary text-white hover:shadow-lg transition-all duration-200 disabled:opacity-50"
-              >
-                {car.isAvailable ? "Book Now" : "Unavailable"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleWhatsAppContact}
+                  className="flex-1"
+                >
+                  Contact
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!car.isAvailable}
+                  onClick={handleBookNow}
+                  className="bg-gradient-primary text-white hover:shadow-lg transition-all duration-200 disabled:opacity-50 flex-1"
+                >
+                  {car.isAvailable ? "Book Now" : "Unavailable"}
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
