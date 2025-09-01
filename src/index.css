@@ -150,7 +150,7 @@
 
   /* Button Variants */
   .btn-hero {
-    @apply bg-gradient-to-r from-primary to-accent-blue text-primary-foreground font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95;
+    @apply bg-gradient-to-r from-primary to-accent-purple text-primary-foreground font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95;
   }
 
   .btn-glass {
@@ -181,7 +181,7 @@
 
   /* Text Gradient */
   .text-gradient {
-    @apply bg-gradient-to-r from-primary to-accent-blue bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent;
   }
 
   /* Smooth Scroll */
