@@ -1,6 +1,7 @@
 // src/lib/auth.ts
-export const ADMIN_EMAIL = "rpcars2025@gmail.com";
-export const ADMIN_PASSWORD = "RP2025cars";
+// Remove hardcoded credentials - use environment variables or database
+export const ADMIN_EMAIL = "rpcars2025@gmail.com"; // This will be checked via Supabase users table
+export const ADMIN_PASSWORD = ""; // Password auth will be handled by Supabase Auth
 
 export type AuthState = {
   isAuthenticated: boolean;
