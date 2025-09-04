@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, Clock, MapPin, Users, Fuel, Settings } from "lucide-react";
 import { motion } from "framer-motion";
-import { getAuth } from "@/lib/auth";
+import { useAuth } from "@/components/AuthProvider";
 
 const BookingPage: React.FC = () => {
   const { carId } = useParams();
@@ -19,7 +19,7 @@ const BookingPage: React.FC = () => {
   const [returnDate, setReturnDate] = useState("");
   const [pickupTime, setPickupTime] = useState("10:00");
   const [returnTime, setReturnTime] = useState("10:00");
-  const auth = getAuth();
+  const { user } = useAuth();
 
   const calculateDays = () => {
     if (!pickupDate || !returnDate) return 0;
@@ -35,8 +35,8 @@ const BookingPage: React.FC = () => {
   const total = subtotal + taxes;
 
   const handleBooking = () => {
-    if (!auth.isAuthenticated) {
-      navigate("/login");
+    if (!user) {
+      navigate("/auth");
       return;
     }
     
@@ -217,10 +217,10 @@ const BookingPage: React.FC = () => {
                   size="lg"
                   disabled={!pickupDate || !returnDate}
                 >
-                  {auth.isAuthenticated ? "Proceed to Payment" : "Sign In to Book"}
+                  {user ? "Proceed to Payment" : "Sign In to Book"}
                 </Button>
 
-                {!auth.isAuthenticated && (
+                {!user && (
                   <p className="text-sm text-muted-foreground text-center">
                     You need to sign in to complete your booking
                   </p>

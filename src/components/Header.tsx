@@ -1,16 +1,24 @@
-import { Car, Menu, User, Phone } from "lucide-react";
+import { Car, Menu, User, Phone, Shield, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "./AuthProvider";
 
 export const Header = () => {
   const navigate = useNavigate();
+  const { user, isAdmin, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-border shadow-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
             <div className="p-2 bg-gradient-primary rounded-xl">
               <Car className="w-6 h-6 text-white" />
             </div>
@@ -35,15 +43,52 @@ export const Header = () => {
           </nav>
 
           {/* Action Buttons */}
-          <div className="hidden md:flex items-center space-x-3">
-            <Button variant="ghost" size="sm" className="text-foreground hover:text-primary" onClick={() => navigate('/login')}>
-              <User className="w-4 h-4 mr-2" />
-              Login
-            </Button>
-            <Button className="bg-gradient-primary text-white hover:shadow-lg transition-all duration-200">
-              Rent Now
-            </Button>
-          </div>
+          {user ? (
+            <div className="hidden md:flex items-center space-x-3">
+              {isAdmin && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate('/admin')}
+                  className="border-primary/20 hover:bg-primary/5"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Admin
+                </Button>
+              )}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="flex items-center space-x-2 text-foreground hover:text-primary">
+                    <User className="w-4 h-4" />
+                    <span className="hidden sm:inline">
+                      {user.email?.split('@')[0]}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                    <User className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            <div className="hidden md:flex items-center space-x-3">
+              <Button variant="ghost" size="sm" className="text-foreground hover:text-primary" onClick={() => navigate('/auth')}>
+                <User className="w-4 h-4 mr-2" />
+                Sign In
+              </Button>
+              <Button className="bg-gradient-primary text-white hover:shadow-lg transition-all duration-200" onClick={() => navigate('/auth')}>
+                Get Started
+              </Button>
+            </div>
+          )}
 
           {/* Mobile Menu */}
           <Sheet>
@@ -74,13 +119,34 @@ export const Header = () => {
                 </nav>
 
                 <div className="space-y-3 pt-4 border-t">
-                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/login')}>
-                    <User className="w-4 h-4 mr-2" />
-                    Login
-                  </Button>
-                  <Button className="w-full bg-gradient-primary text-white">
-                    Rent Now
-                  </Button>
+                  {user ? (
+                    <>
+                      <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/dashboard')}>
+                        <User className="w-4 h-4 mr-2" />
+                        Dashboard
+                      </Button>
+                      {isAdmin && (
+                        <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/admin')}>
+                          <Shield className="w-4 h-4 mr-2" />
+                          Admin
+                        </Button>
+                      )}
+                      <Button variant="outline" className="w-full justify-start" onClick={handleSignOut}>
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Sign Out
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/auth')}>
+                        <User className="w-4 h-4 mr-2" />
+                        Sign In
+                      </Button>
+                      <Button className="w-full bg-gradient-primary text-white" onClick={() => navigate('/auth')}>
+                        Get Started
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex items-center space-x-2 text-muted-foreground pt-4 border-t">
