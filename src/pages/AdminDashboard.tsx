@@ -11,6 +11,7 @@ import AdminBookingManagement from '@/components/AdminBookingManagement';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { PromoCodeManager } from '@/components/PromoCodeManager';
 import { MaintenanceScheduler } from '@/components/MaintenanceScheduler';
+import { useNavigate } from 'react-router-dom';
 
 // License Management Component
 const LicenseManagement = () => {
@@ -24,7 +25,6 @@ const LicenseManagement = () => {
     </div>
   );
 };
-import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard: React.FC = () => {
   const { signOut, user } = useAuth();
