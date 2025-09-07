@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { LicenseUpload } from '@/components/LicenseUpload';
+import { ChatWidget } from '@/components/ChatWidget';
 
 interface Booking {
   id: string;
@@ -231,13 +233,7 @@ const UserDashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No licenses uploaded yet</p>
-                    <Button className="mt-4" disabled>
-                      Upload License (Coming Soon)
-                    </Button>
-                  </div>
+                  <LicenseUpload />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -251,13 +247,7 @@ const UserDashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">Need help? Contact our support team</p>
-                    <Button className="mt-4" disabled>
-                      Start Chat (Coming Soon)
-                    </Button>
-                  </div>
+                  <ChatWidget roomId={`support:${user?.id}`} />
                 </CardContent>
               </Card>
             </TabsContent>

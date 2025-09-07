@@ -324,6 +324,8 @@ export type Database = {
           discount_flat: number | null
           discount_percent: number | null
           id: string
+          last_used_at: string | null
+          times_used: number | null
           usage_limit: number | null
           valid_from: string | null
           valid_to: string | null
@@ -335,6 +337,8 @@ export type Database = {
           discount_flat?: number | null
           discount_percent?: number | null
           id?: string
+          last_used_at?: string | null
+          times_used?: number | null
           usage_limit?: number | null
           valid_from?: string | null
           valid_to?: string | null
@@ -346,6 +350,8 @@ export type Database = {
           discount_flat?: number | null
           discount_percent?: number | null
           id?: string
+          last_used_at?: string | null
+          times_used?: number | null
           usage_limit?: number | null
           valid_from?: string | null
           valid_to?: string | null
@@ -384,6 +390,15 @@ export type Database = {
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      validate_promo_code: {
+        Args: { code_input: string }
+        Returns: {
+          discount_flat: number
+          discount_percent: number
+          message: string
+          valid: boolean
+        }[]
       }
     }
     Enums: {

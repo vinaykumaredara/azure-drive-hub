@@ -8,6 +8,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/components/AuthProvider';
 import AdminCarManagement from '@/components/AdminCarManagement';
 import AdminBookingManagement from '@/components/AdminBookingManagement';
+import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
+import { PromoCodeManager } from '@/components/PromoCodeManager';
+import { MaintenanceScheduler } from '@/components/MaintenanceScheduler';
+
+// License Management Component
+const LicenseManagement = () => {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">License Management</h2>
+      <div className="text-center py-12">
+        <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">License review functionality will be available soon.</p>
+      </div>
+    </div>
+  );
+};
 import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard: React.FC = () => {
@@ -140,7 +156,8 @@ const AdminDashboard: React.FC = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
                 >
-                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer hover-lift opacity-60">
+                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer hover-lift"
+                        onClick={() => navigate('/admin/analytics')}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-3">
                         <div className="p-2 bg-warning/10 rounded-lg">
@@ -151,7 +168,7 @@ const AdminDashboard: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground">
-                        Revenue reports and performance analytics. (Coming Soon)
+                        Revenue reports and performance analytics.
                       </p>
                     </CardContent>
                   </Card>
@@ -162,7 +179,8 @@ const AdminDashboard: React.FC = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5 }}
                 >
-                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer hover-lift opacity-60">
+                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer hover-lift"
+                        onClick={() => navigate('/admin/licenses')}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-3">
                         <div className="p-2 bg-accent-purple/10 rounded-lg">
@@ -173,7 +191,7 @@ const AdminDashboard: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground">
-                        Review and verify customer driver's licenses. (Coming Soon)
+                        Review and verify customer driver's licenses.
                       </p>
                     </CardContent>
                   </Card>
@@ -184,18 +202,19 @@ const AdminDashboard: React.FC = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6 }}
                 >
-                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer hover-lift opacity-60">
+                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer hover-lift"
+                        onClick={() => navigate('/admin/promos')}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-3">
                         <div className="p-2 bg-destructive/10 rounded-lg">
                           <MessageCircle className="h-6 w-6 text-destructive" />
                         </div>
-                        Support & Complaints
+                        Promo Codes
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground">
-                        Handle customer support requests and complaints. (Coming Soon)
+                        Create and manage promotional discount codes.
                       </p>
                     </CardContent>
                   </Card>
@@ -206,7 +225,8 @@ const AdminDashboard: React.FC = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.7 }}
                 >
-                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer hover-lift opacity-60">
+                  <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer hover-lift"
+                        onClick={() => navigate('/admin/maintenance')}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-3">
                         <div className="p-2 bg-muted/50 rounded-lg">
@@ -217,7 +237,7 @@ const AdminDashboard: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground">
-                        Schedule and track vehicle maintenance. (Coming Soon)
+                        Schedule and track vehicle maintenance.
                       </p>
                     </CardContent>
                   </Card>
@@ -227,6 +247,10 @@ const AdminDashboard: React.FC = () => {
           } />
           <Route path="/cars" element={<AdminCarManagement />} />
           <Route path="/bookings" element={<AdminBookingManagement />} />
+          <Route path="/analytics" element={<AnalyticsDashboard />} />
+          <Route path="/licenses" element={<LicenseManagement />} />
+          <Route path="/promos" element={<PromoCodeManager />} />
+          <Route path="/maintenance" element={<MaintenanceScheduler />} />
         </Routes>
       </main>
     </div>
