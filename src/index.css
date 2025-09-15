@@ -135,6 +135,38 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  /* Improve text readability and wrapping */
+  p, h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Ensure proper line height for readability */
+  body {
+    line-height: 1.6;
+  }
+
+  /* Responsive Typography */
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+
+  /* Smooth animations and better performance */
+  * {
+    scroll-behavior: smooth;
+  }
+
+  /* Better mobile responsiveness */
+  @media (max-width: 640px) {
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
   }
 }
 

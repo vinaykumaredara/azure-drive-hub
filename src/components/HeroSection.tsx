@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Shield, Clock, Star } from "lucide-react";
 import { motion } from "framer-motion";
-import heroImage from "@/assets/hero-car.jpg";
 
 export const HeroSection = () => {
   const scrollToCars = () => {
@@ -61,18 +60,16 @@ export const HeroSection = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
             >
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight break-words">
                 <span className="text-foreground">Premium Car</span>
                 <br />
                 <span className="text-gradient">Rental Experience</span>
               </h1>
-              <p className="text-lg sm:text-xl text-muted-foreground max-w-lg">
+              <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-lg leading-relaxed break-words">
                 Discover our fleet of premium vehicles. Book instantly, drive safely, 
                 and experience the freedom of reliable car rental in Hyderabad.
               </p>
             </motion.div>
-
-
 
             {/* CTA Buttons */}
             <motion.div 
@@ -103,12 +100,14 @@ export const HeroSection = () => {
             transition={{ delay: 0.2, duration: 0.7, ease: "easeOut" }}
           >
             <div className="relative">
-              <img 
-                src={heroImage}
-                alt="Premium car rental"
-                className="w-full h-auto rounded-2xl shadow-hover object-cover"
-                loading="eager"
-              />
+              {/* Placeholder car image */}
+              <div className="w-full h-80 lg:h-96 bg-gradient-to-br from-primary/10 to-accent-purple/10 rounded-2xl shadow-hover flex items-center justify-center">
+                <div className="text-center text-primary">
+                  <div className="text-6xl mb-4">🚗</div>
+                  <div className="text-lg font-semibold">Premium Car Fleet</div>
+                  <div className="text-sm text-muted-foreground">Available for Rent</div>
+                </div>
+              </div>
               
               {/* Floating Card */}
               <motion.div 
@@ -122,8 +121,8 @@ export const HeroSection = () => {
                     <Shield className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <div className="font-semibold text-foreground">Fully Insured</div>
-                    <div className="text-sm text-muted-foreground">Comprehensive Coverage</div>
+                    <div className="font-semibold text-foreground whitespace-nowrap">Fully Insured</div>
+                    <div className="text-sm text-muted-foreground whitespace-nowrap">Comprehensive Coverage</div>
                   </div>
                 </div>
               </motion.div>
@@ -136,8 +135,8 @@ export const HeroSection = () => {
                 transition={{ delay: 0.9, duration: 0.4, ease: "backOut" }}
               >
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">₹999</div>
-                  <div className="text-sm text-muted-foreground">Starting from</div>
+                  <div className="text-2xl font-bold text-primary whitespace-nowrap">₹999</div>
+                  <div className="text-sm text-muted-foreground whitespace-nowrap">Starting from</div>
                 </div>
               </motion.div>
             </div>

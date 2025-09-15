@@ -42,7 +42,15 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Suspense fallback={<CarTravelingLoader message="Loading RP cars..." />}>
+            <Suspense fallback={
+              <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-center p-8">
+                  <div className="text-4xl mb-4">🚗</div>
+                  <div className="text-xl font-semibold text-foreground mb-2">Loading RP cars...</div>
+                  <div className="text-sm text-muted-foreground">Please wait while we prepare your experience</div>
+                </div>
+              </div>
+            }>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
