@@ -64,7 +64,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ car, onClose }) => {
   const calculateTotal = () => {
     const basePrice = car.pricePerDay * bookingData.totalDays;
     const extrasPrice = Object.entries(bookingData.extras).reduce((acc, [key, enabled]) => {
-      if (!enabled) return acc;
+      if (!enabled) {return acc;}
       const prices = { driver: 500, gps: 200, childSeat: 150, insurance: 300 };
       return acc + (prices[key as keyof typeof prices] || 0);
     }, 0);
@@ -333,7 +333,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ car, onClose }) => {
           </div>
           
           {Object.entries(bookingData.extras).map(([key, enabled]) => {
-            if (!enabled) return null;
+            if (!enabled) {return null;}
             const prices = { driver: 500, gps: 200, childSeat: 150, insurance: 300 };
             const names = { driver: 'Driver', gps: 'GPS', childSeat: 'Child Seat', insurance: 'Insurance' };
             return (

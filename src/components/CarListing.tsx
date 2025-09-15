@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CarCard } from "@/components/CarCard";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,58 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, SlidersHorizontal } from "lucide-react";
-import { useCars } from "@/hooks/use-cars";
 import { CarListSkeleton } from "@/components/ui/skeleton";
 import { ApiErrorState, EmptyState } from "@/components/ErrorBoundary";
+import { EmptyCarState } from "@/components/EmptyCarState";
+import { CarTravelingLoader } from "@/components/LoadingAnimations";
+import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeSubscription } from "@/hooks/useRealtime";
+import { toast } from "@/hooks/use-toast";
+
+// Car interface for Supabase data
+interface Car {
+  id: string;
+  title: string;
+  make: string;
+  model: string;
+  year: number;
+  seats: number;
+  fuel_type: string;
+  transmission: string;
+  price_per_day: number;
+  price_per_hour?: number;
+  description?: string;
+  location_city?: string;
+  status: string;
+  image_urls: string[];
+  created_at: string;
+}
+
+// Transform Supabase car to display format
+const transformCarForDisplay = (car: Car) => ({
+  id: car.id,
+  title: car.title,
+  make: car.make,
+  model: car.model,
+  year: car.year,
+  image: car.image_urls?.[0] || `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=400&h=300&fit=crop&crop=center&auto=format&q=80`,
+  images: car.image_urls?.length > 0 ? car.image_urls : [
+    `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80`,
+    `https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&crop=center&auto=format&q=80`
+  ],
+  pricePerDay: car.price_per_day,
+  pricePerHour: car.price_per_hour || Math.round(car.price_per_day / 8),
+  location: car.location_city || 'Hyderabad',
+  fuel: car.fuel_type,
+  transmission: car.transmission,
+  seats: car.seats,
+  rating: 4.5 + (Math.random() * 0.4), // Random rating between 4.5-4.9
+  reviewCount: Math.floor(Math.random() * 50) + 15, // Random reviews 15-65
+  isAvailable: car.status === 'active',
+  badges: car.status === 'active' ? ['Available', 'Verified'] : ['Busy'],
+  features: ['GPS', 'AC', 'Bluetooth', 'Insurance'],
+  description: car.description || `${car.make} ${car.model} - Perfect for city drives and long trips`
+});
 
 const filterOptions = [
   { label: "All Seats", value: "all" },
@@ -36,16 +85,105 @@ export const CarListing = () => {
   const [seatFilter, setSeatFilter] = useState("all");
   const [fuelFilter, setFuelFilter] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
+  const [cars, setCars] = useState<Car[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch cars from Supabase
+  const fetchCars = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const { data, error: fetchError } = await supabase
+        .from('cars')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {throw fetchError;}
+      setCars(data || []);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch cars';
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: "Failed to load cars",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchCars();
+  }, []);
+
+  // Real-time subscription for cars
+  useRealtimeSubscription(
+    'cars',
+    (payload) => {
+      setCars(prev => [...prev, payload.new]);
+    },
+    (payload) => {
+      setCars(prev => prev.map(car => 
+        car.id === payload.new.id ? payload.new : car
+      ));
+    },
+    (payload) => {
+      setCars(prev => prev.filter(car => car.id !== payload.old.id));
+    }
+  );
+
+  // Filter and transform cars
+  const filteredCars = cars
+    .filter(car => {
+      // Search filter
+      if (searchQuery && !car.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !car.make.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !car.model.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(car.location_city || '').toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      
+      // Seat filter
+      if (seatFilter !== "all" && car.seats !== parseInt(seatFilter)) {
+        return false;
+      }
+      
+      // Fuel filter
+      if (fuelFilter !== "all" && car.fuel_type.toLowerCase() !== fuelFilter.toLowerCase()) {
+        return false;
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'price-asc':
+          return a.price_per_day - b.price_per_day;
+        case 'price-desc':
+          return b.price_per_day - a.price_per_day;
+        case 'rating-desc':
+        case 'popular':
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    })
+    .map(transformCarForDisplay);
+
+  const totalCount = filteredCars.length;
 
   // Use the custom hook with filters
-  const { cars, loading, error, totalCount, refetch, clearError } = useCars({
-    q: searchQuery,
-    seats: seatFilter !== "all" ? parseInt(seatFilter) : undefined,
-    fuelType: fuelFilter,
-    sortBy,
-    from: new Date().toISOString().split('T')[0], // Today
-    to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Tomorrow
-  });
+  // const { cars, loading, error, totalCount, refetch, clearError } = useCars({
+  //   q: searchQuery,
+  //   seats: seatFilter !== "all" ? parseInt(seatFilter) : undefined,
+  //   fuelType: fuelFilter,
+  //   sortBy,
+  //   from: new Date().toISOString().split('T')[0], // Today
+  //   to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Tomorrow
+  // });
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -199,7 +337,7 @@ export const CarListing = () => {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <CarListSkeleton />
+              <CarTravelingLoader message="Fetching your perfect cars..." />
             </motion.div>
           ) : error ? (
             <motion.div
@@ -209,9 +347,9 @@ export const CarListing = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <ApiErrorState error={error} onRetry={refetch} />
+              <ApiErrorState error={error} onRetry={fetchCars} />
             </motion.div>
-          ) : cars.length === 0 ? (
+          ) : filteredCars.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 20 }}
@@ -219,20 +357,7 @@ export const CarListing = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <EmptyState
-                title="No cars found"
-                description="Try adjusting your filters or search terms to find more cars."
-                action={
-                  <Button onClick={() => {
-                    setSearchQuery("");
-                    setSeatFilter("all");
-                    setFuelFilter("all");
-                    setSortBy("popular");
-                  }}>
-                    Clear Filters
-                  </Button>
-                }
-              />
+              <EmptyCarState />
             </motion.div>
           ) : (
             <motion.div
@@ -242,7 +367,7 @@ export const CarListing = () => {
               initial="hidden"
               animate="visible"
             >
-              {cars.map((car, index) => (
+              {filteredCars.map((car, index) => (
                 <motion.div key={car.id} variants={itemVariants}>
                   <CarCard car={car} />
                 </motion.div>
@@ -252,7 +377,7 @@ export const CarListing = () => {
         </AnimatePresence>
 
         {/* Load More */}
-        {!loading && !error && cars.length > 0 && (
+        {!loading && !error && filteredCars.length > 0 && (
           <motion.div 
             className="text-center mt-12"
             initial={{ opacity: 0 }}

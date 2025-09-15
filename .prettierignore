@@ -1,0 +1,9 @@
+dist/
+build/
+node_modules/
+coverage/
+.nyc_output/
+*.log
+*.env
+.DS_Store
+public/mockServiceWorker.js

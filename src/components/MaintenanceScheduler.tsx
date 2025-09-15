@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Wrench, Plus, Edit, Trash2, AlertCircle } from "lucide-react";
+import { CalendarIcon, Wrench, Plus, Edit, Trash2, AlertCircle, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
+import { useNavigate } from "react-router-dom";
 
 interface Maintenance {
   id: string;
@@ -35,6 +36,7 @@ interface Car {
 }
 
 export const MaintenanceScheduler: React.FC = () => {
+  const navigate = useNavigate();
   const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,7 +64,7 @@ export const MaintenanceScheduler: React.FC = () => {
         `)
         .order("start_date", { ascending: true });
 
-      if (error) throw error;
+      if (error) {throw error;}
       setMaintenances(data || []);
     } catch (error) {
       console.error("Error fetching maintenances:", error);
@@ -82,7 +84,7 @@ export const MaintenanceScheduler: React.FC = () => {
         .eq("status", "active")
         .order("title");
 
-      if (error) throw error;
+      if (error) {throw error;}
       setCars(data || []);
     } catch (error) {
       console.error("Error fetching cars:", error);
@@ -150,7 +152,7 @@ export const MaintenanceScheduler: React.FC = () => {
           .update(maintenanceData)
           .eq("id", editingMaintenance.id);
 
-        if (error) throw error;
+        if (error) {throw error;}
         
         toast({
           title: "Maintenance Updated",
@@ -162,7 +164,7 @@ export const MaintenanceScheduler: React.FC = () => {
           .from("maintenance")
           .insert(maintenanceData);
 
-        if (error) throw error;
+        if (error) {throw error;}
         
         toast({
           title: "Maintenance Scheduled",
@@ -202,7 +204,7 @@ export const MaintenanceScheduler: React.FC = () => {
         .delete()
         .eq("id", maintenanceId);
 
-      if (error) throw error;
+      if (error) {throw error;}
       
       toast({
         title: "Maintenance Deleted",
@@ -253,10 +255,20 @@ export const MaintenanceScheduler: React.FC = () => {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Wrench className="w-5 h-5" />
-            Maintenance Scheduler
-          </CardTitle>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => navigate('/admin')}
+              className="hover:bg-primary hover:text-primary-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="w-5 h-5" />
+              Maintenance Scheduler
+            </CardTitle>
+          </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>

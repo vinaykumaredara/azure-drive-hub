@@ -72,26 +72,7 @@ export const HeroSection = () => {
               </p>
             </motion.div>
 
-            {/* Stats */}
-            <motion.div 
-              className="grid grid-cols-3 gap-6 py-6 border-y border-border/50"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
-            >
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold text-primary">500+</div>
-                <div className="text-sm text-muted-foreground">Cars Available</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold text-primary">10K+</div>
-                <div className="text-sm text-muted-foreground">Happy Customers</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold text-primary">50+</div>
-                <div className="text-sm text-muted-foreground">Locations</div>
-              </div>
-            </motion.div>
+
 
             {/* CTA Buttons */}
             <motion.div 

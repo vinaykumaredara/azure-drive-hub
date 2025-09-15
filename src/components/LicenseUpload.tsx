@@ -28,7 +28,7 @@ export const LicenseUpload: React.FC = () => {
 
   // Fetch user's licenses
   const fetchLicenses = async () => {
-    if (!user) return;
+    if (!user) {return;}
 
     try {
       const { data, error } = await supabase
@@ -37,7 +37,7 @@ export const LicenseUpload: React.FC = () => {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
       setLicenses(data || []);
     } catch (error) {
       console.error("Error fetching licenses:", error);
@@ -57,7 +57,7 @@ export const LicenseUpload: React.FC = () => {
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !user) return;
+    if (!file || !user) {return;}
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
@@ -96,7 +96,7 @@ export const LicenseUpload: React.FC = () => {
             },
           });
 
-          if (error) throw error;
+          if (error) {throw error;}
 
           toast({
             title: "License Uploaded Successfully!",
@@ -146,8 +146,8 @@ export const LicenseUpload: React.FC = () => {
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.9) return "text-success";
-    if (confidence >= 0.7) return "text-warning";
+    if (confidence >= 0.9) {return "text-success";}
+    if (confidence >= 0.7) {return "text-warning";}
     return "text-destructive";
   };
 

@@ -43,7 +43,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   // Fetch messages
   const fetchMessages = async () => {
-    if (!user || !currentRoomId) return;
+    if (!user || !currentRoomId) {return;}
 
     try {
       const { data, error } = await supabase
@@ -52,7 +52,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
         .eq("room_id", currentRoomId)
         .order("created_at", { ascending: true });
 
-      if (error) throw error;
+      if (error) {throw error;}
       setMessages(data || []);
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -103,7 +103,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   }, [isOpen, isMinimized]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user || !currentRoomId) return;
+    if (!newMessage.trim() || !user || !currentRoomId) {return;}
 
     setIsLoading(true);
     
@@ -116,7 +116,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           message: newMessage.trim(),
         });
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       setNewMessage("");
     } catch (error) {

@@ -33,12 +33,16 @@ export const Header = () => {
             <a href="#about" className="text-foreground hover:text-primary transition-colors duration-200">
               About
             </a>
-            <a href="#contact" className="text-foreground hover:text-primary transition-colors duration-200">
+            <a href="#contact" className="text-foreground hover:text-primary transition-colors duration-200" onClick={() => {
+              const text = encodeURIComponent("Hello Azure Drive Hub! I'd like to know more about your car rental services.");
+              const waUrl = `https://wa.me/918897072640?text=${text}`;
+              window.open(waUrl, "_blank");
+            }}>
               Contact
             </a>
             <div className="flex items-center space-x-2 text-muted-foreground">
               <Phone className="w-4 h-4" />
-              <span className="text-sm font-medium">+91 99999 00000</span>
+              <span className="text-sm font-medium">+91 8897072640</span>
             </div>
           </nav>
 
@@ -113,7 +117,11 @@ export const Header = () => {
                   <a href="#about" className="text-lg text-foreground hover:text-primary transition-colors">
                     About
                   </a>
-                  <a href="#contact" className="text-lg text-foreground hover:text-primary transition-colors">
+                  <a href="#contact" className="text-lg text-foreground hover:text-primary transition-colors" onClick={() => {
+                    const text = encodeURIComponent("Hello Azure Drive Hub! I'd like to know more about your car rental services.");
+                    const waUrl = `https://wa.me/918897072640?text=${text}`;
+                    window.open(waUrl, "_blank");
+                  }}>
                     Contact
                   </a>
                 </nav>
@@ -151,7 +159,7 @@ export const Header = () => {
 
                 <div className="flex items-center space-x-2 text-muted-foreground pt-4 border-t">
                   <Phone className="w-4 h-4" />
-                  <span className="text-sm font-medium">+91 99999 00000</span>
+                  <span className="text-sm font-medium">+91 8897072640</span>
                 </div>
               </div>
             </SheetContent>

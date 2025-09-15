@@ -1,38 +1,164 @@
 // src/pages/Booking.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useCarDetail } from "@/hooks/use-cars";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, MapPin, Users, Fuel, Settings } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Fuel, Settings, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { CarTravelingLoader } from "@/components/LoadingAnimations";
+import { toast } from "@/hooks/use-toast";
+import { PaymentGateway } from "@/components/PaymentGateway";
+import { PromoCodeInput } from "@/components/PromoCodeInput";
+import { CarImageGallery } from "@/components/CarImageGallery";
+
+interface Car {
+  id: string;
+  title: string;
+  make: string;
+  model: string;
+  year: number;
+  seats: number;
+  fuel_type: string;
+  transmission: string;
+  price_per_day: number;
+  price_per_hour?: number;
+  service_charge?: number;
+  description?: string;
+  location_city?: string;
+  status: string;
+  image_urls: string[];
+  created_at: string;
+}
 
 const BookingPage: React.FC = () => {
   const { carId } = useParams();
   const navigate = useNavigate();
-  const { car, loading, error } = useCarDetail(carId || null);
+  const [car, setCar] = useState<Car | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [pickupDate, setPickupDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [pickupTime, setPickupTime] = useState("10:00");
   const [returnTime, setReturnTime] = useState("10:00");
+  const [durationError, setDurationError] = useState<string | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [showPromoCode, setShowPromoCode] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoDiscountType, setPromoDiscountType] = useState<'percent' | 'flat'>('percent');
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const calculateDays = () => {
-    if (!pickupDate || !returnDate) return 0;
-    const pickup = new Date(pickupDate);
-    const returnD = new Date(returnDate);
-    const diffTime = Math.abs(returnD.getTime() - pickup.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+  // Fetch car details from Supabase
+  const fetchCar = async () => {
+    if (!carId) {
+      setError('No car ID provided');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const { data, error: fetchError } = await supabase
+        .from('cars')
+        .select('*')
+        .eq('id', carId)
+        .eq('status', 'active')
+        .single();
+
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          setError('Car not found or not available');
+        } else {
+          throw fetchError;
+        }
+        return;
+      }
+
+      setCar(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch car details');
+      toast({
+        title: "Error",
+        description: "Failed to load car details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const days = calculateDays();
-  const subtotal = car ? car.pricePerDay * days : 0;
-  const taxes = subtotal * 0.18; // 18% GST
-  const total = subtotal + taxes;
+  useEffect(() => {
+    fetchCar();
+  }, [carId]);
+
+  // Update validation when dates/times change
+  useEffect(() => {
+    const duration = calculateDuration();
+    setDurationError(duration.error);
+  }, [pickupDate, returnDate, pickupTime, returnTime]);
+
+  const calculateDuration = () => {
+    if (!pickupDate || !returnDate || !pickupTime || !returnTime) {return { hours: 0, days: 0, isValid: false, error: null };}
+    
+    const pickupDateTime = new Date(`${pickupDate}T${pickupTime}:00`);
+    const returnDateTime = new Date(`${returnDate}T${returnTime}:00`);
+    
+    if (returnDateTime <= pickupDateTime) {
+      return { hours: 0, days: 0, isValid: false, error: "Return date/time must be after pickup date/time" };
+    }
+    
+    const diffMs = returnDateTime.getTime() - pickupDateTime.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    
+    // Check minimum duration requirement
+    if (diffHours < 12) {
+      return { hours: diffHours, days: 0, isValid: false, error: "We provide cars only for a minimum of 12 hours or 24 hours." };
+    }
+    
+    // Calculate billing hours - round up to next 12/24 hour increment
+    let billingHours;
+    if (diffHours <= 12) {
+      billingHours = 12;
+    } else if (diffHours <= 24) {
+      billingHours = 24;
+    } else {
+      // For longer periods, calculate in full days (24-hour increments)
+      billingHours = Math.ceil(diffHours / 24) * 24;
+    }
+    
+    const billingDays = billingHours / 24;
+    
+    return { 
+      hours: diffHours, 
+      billingHours, 
+      days: billingDays, 
+      isValid: true, 
+      error: null 
+    };
+  };
+
+  const calculateDays = () => {
+    const duration = calculateDuration();
+    return duration.isValid ? duration.days : 0;
+  };
+
+  const duration = calculateDuration();
+  const days = duration.isValid ? duration.days : 0;
+  const actualHours = duration.hours || 0;
+  const billingHours = duration.billingHours || 0;
+  const subtotal = car ? car.price_per_day * days : 0;
+  const discountAmount = promoDiscountType === 'percent' 
+    ? (subtotal * promoDiscount) / 100 
+    : promoDiscount;
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const serviceCharge = car?.service_charge || 0;
+  const total = subtotalAfterDiscount + serviceCharge;
 
   const handleBooking = () => {
     if (!user) {
@@ -40,14 +166,30 @@ const BookingPage: React.FC = () => {
       return;
     }
     
-    // TODO: Implement actual booking logic
-    alert("Booking functionality will be implemented with payment integration");
+    if (!duration.isValid) {
+      toast({
+        title: "Invalid Duration",
+        description: duration.error || "Please check your booking dates and times",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentSuccess = (bookingId: string) => {
+    toast({
+      title: "Booking Confirmed!",
+      description: "Your car has been successfully booked. Check your dashboard for details.",
+    });
+    navigate("/dashboard");
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <CarTravelingLoader message="Loading car details..." />
       </div>
     );
   }
@@ -57,10 +199,27 @@ const BookingPage: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="text-center p-6">
-            <p className="text-destructive mb-4">Car not found or failed to load</p>
-            <Button onClick={() => navigate("/")} variant="outline">
-              Go Back Home
-            </Button>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="space-y-4"
+            >
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ArrowLeft className="w-8 h-8 text-red-500" />
+              </div>
+              <h2 className="text-xl font-semibold text-foreground">Car Not Found</h2>
+              <p className="text-muted-foreground mb-6">
+                {error || "The car you're looking for is not available or doesn't exist."}
+              </p>
+              <div className="space-y-2">
+                <Button onClick={() => navigate("/")} className="w-full">
+                  Browse Available Cars
+                </Button>
+                <Button onClick={() => window.history.back()} variant="outline" className="w-full">
+                  Go Back
+                </Button>
+              </div>
+            </motion.div>
           </CardContent>
         </Card>
       </div>
@@ -90,19 +249,22 @@ const BookingPage: React.FC = () => {
                 <CardTitle className="text-2xl text-gradient">Book Your Car</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="aspect-video overflow-hidden rounded-lg">
-                  <img
-                    src={car.image}
-                    alt={car.model}
-                    className="w-full h-full object-cover"
+                <div className="space-y-6">
+                  <CarImageGallery
+                    images={car.image_urls}
+                    carTitle={`${car.make} ${car.model}`}
+                    aspectRatio="video"
+                    showThumbnails={true}
+                    interactive={true}
                   />
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold">{car.model}</h3>
+                  <h3 className="text-xl font-semibold">{car.title}</h3>
+                  <p className="text-sm text-muted-foreground">{car.make} {car.model} ({car.year})</p>
                   <div className="flex items-center text-sm text-muted-foreground mt-1">
                     <MapPin className="w-4 h-4 mr-1" />
-                    {car.location}
+                    {car.location_city || 'Hyderabad'}
                   </div>
                 </div>
 
@@ -113,7 +275,7 @@ const BookingPage: React.FC = () => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <Fuel className="w-4 h-4 text-muted-foreground" />
-                    <span>{car.fuel}</span>
+                    <span>{car.fuel_type}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Settings className="w-4 h-4 text-muted-foreground" />
@@ -191,18 +353,79 @@ const BookingPage: React.FC = () => {
 
                 <Separator />
 
+                {/* Duration Validation Error */}
+                {durationError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-800 font-medium">{durationError}</p>
+                    <p className="text-xs text-red-600 mt-1">
+                      Please select a minimum of 12 hours or 24 hours booking duration.
+                    </p>
+                  </div>
+                )}
+
+                {/* Duration Summary */}
+                {duration.isValid && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="text-sm space-y-1">
+                      <p><strong>Actual Duration:</strong> {actualHours.toFixed(1)} hours</p>
+                      <p><strong>Billing Duration:</strong> {billingHours} hours ({days} day{days !== 1 ? 's' : ''})</p>
+                      {actualHours !== billingHours && (
+                        <p className="text-blue-600 text-xs">
+                          ℹ️ Rounded up to minimum {billingHours < 24 ? '12-hour' : '24-hour'} billing cycle
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Price Breakdown */}
                 <div className="space-y-3">
-                  <h4 className="font-semibold">Price Breakdown</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Price Breakdown</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowPromoCode(!showPromoCode)}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      <span className="mr-1">🎁</span>
+                      Promo Code
+                    </Button>
+                  </div>
+                  
+                  {showPromoCode && (
+                    <PromoCodeInput
+                      totalAmount={subtotal}
+                      onPromoApplied={(discount, code, discountType) => {
+                        setPromoDiscount(discount);
+                        setPromoDiscountType(discountType || 'percent');
+                        setAppliedPromoCode(code);
+                      }}
+                      onPromoRemoved={() => {
+                        setPromoDiscount(0);
+                        setPromoDiscountType('percent');
+                        setAppliedPromoCode(null);
+                      }}
+                    />
+                  )}
+                  
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span>₹{car.pricePerDay.toLocaleString()} × {days} day{days > 1 ? 's' : ''}</span>
+                      <span>₹{car.price_per_day.toLocaleString()} × {days} day{days > 1 ? 's' : ''}</span>
                       <span>₹{subtotal.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Taxes & Fees (18% GST)</span>
-                      <span>₹{taxes.toLocaleString()}</span>
-                    </div>
+                    {promoDiscount > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Promo Code Discount ({appliedPromoCode})</span>
+                        <span>-₹{discountAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {serviceCharge > 0 && (
+                      <div className="flex justify-between">
+                        <span>Service Charge</span>
+                        <span>₹{serviceCharge.toLocaleString()}</span>
+                      </div>
+                    )}
                     <Separator />
                     <div className="flex justify-between font-semibold text-lg">
                       <span>Total</span>
@@ -215,7 +438,7 @@ const BookingPage: React.FC = () => {
                   onClick={handleBooking}
                   className="w-full"
                   size="lg"
-                  disabled={!pickupDate || !returnDate}
+                  disabled={!pickupDate || !returnDate || !duration.isValid}
                 >
                   {user ? "Proceed to Payment" : "Sign In to Book"}
                 </Button>
@@ -230,6 +453,30 @@ const BookingPage: React.FC = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Payment Gateway Modal */}
+      <PaymentGateway
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        bookingData={{
+          carId: car.id,
+          carTitle: car.title,
+          carImage: car.image_urls?.[0] || 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80',
+          startDate: pickupDate,
+          endDate: returnDate,
+          startTime: pickupTime,
+          endTime: returnTime,
+          duration: {
+            hours: actualHours,
+            days,
+            billingHours
+          },
+          subtotal,
+          serviceCharge,
+          total: Math.round(total)
+        }}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   );
 };

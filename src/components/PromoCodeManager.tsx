@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Tag, Plus, Edit, Trash2, Copy, AlertCircle, Percent, IndianRupee } from "lucide-react";
+import { CalendarIcon, Tag, Plus, Edit, Trash2, Copy, AlertCircle, Percent, IndianRupee, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
+import { useNavigate } from "react-router-dom";
 
 interface PromoCode {
   id: string;
@@ -26,6 +27,7 @@ interface PromoCode {
 }
 
 export const PromoCodeManager: React.FC = () => {
+  const navigate = useNavigate();
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -48,7 +50,7 @@ export const PromoCodeManager: React.FC = () => {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
       setPromoCodes(data || []);
     } catch (error) {
       console.error("Error fetching promo codes:", error);
@@ -133,7 +135,7 @@ export const PromoCodeManager: React.FC = () => {
           .update(promoData)
           .eq("id", editingPromo.id);
 
-        if (error) throw error;
+        if (error) {throw error;}
 
         toast({
           title: "Promo Code Updated",
@@ -145,7 +147,7 @@ export const PromoCodeManager: React.FC = () => {
           .from("promo_codes")
           .insert(promoData);
 
-        if (error) throw error;
+        if (error) {throw error;}
 
         toast({
           title: "Promo Code Created",
@@ -188,7 +190,7 @@ export const PromoCodeManager: React.FC = () => {
         .delete()
         .eq("id", promoId);
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       toast({
         title: "Promo Code Deleted",
@@ -211,7 +213,7 @@ export const PromoCodeManager: React.FC = () => {
         .update({ active: !promo.active })
         .eq("id", promo.id);
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       toast({
         title: promo.active ? "Promo Code Deactivated" : "Promo Code Activated",
@@ -283,10 +285,20 @@ export const PromoCodeManager: React.FC = () => {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Tag className="w-5 h-5" />
-            Promo Code Manager
-          </CardTitle>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => navigate('/admin')}
+              className="hover:bg-primary hover:text-primary-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="w-5 h-5" />
+              Promo Code Manager
+            </CardTitle>
+          </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>

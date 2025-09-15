@@ -159,7 +159,8 @@
 
   /* Staggered Animation */
   .stagger-item {
-    @apply opacity-0 translate-y-4 animate-fade-in;
+    @apply opacity-0 translate-y-4;
+    animation: fadeInUp 0.6s ease-out forwards;
   }
 
   .stagger-item:nth-child(1) { animation-delay: 0ms; }
@@ -187,5 +188,36 @@
   /* Smooth Scroll */
   .smooth-scroll {
     scroll-behavior: smooth;
+  }
+
+  /* Loading Spinner Animation */
+  .spinner-dash {
+    animation: spinner-dash 1.5s ease-in-out infinite;
+  }
+
+  @keyframes spinner-dash {
+    0% {
+      stroke-dasharray: 1, 150;
+      stroke-dashoffset: 0;
+    }
+    50% {
+      stroke-dasharray: 90, 150;
+      stroke-dashoffset: -35;
+    }
+    100% {
+      stroke-dasharray: 90, 150;
+      stroke-dashoffset: -124;
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }

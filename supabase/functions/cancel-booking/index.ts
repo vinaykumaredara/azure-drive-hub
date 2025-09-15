@@ -1,5 +1,7 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
+
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,7 +59,7 @@ serve(async (req) => {
     }
 
     // Mock refund processing
-    let refundId = `refund_mock_${Date.now()}`
+    const refundId = `refund_mock_${Date.now()}`
     
     if (booking.payments?.[0]?.gateway === 'stripe') {
       // Mock Stripe refund

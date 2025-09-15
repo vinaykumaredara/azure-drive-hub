@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Car, User, CheckCircle, XCircle, RotateCcw, DollarSign } from 'lucide-react';
+import { Calendar, Car, User, CheckCircle, XCircle, RotateCcw, DollarSign, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtime';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useNavigate } from 'react-router-dom';
 
 interface Booking {
   id: string;
@@ -32,6 +33,7 @@ interface Booking {
 }
 
 const AdminBookingManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -74,7 +76,7 @@ const AdminBookingManagement: React.FC = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
       setBookings(data || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -95,7 +97,7 @@ const AdminBookingManagement: React.FC = () => {
         .update({ status: newStatus })
         .eq('id', bookingId);
 
-      if (error) throw error;
+      if (error) {throw error;}
       
       toast({
         title: "Success",
@@ -118,7 +120,7 @@ const AdminBookingManagement: React.FC = () => {
         body: { bookingId }
       });
 
-      if (error) throw error;
+      if (error) {throw error;}
       
       toast({
         title: "Success",
@@ -181,7 +183,17 @@ const AdminBookingManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Booking Management</h2>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => navigate('/admin')}
+            className="hover:bg-primary hover:text-primary-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h2 className="text-2xl font-bold">Booking Management</h2>
+        </div>
         <div className="flex space-x-2">
           {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map((status) => (
             <Button

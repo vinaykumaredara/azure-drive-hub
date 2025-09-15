@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext", 
+    "moduleResolution": "node",
+    "allowJs": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": true,
+    "types": ["@supabase/functions-js"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Upload, Car, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, Car, Eye, ArrowLeft, Search, Filter, BarChart3, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtime';
+import { useNavigate } from 'react-router-dom';
 
 interface Car {
   id: string;
@@ -24,6 +25,7 @@ interface Car {
   transmission: string;
   price_per_day: number;
   price_per_hour?: number;
+  service_charge?: number;
   description?: string;
   location_city?: string;
   status: string;
@@ -32,11 +34,22 @@ interface Car {
 }
 
 const AdminCarManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [cars, setCars] = useState<Car[]>([]);
+  const [filteredCars, setFilteredCars] = useState<Car[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [carToDelete, setCarToDelete] = useState<Car | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [fuelFilter, setFuelFilter] = useState('all');
+  const [transmissionFilter, setTransmissionFilter] = useState('all');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -48,6 +61,7 @@ const AdminCarManagement: React.FC = () => {
     transmission: 'automatic',
     price_per_day: 0,
     price_per_hour: 0,
+    service_charge: 0,
     description: '',
     location_city: '',
     status: 'active'
@@ -56,6 +70,38 @@ const AdminCarManagement: React.FC = () => {
   useEffect(() => {
     fetchCars();
   }, []);
+  
+  // Filter cars based on search and filter criteria
+  useEffect(() => {
+    let filtered = cars;
+    
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(car => 
+        car.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        car.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        car.location_city?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(car => car.status === statusFilter);
+    }
+    
+    // Fuel filter
+    if (fuelFilter !== 'all') {
+      filtered = filtered.filter(car => car.fuel_type === fuelFilter);
+    }
+    
+    // Transmission filter
+    if (transmissionFilter !== 'all') {
+      filtered = filtered.filter(car => car.transmission === transmissionFilter);
+    }
+    
+    setFilteredCars(filtered);
+  }, [cars, searchTerm, statusFilter, fuelFilter, transmissionFilter]);
 
   // Real-time subscription for cars
   useRealtimeSubscription(
@@ -80,8 +126,9 @@ const AdminCarManagement: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
       setCars(data || []);
+      setFilteredCars(data || []);
     } catch (error) {
       console.error('Error fetching cars:', error);
       toast({
@@ -107,7 +154,7 @@ const AdminCarManagement: React.FC = () => {
           .from('cars-photos')
           .upload(fileName, file);
 
-        if (error) throw error;
+        if (error) {throw error;}
 
         const { data: { publicUrl } } = supabase.storage
           .from('cars-photos')
@@ -136,7 +183,7 @@ const AdminCarManagement: React.FC = () => {
     try {
       const carData = {
         ...formData,
-        image_urls: selectedCar?.image_urls || []
+        image_urls: selectedCar ? (selectedCar.image_urls || []).concat(uploadedImages) : uploadedImages
       };
 
       if (selectedCar) {
@@ -146,7 +193,7 @@ const AdminCarManagement: React.FC = () => {
           .update(carData)
           .eq('id', selectedCar.id);
 
-        if (error) throw error;
+        if (error) {throw error;}
         
         toast({
           title: "Success",
@@ -158,7 +205,7 @@ const AdminCarManagement: React.FC = () => {
           .from('cars')
           .insert(carData);
 
-        if (error) throw error;
+        if (error) {throw error;}
         
         toast({
           title: "Success",
@@ -178,16 +225,29 @@ const AdminCarManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (carId: string) => {
-    if (!confirm('Are you sure you want to delete this car?')) return;
+  const handleDeleteClick = (car: Car) => {
+    setCarToDelete(car);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!carToDelete) {return;}
 
     try {
+      // Optimistic update - remove from UI immediately
+      setCars(prev => prev.filter(car => car.id !== carToDelete.id));
+      setFilteredCars(prev => prev.filter(car => car.id !== carToDelete.id));
+      
       const { error } = await supabase
         .from('cars')
         .delete()
-        .eq('id', carId);
+        .eq('id', carToDelete.id);
 
-      if (error) throw error;
+      if (error) {
+        // Revert optimistic update on error
+        fetchCars();
+        throw error;
+      }
       
       toast({
         title: "Success",
@@ -197,10 +257,18 @@ const AdminCarManagement: React.FC = () => {
       console.error('Error deleting car:', error);
       toast({
         title: "Error",
-        description: "Failed to delete car",
+        description: "Failed to delete car. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setCarToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false);
+    setCarToDelete(null);
   };
 
   const resetForm = () => {
@@ -214,11 +282,13 @@ const AdminCarManagement: React.FC = () => {
       transmission: 'automatic',
       price_per_day: 0,
       price_per_hour: 0,
+      service_charge: 0,
       description: '',
       location_city: '',
       status: 'active'
     });
     setSelectedCar(null);
+    setUploadedImages([]);
   };
 
   const openEditDialog = (car?: Car) => {
@@ -234,10 +304,12 @@ const AdminCarManagement: React.FC = () => {
         transmission: car.transmission,
         price_per_day: car.price_per_day,
         price_per_hour: car.price_per_hour || 0,
+        service_charge: car.service_charge || 0,
         description: car.description || '',
         location_city: car.location_city || '',
         status: car.status
       });
+      setUploadedImages([]);
     } else {
       resetForm();
     }
@@ -267,8 +339,118 @@ const AdminCarManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header with Stats */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Car Management</h2>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => navigate('/admin')}
+            className="hover:bg-primary hover:text-primary-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold">Car Management</h2>
+            <p className="text-muted-foreground">
+              {cars.length} total cars • {cars.filter(c => c.status === 'active').length} active
+            </p>
+          </div>
+        </div>
+        
+        {/* Quick Stats */}
+        <div className="hidden md:flex items-center gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-success">{cars.filter(c => c.status === 'active').length}</div>
+            <div className="text-xs text-muted-foreground">Active</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-warning">{cars.filter(c => c.status === 'maintenance').length}</div>
+            <div className="text-xs text-muted-foreground">Maintenance</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-destructive">{cars.filter(c => c.status === 'inactive').length}</div>
+            <div className="text-xs text-muted-foreground">Inactive</div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search cars by title, make, model, or location..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            {/* Filters */}
+            <div className="flex gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={fuelFilter} onValueChange={setFuelFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Fuel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Fuel</SelectItem>
+                  <SelectItem value="petrol">Petrol</SelectItem>
+                  <SelectItem value="diesel">Diesel</SelectItem>
+                  <SelectItem value="electric">Electric</SelectItem>
+                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={transmissionFilter} onValueChange={setTransmissionFilter}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Transmission" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="automatic">Automatic</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  setFuelFilter('all');
+                  setTransmissionFilter('all');
+                }}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+          
+          {/* Results Count */}
+          <div className="mt-4 text-sm text-muted-foreground">
+            Showing {filteredCars.length} of {cars.length} cars
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Add Car Button */}
+      <div className="flex justify-end">
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => openEditDialog()}>
@@ -398,6 +580,20 @@ const AdminCarManagement: React.FC = () => {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="service_charge">Service Charge ($)</Label>
+                  <Input
+                    id="service_charge"
+                    type="number"
+                    step="0.01"
+                    value={formData.service_charge}
+                    onChange={(e) => setFormData(prev => ({...prev, service_charge: parseFloat(e.target.value)}))}
+                    placeholder="Optional service charge (replaces GST)"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Optional: Add a service charge that will replace GST in the booking summary
+                  </p>
+                </div>
+                <div>
                   <Label htmlFor="location_city">City</Label>
                   <Input
                     id="location_city"
@@ -419,7 +615,7 @@ const AdminCarManagement: React.FC = () => {
 
               <div>
                 <Label>Car Images</Label>
-                <div className="mt-2">
+                <div className="mt-2 space-y-4">
                   <input
                     type="file"
                     multiple
@@ -428,10 +624,7 @@ const AdminCarManagement: React.FC = () => {
                       if (e.target.files && e.target.files.length > 0) {
                         const urls = await handleImageUpload(e.target.files);
                         if (urls.length > 0) {
-                          setSelectedCar(prev => prev ? {
-                            ...prev,
-                            image_urls: [...(prev.image_urls || []), ...urls]
-                          } : null);
+                          setUploadedImages(prev => [...prev, ...urls]);
                         }
                       }
                     }}
@@ -439,6 +632,63 @@ const AdminCarManagement: React.FC = () => {
                   />
                   {uploadingImages && (
                     <p className="text-sm text-muted-foreground mt-2">Uploading images...</p>
+                  )}
+                  
+                  {/* Image Preview Section */}
+                  {((selectedCar?.image_urls && selectedCar.image_urls.length > 0) || uploadedImages.length > 0) && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Uploaded Images Preview</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {/* Existing images for editing */}
+                        {selectedCar?.image_urls?.map((url, index) => (
+                          <div key={`existing-${index}`} className="relative group">
+                            <img
+                              src={url}
+                              alt={`Car image ${index + 1}`}
+                              className="w-full h-20 object-cover rounded border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedCar) {
+                                  setSelectedCar({
+                                    ...selectedCar,
+                                    image_urls: selectedCar.image_urls?.filter((_, i) => i !== index) || []
+                                  });
+                                }
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        
+                        {/* Newly uploaded images */}
+                        {uploadedImages.map((url, index) => (
+                          <div key={`new-${index}`} className="relative group">
+                            <img
+                              src={url}
+                              alt={`New car image ${index + 1}`}
+                              className="w-full h-20 object-cover rounded border border-green-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUploadedImages(prev => prev.filter((_, i) => i !== index));
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Total images: {(selectedCar?.image_urls?.length || 0) + uploadedImages.length} • 
+                        New uploads: {uploadedImages.length}
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -456,8 +706,9 @@ const AdminCarManagement: React.FC = () => {
         </Dialog>
       </div>
 
+      {/* Cars Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {cars.map((car) => (
+        {filteredCars.map((car) => (
           <motion.div
             key={car.id}
             initial={{ opacity: 0, y: 20 }}
@@ -496,6 +747,11 @@ const AdminCarManagement: React.FC = () => {
                   </p>
                   <p className="font-semibold text-primary">
                     ${car.price_per_day}/day
+                    {car.service_charge && car.service_charge > 0 && (
+                      <span className="text-xs text-muted-foreground block">
+                        +${car.service_charge} service charge
+                      </span>
+                    )}
                   </p>
                   <div className="flex justify-between items-center pt-2">
                     <div className="flex space-x-1">
@@ -509,7 +765,9 @@ const AdminCarManagement: React.FC = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDelete(car.id)}
+                        onClick={() => handleDeleteClick(car)}
+                        className="hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                        title="Delete car"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -525,17 +783,78 @@ const AdminCarManagement: React.FC = () => {
         ))}
       </div>
 
-      {cars.length === 0 && (
+      {/* Empty State */}
+      {filteredCars.length === 0 && (
         <div className="text-center py-12">
-          <Car className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No cars yet</h3>
-          <p className="text-muted-foreground mb-4">Add your first car to get started</p>
-          <Button onClick={() => openEditDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Your First Car
-          </Button>
+          {cars.length === 0 ? (
+            <>
+              <Car className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No cars yet</h3>
+              <p className="text-muted-foreground mb-4">Add your first car to get started</p>
+              <Button onClick={() => openEditDialog()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Car
+              </Button>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No cars match your filters</h3>
+              <p className="text-muted-foreground mb-4">Try adjusting your search or filter criteria</p>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  setFuelFilter('all');
+                  setTransmissionFilter('all');
+                }}
+              >
+                Clear Filters
+              </Button>
+            </>
+          )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to delete this car? This action cannot be undone.
+            </p>
+            {carToDelete && (
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="font-medium">{carToDelete.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {carToDelete.make} {carToDelete.model} ({carToDelete.year})
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={handleDeleteCancel}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

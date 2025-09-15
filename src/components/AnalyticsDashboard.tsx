@@ -24,10 +24,12 @@ import {
   IndianRupee, 
   Calendar,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  ArrowLeft
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface AnalyticsData {
   overview: {
@@ -56,6 +58,7 @@ interface AnalyticsData {
 }
 
 export const AnalyticsDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState("7d");
   const [isLoading, setIsLoading] = useState(true);
@@ -69,7 +72,7 @@ export const AnalyticsDashboard: React.FC = () => {
         body: { period: selectedPeriod }
       });
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       setAnalyticsData(data.data);
       setLastUpdated(new Date());
@@ -178,13 +181,23 @@ export const AnalyticsDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
-          {lastUpdated && (
-            <p className="text-sm text-muted-foreground">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => navigate('/admin')}
+            className="hover:bg-primary hover:text-primary-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
+            {lastUpdated && (
+              <p className="text-sm text-muted-foreground">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center gap-3">

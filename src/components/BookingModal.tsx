@@ -45,7 +45,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Calculate total cost
   const calculateTotal = () => {
-    if (!car || !startDate || !endDate) return 0;
+    if (!car || !startDate || !endDate) {return 0;}
     
     const startDateTime = new Date(`${format(startDate, 'yyyy-MM-dd')}T${startTime}`);
     const endDateTime = new Date(`${format(endDate, 'yyyy-MM-dd')}T${endTime}`);
@@ -62,7 +62,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Hold countdown timer
   useEffect(() => {
-    if (!holdExpiry) return;
+    if (!holdExpiry) {return;}
     
     const timer = setInterval(() => {
       const now = new Date();
@@ -81,7 +81,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   }, [holdExpiry]);
 
   const formatTimeRemaining = () => {
-    if (!holdExpiry) return "";
+    if (!holdExpiry) {return "";}
     
     const now = new Date();
     const remaining = holdExpiry.getTime() - now.getTime();
@@ -92,7 +92,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const createBookingHold = async () => {
-    if (!car || !user || !startDate || !endDate) return;
+    if (!car || !user || !startDate || !endDate) {return;}
 
     setIsLoading(true);
     
@@ -129,7 +129,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       setBookingHold(booking);
       setHoldExpiry(holdExpiresAt);
@@ -152,7 +152,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const processPayment = async () => {
-    if (!bookingHold) return;
+    if (!bookingHold) {return;}
 
     setIsLoading(true);
 
@@ -165,7 +165,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         }
       );
 
-      if (paymentError) throw paymentError;
+      if (paymentError) {throw paymentError;}
 
       // Simulate payment processing (in real app, this would integrate with Stripe)
       toast({
@@ -186,7 +186,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             }
           );
 
-          if (confirmError) throw confirmError;
+          if (confirmError) {throw confirmError;}
 
           toast({
             title: "Payment Successful!",
@@ -220,7 +220,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   };
 
-  if (!car) return null;
+  if (!car) {return null;}
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
