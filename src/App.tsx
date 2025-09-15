@@ -42,7 +42,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Suspense fallback={<CarTravelingLoader message="Loading your experience..." />}>
+            <Suspense fallback={<CarTravelingLoader message="Loading RP cars..." />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
