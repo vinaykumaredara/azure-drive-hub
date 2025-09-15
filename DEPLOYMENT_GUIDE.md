@@ -1,4 +1,4 @@
-# 🌐 Azure Drive Hub - Deployment Guide
+# 🌐 RP cars - Deployment Guide
 
 ## 📋 Table of Contents
 
@@ -18,7 +18,7 @@
 
 ## 🚗 Project Overview
 
-**Azure Drive Hub** is a modern car rental platform built with:
+**RP cars** is a modern car rental platform built with:
 
 - **Frontend**: React 18.3.1 + TypeScript + Vite
 - **UI Components**: Tailwind CSS + shadcn/ui
@@ -34,7 +34,7 @@
 
 ### 📁 Current Project Structure
 ```
-azure-drive-hub/
+rp-cars/
 ├── src/
 │   ├── components/
 │   ├── pages/
@@ -55,7 +55,7 @@ azure-drive-hub/
    ```bash
    git init
    git add .
-   git commit -m "Initial commit: Azure Drive Hub car rental platform"
+   git commit -m "Initial commit: RP cars car rental platform"
    ```
 
 2. **Create Remote Repository**:
@@ -65,7 +65,7 @@ azure-drive-hub/
 
 3. **Connect Local to Remote**:
    ```bash
-   git remote add origin https://github.com/yourusername/azure-drive-hub.git
+   git remote add origin https://github.com/yourusername/rp-cars.git
    git push -u origin main
    ```
 
@@ -116,7 +116,7 @@ azure-drive-hub/
    - Website: https://cloudflare.com
 
 #### **Domain Suggestions:**
-- `azuredrivehub.com`
+- `rpcars.com`
 - `rpcarrentals.com`
 - `premiumcarrentals.in`
 - `driveazure.co`
@@ -246,13 +246,13 @@ git push origin main
 1. Go to https://vercel.com/dashboard
 2. Click "New Project"
 3. Import from Git Repository
-4. Select `azure-drive-hub` repository
+4. Select `rp-cars` repository
 5. Configure project settings
 
 #### **Step 3: Build Configuration**
 ```json
 {
-  "name": "azure-drive-hub",
+  "name": "rp-cars",
   "build": {
     "env": {
       "NODE_VERSION": "18"
@@ -381,11 +381,11 @@ npm run preview
 
 ### **Custom Domain Setup Example**:
 
-If your domain is `azuredrivehub.com`:
+If your domain is `rpcars.com`:
 
-1. **Main Domain**: `azuredrivehub.com` → Points to Vercel
-2. **WWW Subdomain**: `www.azuredrivehub.com` → Redirects to main
-3. **Admin Subdomain** (Optional): `admin.azuredrivehub.com` → Points to main with /admin
+1. **Main Domain**: `rpcars.com` → Points to Vercel
+2. **WWW Subdomain**: `www.rpcars.com` → Redirects to main
+3. **Admin Subdomain** (Optional): `admin.rpcars.com` → Points to main with /admin
 
 ---
 
@@ -649,7 +649,7 @@ After successful deployment:
 
 ---
 
-**🎉 Congratulations!** Your Azure Drive Hub car rental platform is now ready for the world!
+**🎉 Congratulations!** Your RP cars car rental platform is now ready for the world!
 
 For additional support or questions, refer to the documentation links above or create an issue in your repository.
 

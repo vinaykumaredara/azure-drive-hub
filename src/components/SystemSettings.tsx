@@ -61,8 +61,8 @@ const SystemSettings: React.FC = () => {
   // Settings state
   const [settings, setSettings] = useState<SystemSettings>({
     general: {
-      company_name: 'Azure Drive Hub',
-      company_email: 'info@azuredrivehub.com',
+      company_name: 'RP cars',
+      company_email: 'info@rpcars.com',
       company_phone: '+91 8897072640',
       company_address: 'Hyderabad, Telangana, India',
       business_hours: '9:00 AM - 9:00 PM',

@@ -32,7 +32,7 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
   };
 
   const handleWhatsAppContact = () => {
-    const text = encodeURIComponent(`Hello Azure Drive Hub, I'm interested in ${car.model} (${car.id})`);
+    const text = encodeURIComponent(`Hello RP cars, I'm interested in ${car.model} (${car.id})`);
     const waUrl = `https://wa.me/918897072640?text=${text}`;
     window.open(waUrl, "_blank");
   };

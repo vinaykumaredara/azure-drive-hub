@@ -1,4 +1,4 @@
-# 🚗 Azure Drive Hub - Premium Car Rental Platform
+# 🚗 RP cars - Premium Car Rental Platform
 
 A modern, full-stack car rental platform built with React, TypeScript, and Supabase. Features real-time booking, secure payments, admin dashboard, and WhatsApp integration.
 
@@ -46,7 +46,7 @@ A modern, full-stack car rental platform built with React, TypeScript, and Supab
 ```bash
 # Clone the repository
 git clone <YOUR_GIT_URL>
-cd azure-drive-hub
+cd rp-cars
 
 # Install dependencies
 npm install

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Azure Drive Hub - Quick Deployment Script
+# RP cars - Quick Deployment Script
 # This script helps automate the deployment preparation process
 
 set -e
 
-echo "🚗 Azure Drive Hub - Deployment Preparation Script"
+echo "🚗 RP cars - Deployment Preparation Script"
 echo "=================================================="
 
 # Colors for output
@@ -209,7 +209,7 @@ create_checklist() {
 
 ## 🎉 Go Live!
 
-Once all items are checked, your Azure Drive Hub platform is ready for production!
+Once all items are checked, your RP cars platform is ready for production!
 
 ---
 

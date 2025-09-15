@@ -1,11 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Azure Drive Hub - Quick Deployment Script (Windows)
+:: RP cars - Quick Deployment Script (Windows)
 :: This script helps automate the deployment preparation process
 
 echo.
-echo 🚗 Azure Drive Hub - Deployment Preparation Script (Windows)
+echo 🚗 RP cars - Deployment Preparation Script (Windows)
 echo ===========================================================
 echo.
 
@@ -184,7 +184,7 @@ echo - [ ] Support contacts identified
 echo.
 echo ## 🎉 Go Live!
 echo.
-echo Once all items are checked, your Azure Drive Hub platform is ready for production!
+echo Once all items are checked, your RP cars platform is ready for production!
 echo.
 echo ---
 echo.

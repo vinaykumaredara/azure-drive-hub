@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Comprehensive Code Cleanup Script for Azure Drive Hub
+# Comprehensive Code Cleanup Script for RP cars
 # This script fixes all ESLint errors and warnings to achieve zero warnings/errors
 
 echo "🚀 Starting comprehensive code cleanup..."

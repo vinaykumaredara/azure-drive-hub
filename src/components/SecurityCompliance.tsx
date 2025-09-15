@@ -52,7 +52,7 @@ const SecurityCompliance: React.FC = () => {
           created_at: new Date().toISOString(),
           action: 'user_login',
           resource: 'auth',
-          user_email: 'admin@azuredrivehub.com',
+          user_email: 'admin@rpcars.com',
           ip_address: '192.168.1.1',
           details: { success: true }
         },
@@ -61,7 +61,7 @@ const SecurityCompliance: React.FC = () => {
           created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
           action: 'car_booking',
           resource: 'bookings',
-          user_email: 'customer@azuredrivehub.com',
+          user_email: 'customer@rpcars.com',
           ip_address: '192.168.1.2',
           details: { car_id: 'abc123', amount: 1500 }
         }

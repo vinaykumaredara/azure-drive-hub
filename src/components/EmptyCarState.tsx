@@ -6,7 +6,7 @@ import { Clock, Car, Heart, Phone } from 'lucide-react';
 
 export const EmptyCarState = () => {
   const handleWhatsAppContact = () => {
-    const text = encodeURIComponent("Hello Azure Drive Hub! I'm looking for a car. When will new cars be available?");
+    const text = encodeURIComponent("Hello RP cars! I'm looking for a car. When will new cars be available?");
     const waUrl = `https://wa.me/918897072640?text=${text}`;
     window.open(waUrl, "_blank");
   };

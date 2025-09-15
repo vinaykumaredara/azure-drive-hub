@@ -34,7 +34,7 @@ export const Header = () => {
               About
             </a>
             <a href="#contact" className="text-foreground hover:text-primary transition-colors duration-200" onClick={() => {
-              const text = encodeURIComponent("Hello Azure Drive Hub! I'd like to know more about your car rental services.");
+              const text = encodeURIComponent("Hello RP cars! I'd like to know more about your car rental services.");
               const waUrl = `https://wa.me/918897072640?text=${text}`;
               window.open(waUrl, "_blank");
             }}>
@@ -118,7 +118,7 @@ export const Header = () => {
                     About
                   </a>
                   <a href="#contact" className="text-lg text-foreground hover:text-primary transition-colors" onClick={() => {
-                    const text = encodeURIComponent("Hello Azure Drive Hub! I'd like to know more about your car rental services.");
+                    const text = encodeURIComponent("Hello RP cars! I'd like to know more about your car rental services.");
                     const waUrl = `https://wa.me/918897072640?text=${text}`;
                     window.open(waUrl, "_blank");
                   }}>

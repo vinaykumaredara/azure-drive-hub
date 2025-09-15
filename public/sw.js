@@ -1,5 +1,5 @@
 // Service Worker for caching and offline support
-const CACHE_NAME = 'azure-drive-hub-v1';
+const CACHE_NAME = 'rp-cars-v1';
 const urlsToCache = [
   '/',
   '/src/index.css',

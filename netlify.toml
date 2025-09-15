@@ -1,4 +1,4 @@
-# Netlify Configuration for Azure Drive Hub
+# Netlify Configuration for RP cars
 [build]
   publish = "dist"
   command = "npm run build"

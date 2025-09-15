@@ -1,4 +1,4 @@
-# 🚀 Complete Free Deployment Guide for Azure Drive Hub
+# 🚀 Complete Free Deployment Guide for RP cars
 
 ## Quick Fix Summary ✅
 
@@ -26,9 +26,9 @@
    cd c:\Users\vinay\carrental\azure-drive-hub
    git init
    git add .
-   git commit -m "Initial commit - Azure Drive Hub"
+   git commit -m "Initial commit - RP cars"
    git branch -M main
-   git remote add origin https://github.com/[YOUR-USERNAME]/azure-drive-hub.git
+   git remote add origin https://github.com/[YOUR-USERNAME]/rp-cars.git
    git push -u origin main
    ```
 
@@ -36,7 +36,7 @@
    - Go to [vercel.com](https://vercel.com)
    - Click "Sign Up" → "Continue with GitHub"
    - Click "Import Project"
-   - Select your `azure-drive-hub` repository
+   - Select your `rp-cars` repository
    - Configure build settings:
      ```
      Framework Preset: Vite
@@ -52,7 +52,7 @@
      ```
    - Click "Deploy"
 
-**Your site will be live at: `https://azure-drive-hub.vercel.app`**
+**Your site will be live at: `https://rp-cars.vercel.app`**
 
 ### **Option 2: Netlify (Great Alternative) 🌟**
 
@@ -73,7 +73,7 @@
    - Add to `vite.config.ts`:
      ```typescript
      export default defineConfig({
-       base: '/azure-drive-hub/',
+       base: '/rp-cars/',
        // ... existing config
      });
      ```
@@ -156,7 +156,7 @@ Update `package.json` scripts:
 ### **Option 2: Use Subdomains**
 - Vercel: `your-project.vercel.app`
 - Netlify: `your-project.netlify.app`
-- GitHub Pages: `username.github.io/azure-drive-hub`
+- GitHub Pages: `username.github.io/rp-cars`
 
 ## 🔒 **Security & Production Checklist**
 

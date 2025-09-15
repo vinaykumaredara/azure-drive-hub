@@ -1,7 +1,7 @@
 # Payment Integration Setup Guide
 
 ## Overview
-Azure Drive Hub now includes a fully functional payment system with support for both Razorpay and Stripe payment gateways, specifically optimized for Indian car rental businesses.
+RP cars now includes a fully functional payment system with support for both Razorpay and Stripe payment gateways, specifically optimized for Indian car rental businesses.
 
 ## Features Implemented
 

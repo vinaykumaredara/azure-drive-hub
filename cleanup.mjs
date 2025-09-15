@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Production Cleanup Script for Azure Drive Hub
+// Production Cleanup Script for RP cars
 // This script automatically fixes TypeScript, ESLint, and other code quality issues
 
 import { execSync } from 'child_process';
