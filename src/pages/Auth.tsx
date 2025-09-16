@@ -21,14 +21,14 @@ const Auth: React.FC = () => {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (user) {
+    if (user && !isLoading) {
       if (isAdmin) {
         navigate('/admin', { replace: true });
       } else {
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, isAdmin, navigate]);
+  }, [user, isAdmin, navigate, isLoading]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

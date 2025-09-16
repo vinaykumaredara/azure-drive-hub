@@ -12,9 +12,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { CarTravelingLoader } from "@/components/LoadingAnimations";
 import { toast } from "@/hooks/use-toast";
-import { PaymentGateway } from "@/components/PaymentGateway";
-import { PromoCodeInput } from "@/components/PromoCodeInput";
-import { CarImageGallery } from "@/components/CarImageGallery";
+import { LazyPaymentGateway, LazyPromoCodeInput, LazyCarImageGallery } from "@/components/LazyComponents";
 
 interface Car {
   id: string;
@@ -250,7 +248,7 @@ const BookingPage: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-6">
-                  <CarImageGallery
+                  <LazyCarImageGallery
                     images={car.image_urls}
                     carTitle={`${car.make} ${car.model}`}
                     aspectRatio="video"
@@ -394,7 +392,7 @@ const BookingPage: React.FC = () => {
                   </div>
                   
                   {showPromoCode && (
-                    <PromoCodeInput
+                    <LazyPromoCodeInput
                       totalAmount={subtotal}
                       onPromoApplied={(discount, code, discountType) => {
                         setPromoDiscount(discount);

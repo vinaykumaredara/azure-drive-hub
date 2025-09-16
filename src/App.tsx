@@ -8,6 +8,8 @@ import { AuthProvider } from "./components/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CarTravelingLoader } from "./components/LoadingAnimations";
 import { GlobalErrorBoundary } from "./components/GlobalErrorBoundary";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import OfflineBanner from "./components/OfflineBanner";
 
 // Lazy load pages for better performance
 const Index = React.lazy(() => import("./pages/Index"));
@@ -15,6 +17,7 @@ const Auth = React.lazy(() => import("./pages/Auth"));
 const Booking = React.lazy(() => import("./pages/Booking"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const UserDashboard = React.lazy(() => import("./pages/UserDashboard"));
+const TestPage = React.lazy(() => import("./pages/TestPage"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -39,18 +42,16 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
+          <OfflineBanner />
           <Toaster />
           <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={
-              <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="text-center p-8">
-                  <div className="text-4xl mb-4">🚗</div>
-                  <div className="text-xl font-semibold text-foreground mb-2">Loading RP cars...</div>
-                  <div className="text-sm text-muted-foreground">Please wait while we prepare your experience</div>
-                </div>
-              </div>
-            }>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
+            <Suspense fallback={<CarTravelingLoader message="Loading RP cars..." />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
@@ -71,6 +72,7 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/test" element={<TestPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

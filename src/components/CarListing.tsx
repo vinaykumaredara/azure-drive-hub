@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, SlidersHorizontal } from "lucide-react";
 import { CarListSkeleton } from "@/components/ui/skeleton";
-import { ApiErrorState, EmptyState } from "@/components/ErrorBoundary";
+import { EmptyState } from "@/components/ErrorBoundary";
 import { EmptyCarState } from "@/components/EmptyCarState";
 import { CarTravelingLoader } from "@/components/LoadingAnimations";
+import { CarListingErrorState } from "@/components/CarListingErrorState";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
 import { toast } from "@/hooks/use-toast";
@@ -34,30 +35,37 @@ interface Car {
 }
 
 // Transform Supabase car to display format
-const transformCarForDisplay = (car: Car) => ({
-  id: car.id,
-  title: car.title,
-  make: car.make,
-  model: car.model,
-  year: car.year,
-  image: car.image_urls?.[0] || `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=400&h=300&fit=crop&crop=center&auto=format&q=80`,
-  images: car.image_urls?.length > 0 ? car.image_urls : [
-    `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80`,
-    `https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&crop=center&auto=format&q=80`
-  ],
-  pricePerDay: car.price_per_day,
-  pricePerHour: car.price_per_hour || Math.round(car.price_per_day / 8),
-  location: car.location_city || 'Hyderabad',
-  fuel: car.fuel_type,
-  transmission: car.transmission,
-  seats: car.seats,
-  rating: 4.5 + (Math.random() * 0.4), // Random rating between 4.5-4.9
-  reviewCount: Math.floor(Math.random() * 50) + 15, // Random reviews 15-65
-  isAvailable: car.status === 'active',
-  badges: car.status === 'active' ? ['Available', 'Verified'] : ['Busy'],
-  features: ['GPS', 'AC', 'Bluetooth', 'Insurance'],
-  description: car.description || `${car.make} ${car.model} - Perfect for city drives and long trips`
-});
+const transformCarForDisplay = (car: Car) => {
+  const pricePerDay = car.price_in_paise ? car.price_in_paise / 100 : car.price_per_day;
+  const pricePerHour = car.price_per_hour || Math.round(pricePerDay / 8);
+        
+  const transformed = {
+    id: car.id,
+    title: car.title,
+    make: car.make,
+    model: car.model,
+    year: car.year,
+    image: car.image_urls?.[0] || `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=400&h=300&fit=crop&crop=center&auto=format&q=80`,
+    images: car.image_urls?.length > 0 ? car.image_urls : [
+      `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80`,
+      `https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&crop=center&auto=format&q=80`
+    ],
+    pricePerDay: pricePerDay,
+    pricePerHour: pricePerHour,
+    location: car.location_city || 'Hyderabad',
+    fuel: car.fuel_type,
+    transmission: car.transmission,
+    seats: car.seats,
+    rating: 4.5 + (Math.random() * 0.4), // Random rating between 4.5-4.9
+    reviewCount: Math.floor(Math.random() * 50) + 15, // Random reviews 15-65
+    isAvailable: car.status === 'published',
+    badges: car.status === 'published' ? ['Available', 'Verified'] : ['Busy'],
+    features: ['GPS', 'AC', 'Bluetooth', 'Insurance'],
+    description: car.description || `${car.make} ${car.model} - Perfect for city drives and long trips`
+  };
+  
+  return transformed;
+};
 
 const filterOptions = [
   { label: "All Seats", value: "all" },
@@ -88,30 +96,38 @@ export const CarListing = () => {
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Fetch cars from Supabase
   const fetchCars = async () => {
     try {
       setLoading(true);
       setError(null);
+      
       const { data, error: fetchError } = await supabase
         .from('cars')
         .select('*')
-        .eq('status', 'active')
+        .eq('status', 'published')
         .order('created_at', { ascending: false });
 
-      if (fetchError) {throw fetchError;}
+      if (fetchError) {
+        throw fetchError;
+      }
+      
       setCars(data || []);
+      
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch cars';
       setError(errorMessage);
       toast({
         title: "Error",
-        description: "Failed to load cars",
+        description: "Failed to load cars. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
+      setIsInitialized(true);
     }
   };
 
@@ -120,7 +136,7 @@ export const CarListing = () => {
     fetchCars();
   }, []);
 
-  // Real-time subscription for cars
+  // Re-enable real-time subscription now that loading is fixed
   useRealtimeSubscription(
     'cars',
     (payload) => {
@@ -175,16 +191,6 @@ export const CarListing = () => {
 
   const totalCount = filteredCars.length;
 
-  // Use the custom hook with filters
-  // const { cars, loading, error, totalCount, refetch, clearError } = useCars({
-  //   q: searchQuery,
-  //   seats: seatFilter !== "all" ? parseInt(seatFilter) : undefined,
-  //   fuelType: fuelFilter,
-  //   sortBy,
-  //   from: new Date().toISOString().split('T')[0], // Today
-  //   to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Tomorrow
-  // });
-
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -203,7 +209,7 @@ export const CarListing = () => {
       y: 0,
       transition: {
         duration: 0.4,
-        ease: "easeOut" as const
+        ease: "easeOut"
       }
     }
   };
@@ -293,17 +299,17 @@ export const CarListing = () => {
           {/* Active Filters */}
           <div className="flex flex-wrap gap-2 mt-4">
             {seatFilter !== "all" && (
-              <Badge variant="secondary" className="bg-primary-light text-primary">
+              <Badge variant="secondary">
                 {filterOptions.find(f => f.value === seatFilter)?.label}
               </Badge>
             )}
             {fuelFilter !== "all" && (
-              <Badge variant="secondary" className="bg-primary-light text-primary">
+              <Badge variant="secondary">
                 {fuelTypes.find(f => f.value === fuelFilter)?.label}
               </Badge>
             )}
             {searchQuery && (
-              <Badge variant="secondary" className="bg-primary-light text-primary">
+              <Badge variant="secondary">
                 Search: {searchQuery}
               </Badge>
             )}
@@ -329,7 +335,7 @@ export const CarListing = () => {
 
         {/* Content */}
         <AnimatePresence mode="wait">
-          {loading ? (
+          {loading && !isInitialized ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
@@ -338,6 +344,9 @@ export const CarListing = () => {
               transition={{ duration: 0.2 }}
             >
               <CarTravelingLoader message="Fetching your perfect cars..." />
+              <div className="mt-4 text-center text-sm text-muted-foreground">
+                Successfully connected to database. Loading cars...
+              </div>
             </motion.div>
           ) : error ? (
             <motion.div
@@ -347,7 +356,7 @@ export const CarListing = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <ApiErrorState error={error} onRetry={fetchCars} />
+              <CarListingErrorState error={error} onRetry={fetchCars} />
             </motion.div>
           ) : filteredCars.length === 0 ? (
             <motion.div

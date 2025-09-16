@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Star, Users, Fuel, Settings, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { CarImageGalleryCompact } from "@/components/CarImageGallery";
 
 export interface CarCardProps {
@@ -27,8 +28,10 @@ export interface CarCardProps {
 }
 
 export const CarCard = ({ car, className = "" }: CarCardProps) => {
+  const navigate = useNavigate();
+
   const handleBookNow = () => {
-    window.location.href = `/booking/${car.id}`;
+    navigate(`/booking/${car.id}`);
   };
 
   const handleWhatsAppContact = () => {

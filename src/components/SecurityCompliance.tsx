@@ -1,162 +1,227 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Shield, ArrowLeft, Key, Eye, AlertTriangle, CheckCircle, 
-  Activity, Lock, FileText, Download, RefreshCw, Filter,
-  Search, Calendar, User, Clock, Globe, Database
-} from 'lucide-react';
+import { Shield, Search, Filter, Download, Eye, User, Key, LogIn, Car, FileText, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+
+interface AuditLog {
+  id: string;
+  action: string;
+  description: string;
+  user_id: string | null;
+  user_email: string | null;
+  metadata: any;
+  timestamp: string;
+}
+
+interface KYCStatus {
+  user_id: string;
+  full_name: string | null;
+  email: string;
+  kyc_status: 'pending' | 'verified' | 'rejected';
+  kyc_documents: string[];
+  submitted_at: string;
+  verified_at?: string;
+  verified_by?: string;
+}
 
 const SecurityCompliance: React.FC = () => {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [isLoading, setIsLoading] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [securityAlerts, setSecurityAlerts] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<AuditLog[]>([]);
+  const [kycStatuses, setKycStatuses] = useState<KYCStatus[]>([]);
+  const [filteredKyc, setFilteredKyc] = useState<KYCStatus[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('audit');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('all');
-  const [securitySettings, setSecuritySettings] = useState({
-    two_factor_enabled: true,
-    password_policy_enabled: true,
-    session_timeout: 30,
-    max_login_attempts: 5,
-    lockout_duration: 15,
-    require_password_change: false,
-    audit_logging: true,
-    data_retention_days: 90
-  });
+  const [actionFilter, setActionFilter] = useState('all');
+  const [kycFilter, setKycFilter] = useState('all');
 
   useEffect(() => {
-    fetchSecurityData();
+    fetchAuditLogs();
+    fetchKycStatuses();
   }, []);
 
-  const fetchSecurityData = async () => {
+  // Filter audit logs
+  useEffect(() => {
+    let filtered = auditLogs;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(log => 
+        log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.user_email?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (actionFilter !== 'all') {
+      filtered = filtered.filter(log => log.action === actionFilter);
+    }
+    
+    setFilteredLogs(filtered);
+  }, [auditLogs, searchTerm, actionFilter]);
+
+  // Filter KYC statuses
+  useEffect(() => {
+    let filtered = kycStatuses;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(kyc => 
+        kyc.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        kyc.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (kycFilter !== 'all') {
+      filtered = filtered.filter(kyc => kyc.kyc_status === kycFilter);
+    }
+    
+    setFilteredKyc(filtered);
+  }, [kycStatuses, searchTerm, kycFilter]);
+
+  const fetchAuditLogs = async () => {
     try {
-      setIsLoading(true);
-      
-      // Use mock data for demonstration
-      const mockAuditLogs = [
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select(`
+          *,
+          user:users(full_name, email)
+        `)
+        .order('timestamp', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      // Transform data to include user email
+      const logsWithUser = data?.map(log => ({
+        ...log,
+        user_email: (log as any).user?.email || (log.metadata as any)?.user_email || 'System'
+      })) || [];
+
+      setAuditLogs(logsWithUser);
+      setFilteredLogs(logsWithUser);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load audit logs",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchKycStatuses = async () => {
+    try {
+      // In a real implementation, this would fetch from a KYC table
+      // For now, we'll simulate some data
+      const mockKycData: KYCStatus[] = [
         {
-          id: '1',
-          created_at: new Date().toISOString(),
-          action: 'user_login',
-          resource: 'auth',
-          user_email: 'admin@rpcars.com',
-          ip_address: '192.168.1.1',
-          details: { success: true }
+          user_id: 'user1',
+          full_name: 'John Doe',
+          email: 'john@example.com',
+          kyc_status: 'verified',
+          kyc_documents: ['license_front.jpg', 'license_back.jpg'],
+          submitted_at: new Date(Date.now() - 86400000).toISOString(),
+          verified_at: new Date(Date.now() - 43200000).toISOString(),
+          verified_by: 'admin@rpcars.in'
         },
         {
-          id: '2',
-          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          action: 'car_booking',
-          resource: 'bookings',
-          user_email: 'customer@rpcars.com',
-          ip_address: '192.168.1.2',
-          details: { car_id: 'abc123', amount: 1500 }
-        }
-      ];
-      
-      const mockSecurityAlerts = [
+          user_id: 'user2',
+          full_name: 'Jane Smith',
+          email: 'jane@example.com',
+          kyc_status: 'pending',
+          kyc_documents: ['license_front.jpg'],
+          submitted_at: new Date(Date.now() - 172800000).toISOString()
+        },
         {
-          id: '1',
-          type: 'info',
-          severity: 'low',
-          message: 'System security scan completed successfully',
-          created_at: new Date().toISOString(),
-          resolved: false
+          user_id: 'user3',
+          full_name: 'Bob Johnson',
+          email: 'bob@example.com',
+          kyc_status: 'rejected',
+          kyc_documents: ['license_front.jpg', 'license_back.jpg'],
+          submitted_at: new Date(Date.now() - 259200000).toISOString(),
+          verified_at: new Date(Date.now() - 172800000).toISOString(),
+          verified_by: 'admin@rpcars.in'
         }
       ];
-      
-      setAuditLogs(mockAuditLogs);
-      setSecurityAlerts(mockSecurityAlerts);
+
+      setKycStatuses(mockKycData);
+      setFilteredKyc(mockKycData);
     } catch (error) {
-      console.error('Error loading security data:', error);
+      console.error('Error fetching KYC statuses:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load KYC statuses",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const updateSecuritySetting = async (key: string, value: any) => {
-    try {
-      setSecuritySettings(prev => ({ ...prev, [key]: value }));
-      toast({
-        title: "Setting Updated",
-        description: "Security setting has been updated successfully.",
-      });
-    } catch (error) {
-      console.error('Error updating security setting:', error);
+  const exportAuditLogs = () => {
+    const csvContent = [
+      ['Timestamp', 'Action', 'Description', 'User', 'Metadata'],
+      ...filteredLogs.map(log => [
+        new Date(log.timestamp).toISOString(),
+        log.action,
+        log.description,
+        log.user_email || 'N/A',
+        JSON.stringify(log.metadata || {})
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export Complete",
+      description: "Audit logs exported successfully",
+    });
+  };
+
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'login': return <LogIn className="w-4 h-4" />;
+      case 'car_create': return <Car className="w-4 h-4" />;
+      case 'car_update': return <Car className="w-4 h-4" />;
+      case 'customer_suspend': return <User className="w-4 h-4" />;
+      case 'settings_update': return <Settings className="w-4 h-4" />;
+      default: return <FileText className="w-4 h-4" />;
     }
   };
 
-  const resolveAlert = async (alertId: string) => {
-    try {
-      setSecurityAlerts(prev => 
-        prev.map(alert => 
-          alert.id === alertId 
-            ? { ...alert, resolved: true }
-            : alert
-        )
-      );
-      
-      toast({
-        title: "Alert Resolved",
-        description: "Security alert has been marked as resolved.",
-      });
-    } catch (error) {
-      console.error('Error resolving alert:', error);
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case 'login': return 'bg-blue-100 text-blue-800';
+      case 'car_create': return 'bg-green-100 text-green-800';
+      case 'car_update': return 'bg-yellow-100 text-yellow-800';
+      case 'customer_suspend': return 'bg-red-100 text-red-800';
+      case 'settings_update': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const exportAuditLogs = async () => {
-    try {
-      const csv = [
-        'Date,User,Action,Resource,IP Address',
-        ...auditLogs.map(log => [
-          new Date(log.created_at).toLocaleString(),
-          log.user_email || 'System',
-          log.action,
-          log.resource,
-          log.ip_address
-        ].join(','))
-      ].join('\\n');
-      
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      
-      toast({
-        title: "Export Successful",
-        description: "Audit logs have been exported to CSV.",
-      });
-    } catch (error) {
-      console.error('Error exporting logs:', error);
+  const getKycStatusBadge = (status: string) => {
+    switch (status) {
+      case 'verified': return <Badge className="bg-success">Verified</Badge>;
+      case 'pending': return <Badge className="bg-warning">Pending</Badge>;
+      case 'rejected': return <Badge variant="destructive">Rejected</Badge>;
+      default: return <Badge variant="secondary">Unknown</Badge>;
     }
   };
 
-  const getAlertIcon = (severity: string) => {
-    switch (severity) {
-      case 'high': return <AlertTriangle className="h-4 w-4 text-red-500" />;
-      case 'medium': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case 'low': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      default: return <AlertTriangle className="h-4 w-4" />;
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -167,424 +232,298 @@ const SecurityCompliance: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={() => navigate('/admin')}
-          className="hover:bg-primary hover:text-primary-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h2 className="text-2xl font-bold">Security & Compliance</h2>
-          <p className="text-muted-foreground">
-            Monitor security status and manage compliance settings
-          </p>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold">Security & Compliance</h2>
+        <p className="text-muted-foreground">
+          Audit logs and KYC management
+        </p>
       </div>
-
-      {/* Security Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="audit" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Audit Logs
-          </TabsTrigger>
-          <TabsTrigger value="alerts" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Security Alerts
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Lock className="h-4 w-4" />
-            Settings
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          {/* Security Score */}
+      
+      {/* Tabs */}
+      <div className="flex border-b">
+        <Button
+          variant={activeTab === 'audit' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('audit')}
+          className="flex items-center gap-2"
+        >
+          <FileText className="w-4 h-4" />
+          Audit Logs
+        </Button>
+        <Button
+          variant={activeTab === 'kyc' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('kyc')}
+          className="flex items-center gap-2"
+        >
+          <Shield className="w-4 h-4" />
+          KYC Management
+        </Button>
+      </div>
+      
+      {activeTab === 'audit' ? (
+        <>
+          {/* Audit Logs Filters */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-green-600" />
-                Security Score
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-3xl font-bold text-green-600">98%</div>
-                  <div className="text-sm text-muted-foreground">Overall Security Score</div>
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Search */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search audit logs..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-                <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="font-semibold text-green-600">Authentication</div>
-                  <div className="text-sm text-muted-foreground">Excellent</div>
-                </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="font-semibold text-blue-600">Data Protection</div>
-                  <div className="text-sm text-muted-foreground">Good</div>
-                </div>
-                <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                  <div className="font-semibold text-yellow-600">Access Control</div>
-                  <div className="text-sm text-muted-foreground">Needs Review</div>
-                </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="font-semibold text-green-600">Monitoring</div>
-                  <div className="text-sm text-muted-foreground">Active</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Users</p>
-                    <p className="text-2xl font-bold">1,247</p>
-                    <p className="text-xs text-green-600">+12 this week</p>
-                  </div>
-                  <User className="h-8 w-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Active Sessions</p>
-                    <p className="text-2xl font-bold">89</p>
-                    <p className="text-xs text-blue-600">Current active</p>
-                  </div>
-                  <Activity className="h-8 w-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Security Alerts</p>
-                    <p className="text-2xl font-bold">{securityAlerts.filter(a => !a.resolved).length}</p>
-                    <p className="text-xs text-orange-600">Unresolved</p>
-                  </div>
-                  <AlertTriangle className="h-8 w-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Audit Logs Tab */}
-        <TabsContent value="audit" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Audit Trail
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={exportAuditLogs}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                  </Button>
-                  <Button variant="outline" onClick={fetchSecurityData}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Search and Filter */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      placeholder="Search audit logs..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Select value={dateFilter} onValueChange={setDateFilter}>
-                    <SelectTrigger className="w-full sm:w-40">
-                      <SelectValue />
+                
+                {/* Action Filter */}
+                <div className="flex gap-2">
+                  <Select value={actionFilter} onValueChange={setActionFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Action Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Time</SelectItem>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="week">This Week</SelectItem>
-                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="all">All Actions</SelectItem>
+                      <SelectItem value="login">Login</SelectItem>
+                      <SelectItem value="car_create">Car Create</SelectItem>
+                      <SelectItem value="car_update">Car Update</SelectItem>
+                      <SelectItem value="customer_suspend">Customer Suspend</SelectItem>
+                      <SelectItem value="settings_update">Settings Update</SelectItem>
                     </SelectContent>
                   </Select>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setActionFilter('all');
+                    }}
+                  >
+                    Clear
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={exportAuditLogs}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export
+                  </Button>
                 </div>
-
-                {/* Audit Log Entries */}
-                <div className="space-y-2">
-                  {auditLogs.map((log) => (
-                    <div key={log.id} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline">{log.action}</Badge>
-                            <span className="text-sm text-muted-foreground">{log.resource}</span>
-                          </div>
-                          <p className="text-sm font-medium">{log.user_email}</p>
-                          <p className="text-xs text-muted-foreground">IP: {log.ip_address}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">
-                            {new Date(log.created_at).toLocaleDateString()}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(log.created_at).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              </div>
+              
+              {/* Results Count */}
+              <div className="mt-4 text-sm text-muted-foreground">
+                Showing {filteredLogs.length} of {auditLogs.length} audit logs
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Security Alerts Tab */}
-        <TabsContent value="alerts" className="space-y-6">
+          
+          {/* Audit Logs Table */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Security Alerts
-              </CardTitle>
+              <CardTitle>Recent Audit Logs</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {securityAlerts.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
-                    <h3 className="text-lg font-medium mb-2">All Clear!</h3>
-                    <p className="text-muted-foreground">No security alerts at this time.</p>
-                  </div>
-                ) : (
-                  securityAlerts.map((alert) => (
-                    <Alert key={alert.id} className={alert.resolved ? 'opacity-50' : ''}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-2">
-                          {getAlertIcon(alert.severity)}
-                          <div>
-                            <h4 className="font-medium">{alert.message}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(alert.created_at).toLocaleString()}
-                            </p>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4">Timestamp</th>
+                      <th className="text-left py-3 px-4">Action</th>
+                      <th className="text-left py-3 px-4">Description</th>
+                      <th className="text-left py-3 px-4">User</th>
+                      <th className="text-left py-3 px-4">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLogs.map((log) => (
+                      <motion.tr 
+                        key={log.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="border-b hover:bg-muted/50"
+                      >
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {new Date(log.timestamp).toLocaleString()}
                           </div>
-                        </div>
-                        {!alert.resolved && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => resolveAlert(alert.id)}
-                          >
-                            Resolve
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge className={getActionColor(log.action)}>
+                            <div className="flex items-center gap-1">
+                              {getActionIcon(log.action)}
+                              <span className="capitalize">{log.action.replace('_', ' ')}</span>
+                            </div>
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {log.description}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {log.user_email || 'System'}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Button size="sm" variant="outline">
+                            <Eye className="w-4 h-4" />
                           </Button>
-                        )}
-                      </div>
-                    </Alert>
-                  ))
-                )}
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {filteredLogs.length === 0 && (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No audit logs found</h3>
+                  <p className="text-muted-foreground">
+                    Try adjusting your search or filter criteria
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <>
+          {/* KYC Filters */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Search */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+                {/* Status Filter */}
+                <div className="flex gap-2">
+                  <Select value={kycFilter} onValueChange={setKycFilter}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="verified">Verified</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setKycFilter('all');
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Results Count */}
+              <div className="mt-4 text-sm text-muted-foreground">
+                Showing {filteredKyc.length} of {kycStatuses.length} KYC records
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Settings Tab */}
-        <TabsContent value="settings" className="space-y-6">
+          
+          {/* KYC Table */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5" />
-                Security Settings
-              </CardTitle>
+              <CardTitle>KYC Management</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Authentication Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Authentication</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="two_factor">Two-Factor Authentication</Label>
-                      <p className="text-sm text-muted-foreground">Require 2FA for all admin accounts</p>
-                    </div>
-                    <Switch
-                      id="two_factor"
-                      checked={securitySettings.two_factor_enabled}
-                      onCheckedChange={(checked) => {
-                        setSecuritySettings(prev => ({ ...prev, two_factor_enabled: checked }));
-                        updateSecuritySetting('two_factor_enabled', checked);
-                      }}
-                    />
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="password_policy">Strong Password Policy</Label>
-                      <p className="text-sm text-muted-foreground">Enforce complex password requirements</p>
-                    </div>
-                    <Switch
-                      id="password_policy"
-                      checked={securitySettings.password_policy_enabled}
-                      onCheckedChange={(checked) => {
-                        setSecuritySettings(prev => ({ ...prev, password_policy_enabled: checked }));
-                        updateSecuritySetting('password_policy_enabled', checked);
-                      }}
-                    />
-                  </div>
-                </div>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4">User</th>
+                      <th className="text-left py-3 px-4">Email</th>
+                      <th className="text-left py-3 px-4">Status</th>
+                      <th className="text-left py-3 px-4">Submitted</th>
+                      <th className="text-left py-3 px-4">Verified</th>
+                      <th className="text-left py-3 px-4">Documents</th>
+                      <th className="text-left py-3 px-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredKyc.map((kyc) => (
+                      <motion.tr 
+                        key={kyc.user_id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="border-b hover:bg-muted/50"
+                      >
+                        <td className="py-3 px-4">
+                          <div className="font-medium">
+                            {kyc.full_name || 'Unnamed User'}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {kyc.email}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          {getKycStatusBadge(kyc.kyc_status)}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {new Date(kyc.submitted_at).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {kyc.verified_at 
+                              ? new Date(kyc.verified_at).toLocaleDateString()
+                              : 'Not verified'}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {kyc.kyc_documents.length} document(s)
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              {/* Session Management */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Session Management</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="session_timeout">Session Timeout (minutes)</Label>
-                    <Input
-                      id="session_timeout"
-                      type="number"
-                      value={securitySettings.session_timeout}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setSecuritySettings(prev => ({ ...prev, session_timeout: value }));
-                        updateSecuritySetting('session_timeout', value);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="max_login_attempts">Max Login Attempts</Label>
-                    <Input
-                      id="max_login_attempts"
-                      type="number"
-                      value={securitySettings.max_login_attempts}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setSecuritySettings(prev => ({ ...prev, max_login_attempts: value }));
-                        updateSecuritySetting('max_login_attempts', value);
-                      }}
-                    />
-                  </div>
+              
+              {filteredKyc.length === 0 && (
+                <div className="text-center py-8">
+                  <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No KYC records found</h3>
+                  <p className="text-muted-foreground">
+                    Try adjusting your search or filter criteria
+                  </p>
                 </div>
-              </div>
-
-              {/* Account Lockout */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Account Security</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="lockout_duration">Lockout Duration (minutes)</Label>
-                    <Input
-                      id="lockout_duration"
-                      type="number"
-                      value={securitySettings.lockout_duration}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setSecuritySettings(prev => ({ ...prev, lockout_duration: value }));
-                        updateSecuritySetting('lockout_duration', value);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="data_retention">Data Retention (days)</Label>
-                    <Input
-                      id="data_retention"
-                      type="number"
-                      value={securitySettings.data_retention_days}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setSecuritySettings(prev => ({ ...prev, data_retention_days: value }));
-                        updateSecuritySetting('data_retention_days', value);
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* System Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">System Security</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="audit_logging">Audit Logging</Label>
-                      <p className="text-sm text-muted-foreground">Log all user actions and system events</p>
-                    </div>
-                    <Switch
-                      id="audit_logging"
-                      checked={securitySettings.audit_logging}
-                      onCheckedChange={(checked) => {
-                        setSecuritySettings(prev => ({ ...prev, audit_logging: checked }));
-                        updateSecuritySetting('audit_logging', checked);
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Compliance Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Compliance Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <div>
-                <p className="font-medium">GDPR Compliance</p>
-                <p className="text-sm text-muted-foreground">Data Protection</p>
-              </div>
-              <Badge className="bg-green-500">Compliant</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <div>
-                <p className="font-medium">ISO 27001</p>
-                <p className="text-sm text-muted-foreground">Security Management</p>
-              </div>
-              <Badge className="bg-green-500">Certified</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <div>
-                <p className="font-medium">SOC 2</p>
-                <p className="text-sm text-muted-foreground">Security Controls</p>
-              </div>
-              <Badge className="bg-green-500">Verified</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   );
 };

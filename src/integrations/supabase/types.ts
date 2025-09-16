@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          id: string
+          action: string
+          description: string | null
+          user_id: string | null
+          metadata: Json | null
+          timestamp: string | null
+        }
+        Insert: {
+          id?: string
+          action: string
+          description?: string | null
+          user_id?: string | null
+          metadata?: Json | null
+          timestamp?: string | null
+        }
+        Update: {
+          id?: string
+          action?: string
+          description?: string | null
+          user_id?: string | null
+          metadata?: Json | null
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       bookings: {
         Row: {
           car_id: string | null
@@ -25,6 +60,8 @@ export type Database = {
           start_datetime: string
           status: string
           total_amount: number | null
+          total_amount_in_paise: number | null
+          currency: string | null
           user_id: string | null
         }
         Insert: {
@@ -37,6 +74,8 @@ export type Database = {
           start_datetime: string
           status?: string
           total_amount?: number | null
+          total_amount_in_paise?: number | null
+          currency?: string | null
           user_id?: string | null
         }
         Update: {
@@ -49,6 +88,8 @@ export type Database = {
           start_datetime?: string
           status?: string
           total_amount?: number | null
+          total_amount_in_paise?: number | null
+          currency?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -80,6 +121,8 @@ export type Database = {
           model: string | null
           price_per_day: number
           price_per_hour: number | null
+          price_in_paise: number | null
+          currency: string | null
           seats: number | null
           status: string | null
           title: string
@@ -97,6 +140,8 @@ export type Database = {
           model?: string | null
           price_per_day: number
           price_per_hour?: number | null
+          price_in_paise?: number | null
+          currency?: string | null
           seats?: number | null
           status?: string | null
           title: string
@@ -114,6 +159,8 @@ export type Database = {
           model?: string | null
           price_per_day?: number
           price_per_hour?: number | null
+          price_in_paise?: number | null
+          currency?: string | null
           seats?: number | null
           status?: string | null
           title?: string
@@ -281,8 +328,10 @@ export type Database = {
       payments: {
         Row: {
           amount: number | null
+          amount_in_paise: number | null
           booking_id: string | null
           created_at: string | null
+          currency: string | null
           gateway: string | null
           id: string
           provider_transaction_id: string | null
@@ -290,8 +339,10 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          amount_in_paise?: number | null
           booking_id?: string | null
           created_at?: string | null
+          currency?: string | null
           gateway?: string | null
           id?: string
           provider_transaction_id?: string | null
@@ -299,8 +350,10 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          amount_in_paise?: number | null
           booking_id?: string | null
           created_at?: string | null
+          currency?: string | null
           gateway?: string | null
           id?: string
           provider_transaction_id?: string | null
@@ -358,6 +411,24 @@ export type Database = {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          key: string
+          value: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          key: string
+          value?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          key?: string
+          value?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string | null
@@ -365,6 +436,11 @@ export type Database = {
           id: string
           is_admin: boolean | null
           phone: string | null
+          is_suspended: boolean | null
+          suspension_reason: string | null
+          suspended_at: string | null
+          suspended_by: string | null
+          email: string | null
         }
         Insert: {
           created_at?: string | null
@@ -372,6 +448,11 @@ export type Database = {
           id: string
           is_admin?: boolean | null
           phone?: string | null
+          is_suspended?: boolean | null
+          suspension_reason?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          email?: string | null
         }
         Update: {
           created_at?: string | null
@@ -379,6 +460,11 @@ export type Database = {
           id?: string
           is_admin?: boolean | null
           phone?: string | null
+          is_suspended?: boolean | null
+          suspension_reason?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
+          email?: string | null
         }
         Relationships: []
       }

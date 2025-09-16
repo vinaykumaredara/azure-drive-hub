@@ -6,13 +6,26 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "0.0.0.0", // Better mobile network compatibility
+    host: "localhost", // Use localhost for better WebSocket stability
     port: 5173,
-    strictPort: false,
+    strictPort: true, // Force port 5173 to avoid confusion
     cors: true,
     hmr: {
-      clientPort: 5173,
+      port: 5173,
+      overlay: true,
+      clientPort: 5173
     },
+    open: false,
+    watch: {
+      usePolling: true, // Use polling for better file watching on Windows
+      interval: 300,
+      ignored: ['**/node_modules/**', '**/.git/**']
+    },
+    fs: {
+      strict: false
+    },
+    // Disable service worker in development
+    middlewareMode: false
   },
   plugins: [
     react(),
@@ -26,10 +39,28 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'es2020',
     minify: 'esbuild',
-    sourcemap: false,
+    sourcemap: mode === 'development',
     chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          query: ['@tanstack/react-query'],
+          ui: ['lucide-react', 'framer-motion'],
+        },
+      },
+    },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
+    include: [
+      'react', 
+      'react-dom', 
+      'react-router-dom', 
+      '@tanstack/react-query',
+      'lucide-react',
+      'framer-motion'
+    ],
+    force: mode === 'development', // Force re-optimization in dev
   },
 }));

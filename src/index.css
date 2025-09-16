@@ -151,22 +151,10 @@
     line-height: 1.6;
   }
 
-  /* Responsive Typography */
-  h1, h2, h3, h4, h5, h6 {
-    text-wrap: balance;
-  }
-
-  /* Smooth animations and better performance */
-  * {
-    scroll-behavior: smooth;
-  }
-
-  /* Better mobile responsiveness */
-  @media (max-width: 640px) {
-    .container {
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
+  /* Fix container width issues */
+  .container {
+    width: 100%;
+    max-width: 100%;
   }
 }
 

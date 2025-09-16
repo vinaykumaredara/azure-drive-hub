@@ -1,16 +1,27 @@
-import { Car, Menu, User, Phone, Shield, LogOut } from "lucide-react";
+import { Car, Menu, User, Phone, Shield, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
+import { useState } from "react";
 
 export const Header = () => {
   const navigate = useNavigate();
   const { user, isAdmin, signOut } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
+    if (isSigningOut) return; // Prevent double clicks
+    
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out error:', error);
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   return (
@@ -75,9 +86,13 @@ export const Header = () => {
                     <User className="w-4 h-4 mr-2" />
                     Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
+                  <DropdownMenuItem onClick={handleSignOut} disabled={isSigningOut}>
+                    {isSigningOut ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <LogOut className="w-4 h-4 mr-2" />
+                    )}
+                    {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

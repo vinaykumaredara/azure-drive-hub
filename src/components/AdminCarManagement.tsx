@@ -13,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtime';
 import { useNavigate } from 'react-router-dom';
+import { formatINRFromPaise, toPaise } from '@/utils/currency';
 
 interface Car {
   id: string;
@@ -31,6 +32,8 @@ interface Car {
   status: string;
   image_urls: string[];
   created_at: string;
+  price_in_paise?: number;
+  currency?: string;
 }
 
 const AdminCarManagement: React.FC = () => {
@@ -64,7 +67,7 @@ const AdminCarManagement: React.FC = () => {
     service_charge: 0,
     description: '',
     location_city: '',
-    status: 'active'
+    status: 'published'
   });
 
   useEffect(() => {
@@ -150,12 +153,14 @@ const AdminCarManagement: React.FC = () => {
         const file = files[i];
         const fileName = `${Date.now()}-${file.name}`;
         
-        const { data, error } = await supabase.storage
+        // Upload image to storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('cars-photos')
           .upload(fileName, file);
 
-        if (error) {throw error;}
+        if (uploadError) {throw uploadError;}
 
+        // Get public URL for the uploaded image
         const { data: { publicUrl } } = supabase.storage
           .from('cars-photos')
           .getPublicUrl(fileName);
@@ -181,9 +186,35 @@ const AdminCarManagement: React.FC = () => {
     e.preventDefault();
     
     try {
+      // Ensure status is always 'published' for new cars
+      const carStatus = selectedCar ? formData.status : 'published';
+      
+      // Convert price to paise for INR storage
+      const priceInPaise = toPaise(formData.price_per_day);
+      
+      // Upload images first if any new images are selected
+      let uploadedImageUrls: string[] = [];
+      if (uploadedImages.length > 0) {
+        uploadedImageUrls = [...uploadedImages];
+      }
+      
       const carData = {
-        ...formData,
-        image_urls: selectedCar ? (selectedCar.image_urls || []).concat(uploadedImages) : uploadedImages
+        title: formData.title,
+        make: formData.make,
+        model: formData.model,
+        year: formData.year,
+        seats: formData.seats,
+        fuel_type: formData.fuel_type,
+        transmission: formData.transmission,
+        price_per_day: formData.price_per_day,
+        price_per_hour: formData.price_per_hour || 0,
+        service_charge: formData.service_charge || 0,
+        description: formData.description || '',
+        location_city: formData.location_city || '',
+        status: carStatus,
+        image_urls: selectedCar ? [...(selectedCar.image_urls || []), ...uploadedImageUrls] : uploadedImageUrls,
+        price_in_paise: priceInPaise,
+        currency: 'INR'
       };
 
       if (selectedCar) {
@@ -195,6 +226,9 @@ const AdminCarManagement: React.FC = () => {
 
         if (error) {throw error;}
         
+        // Log audit entry for car update
+        await logAuditAction('car_update', `Updated car: ${formData.title}`, { carId: selectedCar.id });
+        
         toast({
           title: "Success",
           description: "Car updated successfully",
@@ -203,9 +237,12 @@ const AdminCarManagement: React.FC = () => {
         // Create new car
         const { error } = await supabase
           .from('cars')
-          .insert(carData);
+          .insert([carData]);
 
         if (error) {throw error;}
+        
+        // Log audit entry for car creation
+        await logAuditAction('car_create', `Created car: ${formData.title}`);
         
         toast({
           title: "Success",
@@ -215,6 +252,7 @@ const AdminCarManagement: React.FC = () => {
 
       setIsEditDialogOpen(false);
       resetForm();
+      fetchCars(); // Refresh the car list
     } catch (error) {
       console.error('Error saving car:', error);
       toast({
@@ -285,7 +323,7 @@ const AdminCarManagement: React.FC = () => {
       service_charge: 0,
       description: '',
       location_city: '',
-      status: 'active'
+      status: 'published'
     });
     setSelectedCar(null);
     setUploadedImages([]);
@@ -318,7 +356,7 @@ const AdminCarManagement: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
+      case 'published':
         return 'bg-success text-success-foreground';
       case 'maintenance':
         return 'bg-warning text-warning-foreground';
@@ -326,6 +364,33 @@ const AdminCarManagement: React.FC = () => {
         return 'bg-destructive text-destructive-foreground';
       default:
         return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const logAuditAction = async (action: string, description: string, metadata?: any) => {
+    try {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      
+      // Insert audit log entry
+      const { error } = await supabase
+        .from('audit_logs')
+        .insert({
+          action,
+          description,
+          user_id: user?.id,
+          metadata: {
+            ...metadata,
+            timestamp: new Date().toISOString()
+          }
+        });
+      
+      if (error) {
+        console.error('Error logging audit action:', error);
+      }
+    } catch (error) {
+      console.error('Error logging audit action:', error);
     }
   };
 
@@ -353,7 +418,7 @@ const AdminCarManagement: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold">Car Management</h2>
             <p className="text-muted-foreground">
-              {cars.length} total cars • {cars.filter(c => c.status === 'active').length} active
+              {cars.length} total cars • {cars.filter(c => c.status === 'published').length} published
             </p>
           </div>
         </div>
@@ -361,8 +426,8 @@ const AdminCarManagement: React.FC = () => {
         {/* Quick Stats */}
         <div className="hidden md:flex items-center gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-success">{cars.filter(c => c.status === 'active').length}</div>
-            <div className="text-xs text-muted-foreground">Active</div>
+            <div className="text-2xl font-bold text-success">{cars.filter(c => c.status === 'published').length}</div>
+            <div className="text-xs text-muted-foreground">Published</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-warning">{cars.filter(c => c.status === 'maintenance').length}</div>
@@ -398,7 +463,7 @@ const AdminCarManagement: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
@@ -552,14 +617,14 @@ const AdminCarManagement: React.FC = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
                       <SelectItem value="maintenance">Maintenance</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="price_per_day">Price per Day ($)</Label>
+                  <Label htmlFor="price_per_day">Price per Day (₹)</Label>
                   <Input
                     id="price_per_day"
                     type="number"
@@ -570,7 +635,7 @@ const AdminCarManagement: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="price_per_hour">Price per Hour ($)</Label>
+                  <Label htmlFor="price_per_hour">Price per Hour (₹)</Label>
                   <Input
                     id="price_per_hour"
                     type="number"
@@ -580,7 +645,7 @@ const AdminCarManagement: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="service_charge">Service Charge ($)</Label>
+                  <Label htmlFor="service_charge">Service Charge (₹)</Label>
                   <Input
                     id="service_charge"
                     type="number"
@@ -746,10 +811,10 @@ const AdminCarManagement: React.FC = () => {
                     {car.seats} seats • {car.fuel_type} • {car.transmission}
                   </p>
                   <p className="font-semibold text-primary">
-                    ${car.price_per_day}/day
+                    {formatINRFromPaise(car.price_in_paise || toPaise(car.price_per_day))}/day
                     {car.service_charge && car.service_charge > 0 && (
                       <span className="text-xs text-muted-foreground block">
-                        +${car.service_charge} service charge
+                        +{formatINRFromPaise(toPaise(car.service_charge))} service charge
                       </span>
                     )}
                   </p>

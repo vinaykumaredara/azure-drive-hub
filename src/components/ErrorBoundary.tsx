@@ -1,11 +1,12 @@
 // Error boundary and error display components
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 
 interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
+  errorInfo?: React.ErrorInfo;
 }
 
 interface ErrorBoundaryProps {
@@ -25,6 +26,25 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
+    
+    // Check if it's a network-related error
+    const isNetworkError = error.message.includes('fetch') || 
+                          error.message.includes('network') ||
+                          error.message.includes('connection') ||
+                          error.message.includes('localhost') ||
+                          error.name === 'NetworkError';
+    
+    this.setState({ errorInfo, hasError: true, error });
+    
+    // Log additional context for network errors
+    if (isNetworkError) {
+      console.error('Network Error Details:', {
+        online: navigator.onLine,
+        userAgent: navigator.userAgent,
+        currentUrl: window.location.href,
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 
   render() {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Car, FileText, MessageCircle, Settings, LogOut, User, CreditCard, Heart, MapPin, Clock, Star, Award, Bell, Download, Share2, Filter, Search, TrendingUp, Shield, Gift } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,8 @@ import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { LicenseUpload } from '@/components/LicenseUpload';
-import { ChatWidget } from '@/components/ChatWidget';
+import { LazyLicenseUpload, LazyChatWidget } from '@/components/LazyComponents';
+import { errorLogger } from '@/utils/errorLogger';
 
 interface Booking {
   id: string;
@@ -42,6 +43,7 @@ interface UserStats {
 
 const UserDashboard: React.FC = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [favoriteCarIds, setFavoriteCarIds] = useState<string[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -57,7 +59,14 @@ const UserDashboard: React.FC = () => {
         fetchUserStats(),
         fetchNotifications(),
         fetchFavorites()
-      ]);
+      ]).catch(error => {
+        console.error('Dashboard data fetch error:', error);
+        toast({
+          title: "Dashboard Error",
+          description: "Failed to load dashboard data. Please try again.",
+          variant: "destructive",
+        });
+      });
     }
   }, [user]);
 
@@ -80,7 +89,11 @@ const UserDashboard: React.FC = () => {
       if (error) {throw error;}
       setBookings(data || []);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      errorLogger.logError(error as Error, {
+        component: 'UserDashboard',
+        action: 'fetchUserBookings',
+        userId: user?.id
+      });
       toast({
         title: "Error",
         description: "Failed to load your bookings",
@@ -319,13 +332,69 @@ const UserDashboard: React.FC = () => {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      await signOut();
+      // Navigation is now handled by the auth listener
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gradient-to-br from-background via-primary-light/10 to-accent-purple/5">
+        <header className="bg-white/80 backdrop-blur-md border-b border-border/50 sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center animate-pulse">
+                  <Car className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gradient">RP CARS</h1>
+                  <p className="text-sm text-muted-foreground">Dashboard</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button type="button" variant="ghost" size="sm" disabled>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <main className="container mx-auto px-4 py-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl font-bold">Welcome back!</h2>
+              <p className="text-muted-foreground">Loading your dashboard...</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                    <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            <Card className="animate-pulse">
+              <CardHeader>
+                <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
       </div>
     );
   }
@@ -345,7 +414,7 @@ const UserDashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <Button type="button" variant="ghost" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
               </Button>
@@ -506,7 +575,7 @@ const UserDashboard: React.FC = () => {
                     <div className="text-center py-8">
                       <Heart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                       <p className="text-muted-foreground">No favorite cars yet</p>
-                      <Button className="mt-4" onClick={() => window.location.href = '/'}>
+                      <Button className="mt-4" onClick={() => navigate('/')}>
                         Browse Cars
                       </Button>
                     </div>
@@ -613,7 +682,7 @@ const UserDashboard: React.FC = () => {
                       <p className="text-muted-foreground">
                         {bookings.length === 0 ? 'No bookings yet' : 'No bookings match your search'}
                       </p>
-                      <Button className="mt-4" onClick={() => window.location.href = '/'}>
+                      <Button className="mt-4" onClick={() => navigate('/')}>
                         Browse Cars
                       </Button>
                     </div>
@@ -826,7 +895,7 @@ const UserDashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <LicenseUpload />
+                  <LazyLicenseUpload />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -916,7 +985,7 @@ const UserDashboard: React.FC = () => {
                       <p className="text-sm text-muted-foreground">Chat with our support team</p>
                     </div>
                     <div className="p-4">
-                      <ChatWidget roomId={`support:${user?.id}`} />
+                      <LazyChatWidget roomId={`support:${user?.id}`} />
                     </div>
                   </div>
                 </CardContent>

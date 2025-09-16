@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Car, Users, Calendar, BarChart3, FileText, MessageCircle, Wrench, LogOut, ArrowLeft, CheckCircle, XCircle, AlertCircle, Search, RefreshCw, Eye, RotateCcw, Shield, Activity, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,14 +15,13 @@ import {
   LazyAnalyticsDashboard, 
   LazyPromoCodeManager, 
   LazyMaintenanceScheduler,
-  LazyComponentWrapper 
+  LazyComponentWrapper,
+  LazySystemSettings,
+  LazySecurityCompliance
 } from '@/components/LazyComponents';
-import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useDebouncedCallback } from '@/hooks/usePerformanceOptimization';
-import SystemSettings from '@/components/SystemSettings';
-import SecurityCompliance from '@/components/SecurityCompliance';
 
 // Enhanced Error Boundary Component
 class AdminErrorBoundary extends React.Component<
@@ -66,12 +65,18 @@ class AdminErrorBoundary extends React.Component<
                 </AlertDescription>
               </Alert>
               <div className="flex gap-2">
-                <Button onClick={() => window.location.reload()} className="flex-1">
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                <Button 
+                  onClick={() => window.location.reload()}
+                  className="flex-1"
+                >
                   Refresh Page
                 </Button>
-                <Button variant="outline" onClick={() => window.location.href = '/'} className="flex-1">
-                  Go Home
+                <Button 
+                  variant="outline" 
+                  onClick={() => this.setState({ hasError: false })}
+                  className="flex-1"
+                >
+                  Try Again
                 </Button>
               </div>
             </CardContent>
@@ -815,8 +820,16 @@ const AdminDashboard: React.FC = () => {
               <LazyMaintenanceScheduler />
             </LazyComponentWrapper>
           } />
-          <Route path="/settings" element={<SystemSettings />} />
-          <Route path="/security" element={<SecurityCompliance />} />
+          <Route path="/settings" element={
+            <LazyComponentWrapper>
+              <LazySystemSettings />
+            </LazyComponentWrapper>
+          } />
+          <Route path="/security" element={
+            <LazyComponentWrapper>
+              <LazySecurityCompliance />
+            </LazyComponentWrapper>
+          } />
         </Routes>
       </main>
     </div>

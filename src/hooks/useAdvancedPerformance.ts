@@ -107,8 +107,14 @@ export const preloadCriticalResources = () => {
   }
 };
 
-// Service Worker registration
+// Service Worker registration (disabled in development)
 export const registerServiceWorker = () => {
+  // Skip service worker in development to avoid preview conflicts
+  if (import.meta.env.DEV) {
+    console.log('Service Worker registration skipped in development mode');
+    return;
+  }
+  
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')

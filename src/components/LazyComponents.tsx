@@ -62,4 +62,47 @@ export const LazyMaintenanceScheduler = lazy(() =>
   }))
 );
 
+export const LazySystemSettings = lazy(() => 
+  import('@/components/SystemSettings').then(module => ({
+    default: module.default
+  }))
+);
+
+export const LazySecurityCompliance = lazy(() => 
+  import('@/components/SecurityCompliance').then(module => ({
+    default: module.default
+  }))
+);
+
+// Additional lazy loading components for user features
+export const LazyPaymentGateway = lazy(() => 
+  import('@/components/PaymentGateway').then(module => ({
+    default: module.PaymentGateway
+  }))
+);
+
+export const LazyPromoCodeInput = lazy(() => 
+  import('@/components/PromoCodeInput').then(module => ({
+    default: module.PromoCodeInput
+  }))
+);
+
+export const LazyCarImageGallery = lazy(() => 
+  import('@/components/CarImageGallery').then(module => ({
+    default: module.CarImageGallery
+  }))
+);
+
+export const LazyLicenseUpload = lazy(() => 
+  import('@/components/LicenseUpload').then(module => ({
+    default: module.LicenseUpload
+  }))
+);
+
+export const LazyChatWidget = lazy(() => 
+  import('@/components/ChatWidget').then(module => ({
+    default: module.ChatWidget
+  }))
+);
+
 export { LazyComponentWrapper };

@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAuthStatus } from '@/hooks/useAuthStatus';
 
 interface AuthContextType {
   user: User | null;
@@ -17,49 +18,32 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, isAdmin, isLoading, error } = useAuthStatus();
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Check admin status
-          setTimeout(async () => {
-            try {
-              const { data } = await supabase
-                .from('users')
-                .select('is_admin')
-                .eq('id', session.user.id)
-                .single();
-              
-              setIsAdmin(data?.is_admin || false);
-            } catch (error) {
-              console.error('Error checking admin status:', error);
-              setIsAdmin(false);
-            }
-          }, 0);
-        } else {
-          setIsAdmin(false);
-        }
-      }
-    );
+  // Update session when user changes
+  React.useEffect(() => {
+    if (user) {
+      // Create a minimal session object
+      setSession({
+        user,
+        expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+      } as Session);
+    } else {
+      setSession(null);
+    }
+  }, [user]);
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  // Show error toast if auth initialization fails
+  React.useEffect(() => {
+    if (error) {
+      toast({
+        title: "Authentication Error",
+        description: "There was a problem with authentication. Please refresh the page.",
+        variant: "destructive",
+      });
+    }
+  }, [error]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -125,11 +109,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Signed Out",
-      description: "You have been successfully signed out.",
-    });
+    try {
+      console.log('Starting sign out process...');
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Sign out error:', error);
+        toast({
+          title: "Sign Out Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
+
+      // Clear any cached data
+      localStorage.removeItem('supabase.auth.token');
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
+      
+      console.log('Sign out successful, redirecting to auth page');
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      // The auth listener will handle updating the state
+    }
   };
 
   const value = {

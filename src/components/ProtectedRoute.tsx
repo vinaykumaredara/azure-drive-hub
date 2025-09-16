@@ -1,7 +1,7 @@
 // src/components/ProtectedRoute.tsx
 import React from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "./AuthProvider";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
 
 interface Props {
   children: JSX.Element;
@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const ProtectedRoute: React.FC<Props> = ({ children, requireAdmin = false }) => {
-  const { user, isAdmin, isLoading } = useAuth();
+  const { user, isAdmin, isLoading } = useAuthStatus();
   
   if (isLoading) {
     return (
@@ -24,7 +24,7 @@ export const ProtectedRoute: React.FC<Props> = ({ children, requireAdmin = false
   }
   
   if (requireAdmin && !isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   
   return children;
