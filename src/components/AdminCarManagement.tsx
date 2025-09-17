@@ -34,6 +34,10 @@ interface Car {
   created_at: string;
   price_in_paise?: number;
   currency?: string;
+  // New fields for atomic booking
+  booking_status?: string;
+  booked_by?: string;
+  booked_at?: string;
 }
 
 const AdminCarManagement: React.FC = () => {
@@ -192,10 +196,17 @@ const AdminCarManagement: React.FC = () => {
       // Convert price to paise for INR storage
       const priceInPaise = toPaise(formData.price_per_day);
       
-      // Upload images first if any new images are selected
-      let uploadedImageUrls: string[] = [];
+      // Handle image upload first
+      let allImageUrls: string[] = [];
+      
+      // Include existing images for the car (when editing)
+      if (selectedCar && selectedCar.image_urls) {
+        allImageUrls = [...selectedCar.image_urls];
+      }
+      
+      // Upload new images if any
       if (uploadedImages.length > 0) {
-        uploadedImageUrls = [...uploadedImages];
+        allImageUrls = [...allImageUrls, ...uploadedImages];
       }
       
       const carData = {
@@ -212,9 +223,11 @@ const AdminCarManagement: React.FC = () => {
         description: formData.description || '',
         location_city: formData.location_city || '',
         status: carStatus,
-        image_urls: selectedCar ? [...(selectedCar.image_urls || []), ...uploadedImageUrls] : uploadedImageUrls,
+        image_urls: allImageUrls,
         price_in_paise: priceInPaise,
-        currency: 'INR'
+        currency: 'INR',
+        // Reset booking status for new/updated cars
+        booking_status: 'available'
       };
 
       if (selectedCar) {
@@ -257,7 +270,7 @@ const AdminCarManagement: React.FC = () => {
       console.error('Error saving car:', error);
       toast({
         title: "Error",
-        description: "Failed to save car",
+        description: `Failed to save car: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     }
@@ -711,6 +724,7 @@ const AdminCarManagement: React.FC = () => {
                               src={url}
                               alt={`Car image ${index + 1}`}
                               className="w-full h-20 object-cover rounded border"
+                              loading="lazy"
                             />
                             <button
                               type="button"
@@ -736,6 +750,7 @@ const AdminCarManagement: React.FC = () => {
                               src={url}
                               alt={`New car image ${index + 1}`}
                               className="w-full h-20 object-cover rounded border border-green-200"
+                              loading="lazy"
                             />
                             <button
                               type="button"
@@ -788,6 +803,7 @@ const AdminCarManagement: React.FC = () => {
                       src={car.image_urls[0]}
                       alt={car.title}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full">

@@ -702,6 +702,7 @@ const UserDashboard: React.FC = () => {
                                   src={booking.cars.image_urls[0]}
                                   alt={booking.cars.title}
                                   className="w-20 h-20 object-cover rounded-lg shadow-md"
+                                  loading="lazy"
                                 />
                                 <div className="absolute -top-1 -right-1">
                                   <Button

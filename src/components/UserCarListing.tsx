@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { CarCard } from "@/components/CarCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, SlidersHorizontal, Loader2 } from "lucide-react";
+import { Search, Filter, SlidersHorizontal, Clock, CheckCircle } from "lucide-react";
 import { CarListSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ErrorBoundary";
 import { EmptyCarState } from "@/components/EmptyCarState";
@@ -14,8 +15,9 @@ import { CarListingErrorState } from "@/components/CarListingErrorState";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
 import { toast } from "@/hooks/use-toast";
+import { formatINRFromPaise } from "@/utils/currency";
 
-// Car interface for Supabase data
+// Car interface for Supabase data with booking information
 interface Car {
   id: string;
   title: string;
@@ -65,9 +67,13 @@ const transformCarForDisplay = (car: Car) => {
     rating: 4.5 + (Math.random() * 0.4), // Random rating between 4.5-4.9
     reviewCount: Math.floor(Math.random() * 50) + 15, // Random reviews 15-65
     isAvailable: car.status === 'published' && car.booking_status !== 'booked',
-    badges: car.status === 'published' && car.booking_status !== 'booked' ? ['Available', 'Verified'] : ['Busy'],
+    badges: car.status === 'published' && car.booking_status !== 'booked' ? ['Available', 'Verified'] : ['Booked'],
     features: ['GPS', 'AC', 'Bluetooth', 'Insurance'],
-    description: car.description || `${car.make} ${car.model} - Perfect for city drives and long trips`
+    description: car.description || `${car.make} ${car.model} - Perfect for city drives and long trips`,
+    // Booking-specific information
+    bookingStatus: car.booking_status,
+    bookedBy: car.booked_by,
+    bookedAt: car.booked_at
   };
   
   return transformed;
@@ -94,36 +100,24 @@ const sortOptions = [
   { label: "Most Popular", value: "popular" },
 ];
 
-export const CarListing = () => {
+export const UserCarListing = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [seatFilter, setSeatFilter] = useState("all");
   const [fuelFilter, setFuelFilter] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
   const [cars, setCars] = useState<Car[]>([]);
-  const [displayedCars, setDisplayedCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  
-  const ITEMS_PER_PAGE = 12;
 
-  // Fetch cars from Supabase with pagination
-  const fetchCars = useCallback(async (pageNum = 0, append = false) => {
+  // Fetch cars from Supabase
+  const fetchCars = async () => {
     try {
-      if (!append) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+      setLoading(true);
       setError(null);
       
-      // Build the query
-      let query = supabase
+      const { data, error: fetchError } = await supabase
         .from('cars')
         .select(`
           id,
@@ -146,46 +140,15 @@ export const CarListing = () => {
           booking_status,
           booked_by,
           booked_at
-        `, { count: 'exact' })
+        `)
         .eq('status', 'published')
-        .eq('booking_status', 'available')
-        .range(pageNum * ITEMS_PER_PAGE, (pageNum + 1) * ITEMS_PER_PAGE - 1);
-      
-      // Add sorting
-      switch (sortBy) {
-        case 'price-asc':
-          query = query.order('price_per_day', { ascending: true });
-          break;
-        case 'price-desc':
-          query = query.order('price_per_day', { ascending: false });
-          break;
-        case 'rating-desc':
-          // For rating, we'll sort by created_at as a proxy
-          query = query.order('created_at', { ascending: false });
-          break;
-        case 'popular':
-        default:
-          query = query.order('created_at', { ascending: false });
-          break;
-      }
-      
-      const { data, error: fetchError, count } = await query;
+        .order('created_at', { ascending: false });
 
       if (fetchError) {
         throw fetchError;
       }
       
-      if (count !== null) {
-        setTotalCount(count);
-        setHasMore((pageNum + 1) * ITEMS_PER_PAGE < count);
-      }
-      
-      if (append) {
-        setCars(prev => [...prev, ...(data || [])]);
-      } else {
-        setCars(data || []);
-        setPage(0);
-      }
+      setCars(data || []);
       
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch cars';
@@ -196,81 +159,78 @@ export const CarListing = () => {
         variant: "destructive",
       });
     } finally {
-      if (!append) {
-        setLoading(false);
-        setIsInitialized(true);
-      } else {
-        setLoadingMore(false);
-      }
+      setLoading(false);
+      setIsInitialized(true);
     }
-  }, [sortBy]);
-
-  // Fetch displayed cars (transformed)
-  useEffect(() => {
-    const filtered = cars
-      .filter(car => {
-        // Search filter
-        if (searchQuery && !car.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !car.make.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !car.model.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !(car.location_city || '').toLowerCase().includes(searchQuery.toLowerCase())) {
-          return false;
-        }
-        
-        // Seat filter
-        if (seatFilter !== "all" && car.seats !== parseInt(seatFilter)) {
-          return false;
-        }
-        
-        // Fuel filter
-        if (fuelFilter !== "all" && car.fuel_type.toLowerCase() !== fuelFilter.toLowerCase()) {
-          return false;
-        }
-        
-        return true;
-      })
-      .map(transformCarForDisplay);
-    
-    setDisplayedCars(filtered);
-  }, [cars, searchQuery, seatFilter, fuelFilter]);
+  };
 
   // Initial data fetch
   useEffect(() => {
-    fetchCars(0, false);
-  }, [fetchCars]);
-
-  // Handle sorting changes
-  useEffect(() => {
-    fetchCars(0, false);
-  }, [sortBy, fetchCars]);
-
-  // Load more cars
-  const loadMore = () => {
-    if (hasMore && !loadingMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchCars(nextPage, true);
-    }
-  };
+    fetchCars();
+  }, []);
 
   // Re-enable real-time subscription now that loading is fixed
   useRealtimeSubscription(
     'cars',
     (payload) => {
-      // For real-time updates, we'll refresh the current page
-      fetchCars(page, false);
+      // Only add published cars
+      if (payload.new.status === 'published') {
+        setCars(prev => [...prev, payload.new]);
+      }
     },
     (payload) => {
-      // For updates, we'll refresh the current page
-      fetchCars(page, false);
+      // Only update published cars
+      if (payload.new.status === 'published') {
+        setCars(prev => prev.map(car => 
+          car.id === payload.new.id ? payload.new : car
+        ));
+      }
     },
     (payload) => {
-      // For deletions, we'll refresh the current page
-      fetchCars(page, false);
+      setCars(prev => prev.filter(car => car.id !== payload.old.id));
     }
   );
 
-  const containerVariants = {
+  // Filter and transform cars
+  const filteredCars = cars
+    .filter(car => {
+      // Search filter
+      if (searchQuery && !car.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !car.make.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !car.model.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(car.location_city || '').toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      
+      // Seat filter
+      if (seatFilter !== "all" && car.seats !== parseInt(seatFilter)) {
+        return false;
+      }
+      
+      // Fuel filter
+      if (fuelFilter !== "all" && car.fuel_type.toLowerCase() !== fuelFilter.toLowerCase()) {
+        return false;
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'price-asc':
+          return a.price_per_day - b.price_per_day;
+        case 'price-desc':
+          return b.price_per_day - a.price_per_day;
+        case 'rating-desc':
+        case 'popular':
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    })
+    .map(transformCarForDisplay);
+
+  const totalCount = filteredCars.length;
+
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -281,7 +241,7 @@ export const CarListing = () => {
     }
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
@@ -305,10 +265,10 @@ export const CarListing = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            <span className="text-foreground">Choose Your</span> <span className="text-gradient">Perfect Ride</span>
+            <span className="text-foreground">Browse Our</span> <span className="text-gradient">Fleet</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Browse our diverse fleet of well-maintained vehicles. From budget-friendly options to luxury cars.
+            Find the perfect car for your next adventure. All cars are well-maintained and ready for you.
           </p>
         </motion.div>
 
@@ -404,7 +364,7 @@ export const CarListing = () => {
           transition={{ duration: 0.4, delay: 0.3 }}
         >
           <p className="text-muted-foreground">
-            Found <span className="font-semibold text-foreground">{totalCount} cars</span> available
+            Found <span className="font-semibold text-foreground">{totalCount} cars</span> in our fleet
           </p>
           <Button variant="outline" size="sm" className="flex items-center space-x-2">
             <SlidersHorizontal className="w-4 h-4" />
@@ -435,9 +395,9 @@ export const CarListing = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <CarListingErrorState error={error} onRetry={() => fetchCars(0, false)} />
+              <CarListingErrorState error={error} onRetry={fetchCars} />
             </motion.div>
-          ) : displayedCars.length === 0 ? (
+          ) : filteredCars.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 20 }}
@@ -455,9 +415,57 @@ export const CarListing = () => {
               initial="hidden"
               animate="visible"
             >
-              {displayedCars.map((car, index) => (
+              {filteredCars.map((car, index) => (
                 <motion.div key={car.id} variants={itemVariants}>
-                  <CarCard car={car} />
+                  {car.bookingStatus === 'booked' ? (
+                    // Display booked car with different UI
+                    <div className="group">
+                      <div className="overflow-hidden bg-white shadow-card rounded-lg border-0">
+                        <div className="relative aspect-video overflow-hidden">
+                          <img
+                            src={car.image}
+                            alt={car.title}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                            <Badge variant="destructive" className="bg-red-500 text-white shadow-lg flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              Already Booked
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-6 bg-gradient-to-br from-white via-white to-gray-50/30">
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-bold text-lg text-foreground leading-tight">
+                                  {car.title}
+                                </h3>
+                                <div className="flex items-center text-sm text-muted-foreground mt-1">
+                                  <span>{car.make} {car.model} ({car.year})</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between pt-4 border-t border-border/30">
+                              <div className="flex flex-col">
+                                <div className="text-2xl font-bold text-primary">
+                                  {formatINRFromPaise(car.pricePerDay * 100)}
+                                </div>
+                                <div className="text-sm text-muted-foreground">per day</div>
+                              </div>
+                              <div className="text-sm text-muted-foreground italic">
+                                Be fast next time!
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Display available car with booking option
+                    <CarCard car={car} />
+                  )}
                 </motion.div>
               ))}
             </motion.div>
@@ -465,7 +473,7 @@ export const CarListing = () => {
         </AnimatePresence>
 
         {/* Load More */}
-        {!loading && !error && displayedCars.length > 0 && (
+        {!loading && !error && filteredCars.length > 0 && (
           <motion.div 
             className="text-center mt-12"
             initial={{ opacity: 0 }}
@@ -473,28 +481,9 @@ export const CarListing = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
           >
-            {hasMore ? (
-              <Button 
-                onClick={loadMore} 
-                disabled={loadingMore}
-                variant="outline" 
-                size="lg" 
-                className="px-8"
-              >
-                {loadingMore ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load More Cars"
-                )}
-              </Button>
-            ) : (
-              <p className="text-muted-foreground">
-                You've reached the end of the car listings
-              </p>
-            )}
+            <Button variant="outline" size="lg" className="px-8">
+              Load More Cars
+            </Button>
           </motion.div>
         )}
       </div>

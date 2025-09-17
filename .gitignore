@@ -4,3 +4,17 @@ dist/
 .env.local
 .vscode/
 .DS_Store
+# Temporary and backup files
+*.backup
+*.bak
+*.log
+*.tmp
+*~
+# Build artifacts
+*.timestamp-*.mjs
+# Bun lock files
+bun.lockb
+# Empty markdown files
+DEV-SERVER-FIXES.md
+DEV_CHECKLIST.md
+SITE_OPTIMIZATION_COMPLETE.md
