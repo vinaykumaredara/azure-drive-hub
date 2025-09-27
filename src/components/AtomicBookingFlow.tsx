@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, User, CreditCard, CheckCircle, Car, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -63,9 +63,21 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
 
   const [isLoading, setIsLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   const steps: Step[] = ['dates', 'extras', 'payment', 'confirmation'];
   const currentStepIndex = steps.indexOf(currentStep);
+
+  // Handle body scroll locking for mobile
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+    
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, []);
 
   const calculateTotal = () => {
     const basePrice = (car.price_in_paise ? car.price_in_paise / 100 : car.pricePerDay) * bookingData.totalDays;
@@ -101,6 +113,17 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
       // If successful, proceed to confirmation
       setCurrentStep('confirmation');
       onBookingSuccess();
+      
+      // Reset add-ons state after successful booking
+      setBookingData(prev => ({
+        ...prev,
+        extras: {
+          driver: false,
+          gps: false,
+          childSeat: false,
+          insurance: true
+        }
+      }));
       
       toast({
         title: "Success",
@@ -150,12 +173,17 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
       // Attempt to book the car atomically
       await handleBookCar();
     }
+    
+    // Scroll to top when advancing to next step
+    contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBack = () => {
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
+      // Scroll to top when going back
+      contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -500,8 +528,15 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        {/* Scrollable Content Area */}
+        <div 
+          ref={contentRef}
+          className="p-6 overflow-y-auto"
+          style={{
+            maxHeight: 'calc(90vh - 200px)', // leave room for header and footer
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
           <AnimatePresence mode="wait">
             {currentStep === 'dates' && renderDateSelection()}
             {currentStep === 'extras' && renderExtrasSelection()}
@@ -510,40 +545,38 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
           </AnimatePresence>
         </div>
 
-        {/* Footer */}
+        {/* Sticky Footer - Always Visible */}
         {currentStep !== 'confirmation' && (
-          <div className="p-6 border-t bg-muted/30">
-            <div className="flex justify-between items-center">
-              <div>
-                {currentStep !== 'dates' && (
-                  <Button variant="outline" onClick={handleBack} disabled={isLoading}>
-                    Back
-                  </Button>
-                )}
+          <div className="sticky bottom-0 w-full bg-white/60 backdrop-blur-md border-t border-gray-100 px-6 py-4 flex justify-between items-center">
+            <div>
+              {currentStep !== 'dates' && (
+                <Button variant="outline" onClick={handleBack} disabled={isLoading}>
+                  Back
+                </Button>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="font-bold text-lg">{formatINRFromPaise(calculateTotal() * 100)}</p>
               </div>
               
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="font-bold text-lg">{formatINRFromPaise(calculateTotal() * 100)}</p>
-                </div>
-                
-                <Button 
-                  onClick={handleNext} 
-                  disabled={isLoading || (currentStep === 'dates' && (!bookingData.startDate || !bookingData.endDate))}
-                  className="min-w-[120px]"
-                >
-                  {isLoading ? (
-                    <motion.div 
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                    />
-                  ) : (
-                    currentStep === 'payment' ? 'Book Now' : 'Continue'
-                  )}
-                </Button>
-              </div>
+              <Button 
+                onClick={handleNext} 
+                disabled={isLoading || (currentStep === 'dates' && (!bookingData.startDate || !bookingData.endDate))}
+                className="min-w-[120px]"
+              >
+                {isLoading ? (
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                  />
+                ) : (
+                  currentStep === 'payment' ? 'Book Now' : 'Continue'
+                )}
+              </Button>
             </div>
           </div>
         )}

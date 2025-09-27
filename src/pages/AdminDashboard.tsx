@@ -482,11 +482,11 @@ const AdminDashboard: React.FC = () => {
         { count: activePromos },
         { data: todayRevenue }
       ] = await Promise.all([
-        supabase.from('cars').select('*', { count: 'exact', head: true }),
-        supabase.from('bookings').select('*', { count: 'exact', head: true }).in('status', ['confirmed', 'active']),
-        supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_admin', false),
-        supabase.from('licenses').select('*', { count: 'exact', head: true }).is('verified', null),
-        supabase.from('promo_codes').select('*', { count: 'exact', head: true }).eq('active', true),
+        supabase.from('cars').select('*', { count: 'planned', head: true }),
+        supabase.from('bookings').select('*', { count: 'planned', head: true }).in('status', ['confirmed', 'active']),
+        supabase.from('users').select('*', { count: 'planned', head: true }).eq('is_admin', false),
+        supabase.from('licenses').select('*', { count: 'planned', head: true }).is('verified', null),
+        supabase.from('promo_codes').select('*', { count: 'planned', head: true }).eq('active', true),
         supabase.from('payments').select('amount').eq('status', 'completed').gte('created_at', startOfToday)
       ]);
 

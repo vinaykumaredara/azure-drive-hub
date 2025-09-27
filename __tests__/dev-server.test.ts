@@ -3,7 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import http from 'http';
 
 describe('Dev Server', () => {
-  let devProcess: ChildProcess | null = null;
+  const devProcess: ChildProcess | null = null;
 
   beforeAll(() => {
     // Increase timeout for dev server startup

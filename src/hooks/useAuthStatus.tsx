@@ -27,7 +27,7 @@ export const useAuthStatus = (): AuthStatus => {
         // Get current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (sessionError) throw sessionError;
+        if (sessionError) {throw sessionError;}
         
         if (session?.user && mounted) {
           // Fetch user profile to check admin status
@@ -76,7 +76,7 @@ export const useAuthStatus = (): AuthStatus => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
+      if (!mounted) {return;}
       
       if (session?.user) {
         // Fetch user profile to check admin status

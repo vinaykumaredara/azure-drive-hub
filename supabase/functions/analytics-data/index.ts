@@ -1,9 +1,15 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+// @ts-nocheck
+// NOTE: These imports are resolved at runtime by Deno in Supabase Edge Functions
+// TypeScript errors in IDE are expected but won't prevent the function from working
+
+/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
+
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
@@ -64,10 +70,10 @@ serve(async (req) => {
       { count: totalUsers },
       { data: revenueData }
     ] = await Promise.all([
-      supabaseClient.from("bookings").select("*", { count: "exact", head: true }),
-      supabaseClient.from("bookings").select("*", { count: "exact", head: true }).eq("status", "confirmed"),
-      supabaseClient.from("cars").select("*", { count: "exact", head: true }),
-      supabaseClient.from("users").select("*", { count: "exact", head: true }),
+      supabaseClient.from("bookings").select("*", { count: "planned", head: true }),
+      supabaseClient.from("bookings").select("*", { count: "planned", head: true }).eq("status", "confirmed"),
+      supabaseClient.from("cars").select("*", { count: "planned", head: true }),
+      supabaseClient.from("users").select("*", { count: "planned", head: true }),
       supabaseClient.from("payments").select("amount").eq("status", "completed").gte("created_at", dateFilter)
     ]);
 
@@ -81,7 +87,7 @@ serve(async (req) => {
       .order("created_at");
 
     // Process daily data
-    const dailyStats = {};
+    const dailyStats: Record<string, { bookings: number; revenue: number; confirmed: number }> = {};
     dailyBookings?.forEach(booking => {
       const date = new Date(booking.created_at).toISOString().split('T')[0];
       if (!dailyStats[date]) {
@@ -95,7 +101,7 @@ serve(async (req) => {
     });
 
     // Convert to chart format
-    const chartData = Object.entries(dailyStats).map(([date, stats]) => ({
+    const chartData = Object.entries(dailyStats).map(([date, stats]: [string, any]) => ({
       date,
       bookings: stats.bookings,
       revenue: stats.revenue,

@@ -15,7 +15,7 @@ A modern, full-stack car rental platform built with React, TypeScript, and Supab
 
 ### 🛠️ **Admin Features**
 - **Comprehensive Dashboard**: Real-time analytics and metrics
-- **Car Management**: Add, edit, delete vehicles with multi-image upload
+- **Car Management**: Add, edit, delete vehicles with multi-image upload (up to 6 images per car)
 - **Booking Management**: Track and manage all reservations
 - **Promo Code Manager**: Create and manage discount campaigns
 - **License Verification**: AI-assisted driver's license validation
@@ -26,7 +26,7 @@ A modern, full-stack car rental platform built with React, TypeScript, and Supab
 - **Real-time Sync**: Instant updates across all dashboards
 - **Secure Authentication**: Row-level security with Supabase Auth
 - **Payment Processing**: Dual gateway support for global transactions
-- **Image Management**: Supabase storage with optimized delivery
+- **Image Management**: Supabase storage with optimized delivery and multi-image support
 - **Mobile-First**: Progressive Web App capabilities
 - **Performance Optimized**: Lazy loading and code splitting
 - **Type Safety**: Full TypeScript implementation
@@ -107,3 +107,24 @@ VITE_APP_URL=http://localhost:5173
 - **Bundle Size**: <200KB gzipped
 - **Load Time**: <2s on 3G networks
 - **Core Web Vitals**: Optimized for excellent UX
+
+## 🛠️ Recent Improvements
+
+### Multi-Image Upload Fix
+We've implemented a comprehensive fix for the car image upload system:
+
+**Problems Solved:**
+- Admins can now upload up to 6 images per car
+- All images are displayed correctly in both Admin and User views
+- Images are stored as canonical public URLs
+- Fixed race conditions during parallel uploads
+- Added client-side validation and error handling
+- Implemented atomic operations with rollback on failure
+
+**Key Components:**
+- `src/utils/imageUtils.ts`: New utility functions for image handling
+- `src/components/AdminImage.tsx`: Resilient image component with fallbacks
+- `src/components/ImageCarousel.tsx`: Enhanced carousel for multiple images
+- `scripts/repair-image-urls.js`: Database repair script for existing entries
+
+For detailed information, see [IMAGE_UPLOAD_FIX_SUMMARY.md](./IMAGE_UPLOAD_FIX_SUMMARY.md)

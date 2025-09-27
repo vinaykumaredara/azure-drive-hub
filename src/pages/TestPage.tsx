@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import TestSupabaseConnection from '@/components/TestSupabaseConnection';
 
 const TestPage: React.FC = () => {
   const { user, isAdmin, signOut } = useAuth();
@@ -36,7 +37,7 @@ const TestPage: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>RP CARS Test Page</CardTitle>
@@ -59,6 +60,9 @@ const TestPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Supabase Connection Test */}
+      <TestSupabaseConnection />
     </div>
   );
 };

@@ -132,6 +132,8 @@ export type Database = {
           booking_status: string | null
           booked_by: string | null
           booked_at: string | null
+          // Service charge column
+          service_charge: number | null
         }
         Insert: {
           created_at?: string | null
@@ -155,6 +157,8 @@ export type Database = {
           booking_status?: string | null
           booked_by?: string | null
           booked_at?: string | null
+          // Service charge column
+          service_charge?: number | null
         }
         Update: {
           created_at?: string | null
@@ -178,6 +182,8 @@ export type Database = {
           booking_status?: string | null
           booked_by?: string | null
           booked_at?: string | null
+          // Service charge column
+          service_charge?: number | null
         }
         Relationships: [
           {

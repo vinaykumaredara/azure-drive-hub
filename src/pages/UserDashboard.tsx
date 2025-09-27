@@ -12,8 +12,9 @@ import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { LazyLicenseUpload, LazyChatWidget } from '@/components/LazyComponents';
+import { LazyLicenseUpload as LicenseUpload, LazyChatWidget } from '@/components/LazyComponents';
 import { errorLogger } from '@/utils/errorLogger';
+import ImageCarousel from '@/components/ImageCarousel';
 
 interface Booking {
   id: string;
@@ -696,30 +697,11 @@ const UserDashboard: React.FC = () => {
                           className="flex items-center justify-between p-6 border rounded-lg hover:shadow-md transition-all duration-200 bg-gradient-to-r from-white to-muted/10"
                         >
                           <div className="flex items-center space-x-4">
-                            {booking.cars?.image_urls?.[0] && (
-                              <div className="relative">
-                                <img
-                                  src={booking.cars.image_urls[0]}
-                                  alt={booking.cars.title}
-                                  className="w-20 h-20 object-cover rounded-lg shadow-md"
-                                  loading="lazy"
-                                />
-                                <div className="absolute -top-1 -right-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 bg-white shadow-md rounded-full"
-                                    onClick={() => booking.car_id && toggleFavorite(booking.car_id)}
-                                  >
-                                    <Heart 
-                                      className={`h-3 w-3 ${
-                                        favoriteCarIds.includes(booking.car_id) 
-                                          ? 'text-red-500 fill-current' 
-                                          : 'text-muted-foreground'
-                                      }`} 
-                                    />
-                                  </Button>
-                                </div>
+                            {booking.cars.image_urls && booking.cars.image_urls.length > 0 ? (
+                              <ImageCarousel images={booking.cars.image_urls} className="w-16 h-16 rounded" />
+                            ) : (
+                              <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center">
+                                <Car className="w-6 h-6 text-gray-400" />
                               </div>
                             )}
                             <div className="space-y-1">
@@ -896,7 +878,15 @@ const UserDashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <LazyLicenseUpload />
+                  <LicenseUpload onUploaded={(licenseId) => {
+                    console.log('License uploaded with ID:', licenseId);
+                    toast({
+                      title: "License Uploaded",
+                      description: "Your license has been uploaded successfully.",
+                    });
+                    // Refresh notifications to update license status
+                    fetchNotifications();
+                  }} />
                 </CardContent>
               </Card>
             </TabsContent>

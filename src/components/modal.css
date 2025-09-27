@@ -1,0 +1,30 @@
+/* Modal container */
+.modal__content {
+  max-height: calc(100vh - 120px);
+  overflow: hidden; /* Changed from overflow-y: auto to hidden since we handle scrolling internally */
+  -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+}
+
+/* Modal footer containing Continue */
+.modal__footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--modal-footer-bg, white); /* ensure it overlays content */
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+  z-index: 20;
+  padding: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Touch action for better mobile scrolling */
+.modal__scrollable {
+  touch-action: pan-y;
+}
+
+/* Ensure footer is always visible */
+.modal__content .sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}

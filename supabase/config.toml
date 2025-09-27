@@ -1,3 +1,4 @@
+# A minimal Supabase CLI config
 project_id = "rcpkhtlvfvafympulywx"
 
 [api]
@@ -7,120 +8,25 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
+[db]
+port = 54322
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+
 [auth]
 enabled = true
-port = 54324
 site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = ["https://localhost:3000"]
 jwt_expiry = 3600
-refresh_token_rotation_enabled = true
-security_update_password_require_reauthentication = true
-security_manual_linking_enabled = false
 
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
-
-[auth.sms]
-enable_signup = false
-enable_confirmations = false
-
-[auth.external.apple]
-enabled = false
-
-[auth.external.azure]
-enabled = false
-
-[auth.external.bitbucket]
-enabled = false
-
-[auth.external.discord]
-enabled = false
-
-[auth.external.facebook]
-enabled = false
-
-[auth.external.github]
-enabled = false
-
-[auth.external.gitlab]
-enabled = false
-
-[auth.external.google]
-enabled = false
-
-[auth.external.keycloak]
-enabled = false
-
-[auth.external.linkedin]
-enabled = false
-
-[auth.external.notion]
-enabled = false
-
-[auth.external.twitch]
-enabled = false
-
-[auth.external.twitter]
-enabled = false
-
-[auth.external.slack]
-enabled = false
-
-[auth.external.spotify]
-enabled = false
-
-[auth.external.workos]
-enabled = false
-
-[auth.external.zoom]
-enabled = false
-
-[db]
-port = 54322
-
-[db.pooler]
-enabled = false
-
-[realtime]
-enabled = true
-port = 54323
-
-[storage]
-enabled = true
-port = 54324
-
-[functions]
-enabled = true
-port = 54325
-
-[functions.ocr-license]
-verify_jwt = true
-
-[functions.create-payment]
-verify_jwt = true
-
-[functions.payment-webhook]
-verify_jwt = false
-
-[functions.cancel-booking]
-verify_jwt = true
-
-[functions.get-signed-url]
-verify_jwt = true
-
-[functions.create-payment-intent]
-verify_jwt = true
-
-[functions.confirm-payment]
-verify_jwt = false
-
-[functions.upload-license]
-verify_jwt = true
-
-[functions.analytics-data]
-verify_jwt = true
 
 [analytics]
 enabled = false

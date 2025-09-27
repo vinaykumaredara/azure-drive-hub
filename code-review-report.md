@@ -149,8 +149,8 @@ const [
   { count: activeBookings },
   // ... more individual queries
 ] = await Promise.all([
-  supabase.from('cars').select('*', { count: 'exact', head: true }),
-  supabase.from('bookings').select('*', { count: 'exact', head: true })
+  supabase.from('cars').select('*', { count: 'planned', head: true }),
+  supabase.from('bookings').select('*', { count: 'planned', head: true })
 ]);
 
 // ✅ GOOD: Optimized single query with aggregation

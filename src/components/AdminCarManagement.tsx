@@ -14,6 +14,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtime';
 import { useNavigate } from 'react-router-dom';
 import { formatINRFromPaise, toPaise } from '@/utils/currency';
+import { getPublicImageUrl, uploadMultipleFiles, appendImageUrlsToCar } from '@/utils/imageUtils';
+import LazyImage from '@/components/LazyImage';
+import { resolveImageUrlsForCarAdmin } from '@/utils/adminImageUtils';
+import AdminImage from '@/components/AdminImage';
+import ImageCarousel from '@/components/ImageCarousel';
 
 interface Car {
   id: string;
@@ -31,6 +36,7 @@ interface Car {
   location_city?: string;
   status: string;
   image_urls: string[];
+  image_paths?: string[]; // Add image_paths field
   created_at: string;
   price_in_paise?: number;
   currency?: string;
@@ -50,7 +56,8 @@ const AdminCarManagement: React.FC = () => {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [carToDelete, setCarToDelete] = useState<Car | null>(null);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadedImagePaths, setUploadedImagePaths] = useState<string[]>([]);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -134,8 +141,25 @@ const AdminCarManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) {throw error;}
-      setCars(data || []);
-      setFilteredCars(data || []);
+      
+      // Debug logging
+      console.info('Admin: Fetched cars from DB', {
+        count: data?.length,
+        sampleCar: data?.[0] ? {
+          id: data[0].id,
+          title: data[0].title,
+          image_urls: data[0].image_urls,
+          envUrl: import.meta.env.VITE_SUPABASE_URL
+        } : null
+      });
+      
+      // Resolve image URLs for all cars using admin-specific resolver
+      const carsWithResolvedImages = await Promise.all(
+        (data || []).map(resolveImageUrlsForCarAdmin)
+      );
+      
+      setCars(carsWithResolvedImages);
+      setFilteredCars(carsWithResolvedImages);
     } catch (error) {
       console.error('Error fetching cars:', error);
       toast({
@@ -150,37 +174,123 @@ const AdminCarManagement: React.FC = () => {
 
   const handleImageUpload = async (files: FileList) => {
     setUploadingImages(true);
-    const imageUrls: string[] = [];
 
     try {
+      // Validate that all files are images
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const fileName = `${Date.now()}-${file.name}`;
-        
-        // Upload image to storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('cars-photos')
-          .upload(fileName, file);
-
-        if (uploadError) {throw uploadError;}
-
-        // Get public URL for the uploaded image
-        const { data: { publicUrl } } = supabase.storage
-          .from('cars-photos')
-          .getPublicUrl(fileName);
-
-        imageUrls.push(publicUrl);
+        if (!file.type.startsWith('image/')) {
+          throw new Error(`File ${file.name} is not a valid image. Please upload only image files (JPEG, PNG, GIF, etc.).`);
+        }
       }
 
-      return imageUrls;
-    } catch (error) {
+      // If we're editing an existing car, get its ID
+      const carId = selectedCar?.id || `new-${Date.now()}`;
+
+      // Upload files in parallel and get paths and URLs
+      const { paths, urls } = await uploadMultipleFiles(carId, Array.from(files));
+      
+      // Update state with new paths and URLs
+      setUploadedImagePaths(prev => [...prev, ...paths]);
+      setUploadedImageUrls(prev => [...prev, ...urls]);
+      
+      return urls;
+    } catch (error: any) {
       console.error('Error uploading images:', error);
       toast({
         title: "Upload Error",
-        description: "Failed to upload images",
+        description: error.message || "Failed to upload images",
         variant: "destructive",
       });
       return [];
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  // Atomic upload function that ensures database and storage consistency
+  const atomicImageUpload = async (files: FileList, carId: string) => {
+    setUploadingImages(true);
+    
+    try {
+      const uploadedFilePaths: string[] = [];
+      
+      // Upload files one by one to ensure atomicity
+      for (const file of Array.from(files)) {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          throw new Error(`File ${file.name} is not a valid image.`);
+        }
+        
+        // Generate unique file name
+        const fileName = `cars/${carId}/${Date.now()}_${file.name}`;
+        
+        try {
+          // Upload file to storage
+          const { error: uploadError } = await supabase.storage
+            .from('cars-photos')
+            .upload(fileName, file);
+          
+          if (uploadError) {
+            throw uploadError;
+          }
+          
+          // Store the file path for potential rollback
+          uploadedFilePaths.push(fileName);
+          
+          // Get public URL for the uploaded file
+          const { data: publicUrlData } = supabase.storage
+            .from('cars-photos')
+            .getPublicUrl(fileName);
+          
+          if (!publicUrlData?.publicUrl) {
+            throw new Error('Failed to generate public URL');
+          }
+          
+          // Update database with the new image URL
+          // FIX: Instead of using array_append RPC (which doesn't exist), fetch current arrays and append to them
+          // Note: image_paths column doesn't exist in the schema, only image_urls
+          const { data: currentCar, error: fetchError } = await supabase
+            .from('cars')
+            .select('image_urls')
+            .eq('id', carId)
+            .single();
+          
+          if (fetchError) {
+            throw fetchError;
+          }
+          
+          // Append new values to existing arrays
+          const updatedImageUrls = [...(currentCar?.image_urls || []), publicUrlData.publicUrl];
+          
+          const { error: updateError } = await supabase
+            .from('cars')
+            .update({
+              image_urls: updatedImageUrls
+            })
+            .eq('id', carId);
+          
+          if (updateError) {
+            // If database update fails, remove the uploaded file
+            await supabase.storage
+              .from('cars-photos')
+              .remove([fileName]);
+            
+            throw updateError;
+          }
+        } catch (uploadError) {
+          // Rollback all previously uploaded files
+          if (uploadedFilePaths.length > 0) {
+            await supabase.storage
+              .from('cars-photos')
+              .remove(uploadedFilePaths);
+          }
+          
+          throw uploadError;
+        }
+      }
+      
+      return uploadedFilePaths;
     } finally {
       setUploadingImages(false);
     }
@@ -204,12 +314,11 @@ const AdminCarManagement: React.FC = () => {
         allImageUrls = [...selectedCar.image_urls];
       }
       
-      // Upload new images if any
-      if (uploadedImages.length > 0) {
-        allImageUrls = [...allImageUrls, ...uploadedImages];
-      }
+      // Add newly uploaded images
+      allImageUrls = [...allImageUrls, ...uploadedImageUrls];
       
-      const carData = {
+      // Prepare base car data with defensive fallback for currency
+      const carData: any = {
         title: formData.title,
         make: formData.make,
         model: formData.model,
@@ -225,10 +334,12 @@ const AdminCarManagement: React.FC = () => {
         status: carStatus,
         image_urls: allImageUrls,
         price_in_paise: priceInPaise,
-        currency: 'INR',
-        // Reset booking status for new/updated cars
-        booking_status: 'available'
+        currency: 'INR' // Defensive fallback - ensure currency is always present
       };
+
+      // Always include booking_status for now, as it should exist in the database
+      // If it doesn't exist, the insert will fail and we'll handle it in the catch block
+      carData.booking_status = 'available';
 
       if (selectedCar) {
         // Update existing car
@@ -238,25 +349,27 @@ const AdminCarManagement: React.FC = () => {
           .eq('id', selectedCar.id);
 
         if (error) {throw error;}
-        
+      
         // Log audit entry for car update
         await logAuditAction('car_update', `Updated car: ${formData.title}`, { carId: selectedCar.id });
-        
+      
         toast({
           title: "Success",
           description: "Car updated successfully",
         });
       } else {
         // Create new car
-        const { error } = await supabase
+        const { data: newCar, error } = await supabase
           .from('cars')
-          .insert([carData]);
+          .insert([carData])
+          .select()
+          .single();
 
         if (error) {throw error;}
-        
+      
         // Log audit entry for car creation
         await logAuditAction('car_create', `Created car: ${formData.title}`);
-        
+      
         toast({
           title: "Success",
           description: "Car created successfully",
@@ -266,60 +379,104 @@ const AdminCarManagement: React.FC = () => {
       setIsEditDialogOpen(false);
       resetForm();
       fetchCars(); // Refresh the car list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving car:', error);
+      // Add verbose logging for debugging
+      console.error('Supabase insert error details:', {
+        error: error,
+        message: error.message,
+        code: error.code,
+        hint: error.hint,
+        details: error.details
+      });
+      
+      // If the error is about booking_status, service_charge or currency column not existing, try again without it
+      if (error.message && (error.message.includes('booking_status') || error.message.includes('service_charge') || error.message.includes('column'))) {
+        try {
+          // Prepare car data without problematic columns
+          const carData: any = {
+            title: formData.title,
+            make: formData.make,
+            model: formData.model,
+            year: formData.year,
+            seats: formData.seats,
+            fuel_type: formData.fuel_type,
+            transmission: formData.transmission,
+            price_per_day: formData.price_per_day,
+            price_per_hour: formData.price_per_hour || 0,
+            service_charge: formData.service_charge || 0,
+            description: formData.description || '',
+            location_city: formData.location_city || '',
+            status: selectedCar ? formData.status : 'published',
+            image_urls: [],
+            price_in_paise: toPaise(formData.price_per_day),
+            currency: 'INR' // Defensive fallback - ensure currency is always present
+          };
+
+          // Only add service_charge if it exists in the schema
+          // We'll handle this more gracefully in the future
+        
+          // Handle images
+          let allImageUrls: string[] = [];
+          
+          if (selectedCar && selectedCar.image_urls) {
+            allImageUrls = [...selectedCar.image_urls];
+          }
+          
+          allImageUrls = [...allImageUrls, ...uploadedImageUrls];
+          
+          carData.image_urls = allImageUrls;
+
+          if (selectedCar) {
+            const { error: retryError } = await supabase
+              .from('cars')
+              .update(carData)
+              .eq('id', selectedCar.id);
+
+            if (retryError) {throw retryError;}
+          } else {
+            const { error: retryError } = await supabase
+              .from('cars')
+              .insert([carData]);
+
+            if (retryError) {throw retryError;}
+          }
+
+          toast({
+            title: "Success",
+            description: "Car saved successfully",
+          });
+
+          setIsEditDialogOpen(false);
+          resetForm();
+          fetchCars();
+          return;
+        } catch (retryError: any) {
+          console.error('Retry error:', retryError);
+          // Add verbose logging for retry errors
+          console.error('Supabase retry error details:', {
+            error: retryError,
+            message: retryError.message,
+            code: retryError.code,
+            hint: retryError.hint,
+            details: retryError.details
+          });
+          
+          toast({
+            title: "Error",
+            description: `Failed to save car: ${retryError.message || 'Unknown error'}`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      
       toast({
         title: "Error",
         description: `Failed to save car: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     }
-  };
-
-  const handleDeleteClick = (car: Car) => {
-    setCarToDelete(car);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!carToDelete) {return;}
-
-    try {
-      // Optimistic update - remove from UI immediately
-      setCars(prev => prev.filter(car => car.id !== carToDelete.id));
-      setFilteredCars(prev => prev.filter(car => car.id !== carToDelete.id));
-      
-      const { error } = await supabase
-        .from('cars')
-        .delete()
-        .eq('id', carToDelete.id);
-
-      if (error) {
-        // Revert optimistic update on error
-        fetchCars();
-        throw error;
-      }
-      
-      toast({
-        title: "Success",
-        description: "Car deleted successfully",
-      });
-    } catch (error) {
-      console.error('Error deleting car:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete car. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleteDialogOpen(false);
-      setCarToDelete(null);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setIsDeleteDialogOpen(false);
-    setCarToDelete(null);
   };
 
   const resetForm = () => {
@@ -339,32 +496,123 @@ const AdminCarManagement: React.FC = () => {
       status: 'published'
     });
     setSelectedCar(null);
-    setUploadedImages([]);
+    setUploadedImagePaths([]);
+    setUploadedImageUrls([]);
   };
 
+  const handleEdit = (car: Car) => {
+    setSelectedCar(car);
+    setFormData({
+      title: car.title,
+      make: car.make || '',
+      model: car.model || '',
+      year: car.year || new Date().getFullYear(),
+      seats: car.seats || 5,
+      fuel_type: car.fuel_type || 'petrol',
+      transmission: car.transmission || 'automatic',
+      price_per_day: car.price_per_day || 0,
+      price_per_hour: car.price_per_hour || 0,
+      service_charge: car.service_charge || 0,
+      description: car.description || '',
+      location_city: car.location_city || '',
+      status: car.status || 'published'
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!carToDelete) {return;}
+
+    try {
+      // Delete associated images from storage
+      if (carToDelete.image_urls && carToDelete.image_urls.length > 0) {
+        // Extract file paths from URLs for deletion
+        const filePaths = carToDelete.image_urls.map(url => {
+          // Extract the file path from the URL
+          const urlObj = new URL(url);
+          const pathParts = urlObj.pathname.split('/');
+          // Find the part that starts with 'cars/'
+          const carsIndex = pathParts.findIndex(part => part.startsWith('cars%2F') || part.startsWith('cars/'));
+          if (carsIndex !== -1) {
+            return pathParts.slice(carsIndex).join('/').replace('%2F', '/');
+          }
+          return '';
+        }).filter(path => path !== '');
+
+        if (filePaths.length > 0) {
+          const { error: deleteError } = await supabase.storage
+            .from('cars-photos')
+            .remove(filePaths);
+          
+          if (deleteError) {
+            console.warn('Failed to delete images from storage:', deleteError);
+            // Continue with car deletion even if image deletion fails
+          }
+        }
+      }
+
+      // Delete car from database
+      const { error } = await supabase
+        .from('cars')
+        .delete()
+        .eq('id', carToDelete.id);
+
+      if (error) {throw error;}
+
+      toast({
+        title: "Success",
+        description: "Car deleted successfully",
+      });
+
+      fetchCars();
+    } catch (error: any) {
+      console.error('Error deleting car:', error);
+      toast({
+        title: "Error",
+        description: `Failed to delete car: ${error.message || 'Unknown error'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setCarToDelete(null);
+    }
+  };
+
+  // Add the missing functions
   const openEditDialog = (car?: Car) => {
     if (car) {
-      setSelectedCar(car);
-      setFormData({
-        title: car.title,
-        make: car.make,
-        model: car.model,
-        year: car.year,
-        seats: car.seats,
-        fuel_type: car.fuel_type,
-        transmission: car.transmission,
-        price_per_day: car.price_per_day,
-        price_per_hour: car.price_per_hour || 0,
-        service_charge: car.service_charge || 0,
-        description: car.description || '',
-        location_city: car.location_city || '',
-        status: car.status
-      });
-      setUploadedImages([]);
+      handleEdit(car);
     } else {
       resetForm();
+      setIsEditDialogOpen(true);
     }
-    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (car: Car) => {
+    setCarToDelete(car);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false);
+    setCarToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    await handleDelete();
+  };
+
+  const logAuditAction = async (action: string, description: string, metadata?: any) => {
+    try {
+      await supabase.from('audit_logs').insert({
+        action,
+        description,
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+        metadata
+      });
+    } catch (error) {
+      console.warn('Failed to log audit action:', error);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -377,33 +625,6 @@ const AdminCarManagement: React.FC = () => {
         return 'bg-destructive text-destructive-foreground';
       default:
         return 'bg-muted text-muted-foreground';
-    }
-  };
-
-  const logAuditAction = async (action: string, description: string, metadata?: any) => {
-    try {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-      
-      // Insert audit log entry
-      const { error } = await supabase
-        .from('audit_logs')
-        .insert({
-          action,
-          description,
-          user_id: user?.id,
-          metadata: {
-            ...metadata,
-            timestamp: new Date().toISOString()
-          }
-        });
-      
-      if (error) {
-        console.error('Error logging audit action:', error);
-      }
-    } catch (error) {
-      console.error('Error logging audit action:', error);
     }
   };
 
@@ -700,10 +921,30 @@ const AdminCarManagement: React.FC = () => {
                     accept="image/*"
                     onChange={async (e) => {
                       if (e.target.files && e.target.files.length > 0) {
-                        const urls = await handleImageUpload(e.target.files);
-                        if (urls.length > 0) {
-                          setUploadedImages(prev => [...prev, ...urls]);
+                        // Check if we would exceed the 6 image limit
+                        const currentCount = (selectedCar?.image_urls?.length || 0) + uploadedImageUrls.length;
+                        const remainingSlots = 6 - currentCount;
+                        
+                        if (remainingSlots <= 0) {
+                          toast({
+                            title: "Upload Limit Reached",
+                            description: "You can only upload up to 6 images per car.",
+                            variant: "destructive",
+                          });
+                          return;
                         }
+                        
+                        // Only take as many files as we have slots for
+                        const filesToUpload = Array.from(e.target.files).slice(0, remainingSlots);
+                        
+                        if (filesToUpload.length < e.target.files.length) {
+                          toast({
+                            title: "Upload Limit Applied",
+                            description: `Only ${remainingSlots} more images can be uploaded for this car.`,
+                          });
+                        }
+                        
+                        await handleImageUpload(filesToUpload);
                       }
                     }}
                     className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
@@ -713,18 +954,17 @@ const AdminCarManagement: React.FC = () => {
                   )}
                   
                   {/* Image Preview Section */}
-                  {((selectedCar?.image_urls && selectedCar.image_urls.length > 0) || uploadedImages.length > 0) && (
+                  {((selectedCar?.image_urls && selectedCar.image_urls.length > 0) || uploadedImageUrls.length > 0) && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Uploaded Images Preview</Label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {/* Existing images for editing */}
                         {selectedCar?.image_urls?.map((url, index) => (
                           <div key={`existing-${index}`} className="relative group">
-                            <img
+                            <AdminImage
                               src={url}
                               alt={`Car image ${index + 1}`}
                               className="w-full h-20 object-cover rounded border"
-                              loading="lazy"
                             />
                             <button
                               type="button"
@@ -742,20 +982,20 @@ const AdminCarManagement: React.FC = () => {
                             </button>
                           </div>
                         ))}
-                        
+
                         {/* Newly uploaded images */}
-                        {uploadedImages.map((url, index) => (
+                        {uploadedImageUrls.map((url, index) => (
                           <div key={`new-${index}`} className="relative group">
-                            <img
+                            <AdminImage
                               src={url}
                               alt={`New car image ${index + 1}`}
                               className="w-full h-20 object-cover rounded border border-green-200"
-                              loading="lazy"
                             />
                             <button
                               type="button"
                               onClick={() => {
-                                setUploadedImages(prev => prev.filter((_, i) => i !== index));
+                                setUploadedImageUrls(prev => prev.filter((_, i) => i !== index));
+                                setUploadedImagePaths(prev => prev.filter((_, i) => i !== index));
                               }}
                               className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                             >
@@ -765,8 +1005,8 @@ const AdminCarManagement: React.FC = () => {
                         ))}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Total images: {(selectedCar?.image_urls?.length || 0) + uploadedImages.length} • 
-                        New uploads: {uploadedImages.length}
+                        Total images: {(selectedCar?.image_urls?.length || 0) + uploadedImageUrls.length} • 
+                        New uploads: {uploadedImageUrls.length}
                       </p>
                     </div>
                   )}
@@ -797,16 +1037,11 @@ const AdminCarManagement: React.FC = () => {
           >
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader className="p-4">
-                <div className="aspect-video relative overflow-hidden rounded-lg bg-muted">
-                  {car.image_urls?.[0] ? (
-                    <img
-                      src={car.image_urls[0]}
-                      alt={car.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
+                <div className="relative overflow-hidden rounded-lg bg-muted">
+                  {car.image_urls && car.image_urls.length > 0 ? (
+                    <ImageCarousel images={car.image_urls} className="h-48" />
                   ) : (
-                    <div className="flex items-center justify-center h-full">
+                    <div className="flex items-center justify-center h-48">
                       <Car className="h-8 w-8 text-muted-foreground" />
                     </div>
                   )}

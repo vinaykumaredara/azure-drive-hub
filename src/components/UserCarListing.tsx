@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { CarCard } from "@/components/CarCard";
@@ -15,7 +15,8 @@ import { CarListingErrorState } from "@/components/CarListingErrorState";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
 import { toast } from "@/hooks/use-toast";
-import { formatINRFromPaise } from "@/utils/currency";
+import { formatINRFromPaise } from '@/utils/currency';
+import { getPublicImageUrl } from '@/utils/imageUtils';
 
 // Car interface for Supabase data with booking information
 interface Car {
@@ -36,28 +37,52 @@ interface Car {
   created_at: string;
   price_in_paise?: number;
   currency?: string;
-  // Fields for atomic booking
+  // New fields for atomic booking (optional as they may not exist in all environments)
   booking_status?: string;
   booked_by?: string;
   booked_at?: string;
 }
 
 // Transform Supabase car to display format
-const transformCarForDisplay = (car: Car) => {
+const transformCarForDisplay = (car: any): any => {
+  // Use price_in_paise if available, otherwise fallback to price_per_day
   const pricePerDay = car.price_in_paise ? car.price_in_paise / 100 : car.price_per_day;
-  const pricePerHour = car.price_per_hour || Math.round(pricePerDay / 8);
-        
+  const pricePerHour = car.price_per_hour || (pricePerDay / 24);
+  
+  // Check if booking_status exists, if not assume car is available
+  const bookingStatus = car.booking_status !== undefined ? car.booking_status : 'available';
+  
+  // Process images to ensure they have valid URLs
+  let processedImages = [];
+  let primaryImage = `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=400&h=300&fit=crop&crop=center&auto=format&q=80`;
+  
+  if (car.image_urls?.length > 0) {
+    // For each image URL, if it's not a full URL, try to get a public URL
+    processedImages = car.image_urls.map((url: string) => {
+      // If it's already a full URL, use it as is
+      if (url.startsWith('http')) {
+        return url;
+      }
+      // Otherwise, treat it as a file path and get a public URL
+      return getPublicImageUrl(url);
+    });
+    
+    primaryImage = processedImages[0];
+  } else {
+    processedImages = [
+      `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80`,
+      `https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&crop=center&auto=format&q=80`
+    ];
+  }
+  
   const transformed = {
     id: car.id,
     title: car.title,
     make: car.make,
     model: car.model,
     year: car.year,
-    image: car.image_urls?.[0] || `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=400&h=300&fit=crop&crop=center&auto=format&q=80`,
-    images: car.image_urls?.length > 0 ? car.image_urls : [
-      `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80`,
-      `https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&crop=center&auto=format&q=80`
-    ],
+    image: primaryImage,
+    images: processedImages,
     pricePerDay: pricePerDay,
     pricePerHour: pricePerHour,
     location: car.location_city || 'Hyderabad',
@@ -66,12 +91,12 @@ const transformCarForDisplay = (car: Car) => {
     seats: car.seats,
     rating: 4.5 + (Math.random() * 0.4), // Random rating between 4.5-4.9
     reviewCount: Math.floor(Math.random() * 50) + 15, // Random reviews 15-65
-    isAvailable: car.status === 'published' && car.booking_status !== 'booked',
-    badges: car.status === 'published' && car.booking_status !== 'booked' ? ['Available', 'Verified'] : ['Booked'],
+    isAvailable: car.status === 'published' && bookingStatus !== 'booked',
+    badges: car.status === 'published' && bookingStatus !== 'booked' ? ['Available', 'Verified'] : ['Booked'],
     features: ['GPS', 'AC', 'Bluetooth', 'Insurance'],
     description: car.description || `${car.make} ${car.model} - Perfect for city drives and long trips`,
     // Booking-specific information
-    bookingStatus: car.booking_status,
+    bookingStatus: bookingStatus,
     bookedBy: car.booked_by,
     bookedAt: car.booked_at
   };
@@ -110,14 +135,20 @@ export const UserCarListing = () => {
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Fetch cars from Supabase
-  const fetchCars = async () => {
+  const ITEMS_PER_PAGE = 12;
+
+  // Memoize the fetch function to prevent unnecessary re-renders
+  const fetchCars = useCallback(async (pageNum = 0) => {
     try {
       setLoading(true);
       setError(null);
       
-      const { data, error: fetchError } = await supabase
+      // Build base query
+      const query = supabase
         .from('cars')
         .select(`
           id,
@@ -140,15 +171,54 @@ export const UserCarListing = () => {
           booking_status,
           booked_by,
           booked_at
-        `)
+        `, { count: 'planned' }) // Use planned count for better performance
         .eq('status', 'published')
+        .range(pageNum * ITEMS_PER_PAGE, (pageNum + 1) * ITEMS_PER_PAGE - 1)
         .order('created_at', { ascending: false });
 
-      if (fetchError) {
+      // Execute query
+      const { data, error: fetchError, count } = await query;
+
+      if (fetchError && fetchError.message.includes('column "booking_status" does not exist')) {
+        // Retry without booking_status column
+        console.log('Schema error detected, retrying without booking_status column');
+        const { data: retryData, error: retryError, count: retryCount } = await supabase
+          .from('cars')
+          .select(`
+            id,
+            title,
+            make,
+            model,
+            year,
+            seats,
+            fuel_type,
+            transmission,
+            price_per_day,
+            price_per_hour,
+            description,
+            location_city,
+            status,
+            image_urls,
+            created_at,
+            price_in_paise,
+            currency
+          `, { count: 'planned' }) // Use planned count for better performance
+          .eq('status', 'published')
+          .range(pageNum * ITEMS_PER_PAGE, (pageNum + 1) * ITEMS_PER_PAGE - 1)
+          .order('created_at', { ascending: false });
+
+        if (retryError) {throw retryError;}
+        
+        setCars(prev => pageNum === 0 ? retryData || [] : [...prev, ...(retryData || [])]);
+        setTotalCount(retryCount || 0);
+        setHasMore(!!retryData && retryData.length === ITEMS_PER_PAGE);
+      } else if (fetchError) {
         throw fetchError;
+      } else {
+        setCars(prev => pageNum === 0 ? data || [] : [...prev, ...(data || [])]);
+        setTotalCount(count || 0);
+        setHasMore(!!data && data.length === ITEMS_PER_PAGE);
       }
-      
-      setCars(data || []);
       
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch cars';
@@ -162,12 +232,19 @@ export const UserCarListing = () => {
       setLoading(false);
       setIsInitialized(true);
     }
-  };
+  }, []);
 
   // Initial data fetch
   useEffect(() => {
-    fetchCars();
-  }, []);
+    fetchCars(0);
+  }, [fetchCars]);
+
+  // Load more cars
+  const loadMore = useCallback(() => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchCars(nextPage);
+  }, [page, fetchCars]);
 
   // Re-enable real-time subscription now that loading is fixed
   useRealtimeSubscription(
@@ -175,7 +252,7 @@ export const UserCarListing = () => {
     (payload) => {
       // Only add published cars
       if (payload.new.status === 'published') {
-        setCars(prev => [...prev, payload.new]);
+        setCars(prev => [payload.new, ...prev]);
       }
     },
     (payload) => {
@@ -191,44 +268,46 @@ export const UserCarListing = () => {
     }
   );
 
-  // Filter and transform cars
-  const filteredCars = cars
-    .filter(car => {
-      // Search filter
-      if (searchQuery && !car.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !car.make.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !car.model.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !(car.location_city || '').toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
-      }
-      
-      // Seat filter
-      if (seatFilter !== "all" && car.seats !== parseInt(seatFilter)) {
-        return false;
-      }
-      
-      // Fuel filter
-      if (fuelFilter !== "all" && car.fuel_type.toLowerCase() !== fuelFilter.toLowerCase()) {
-        return false;
-      }
-      
-      return true;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'price-asc':
-          return a.price_per_day - b.price_per_day;
-        case 'price-desc':
-          return b.price_per_day - a.price_per_day;
-        case 'rating-desc':
-        case 'popular':
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-    })
-    .map(transformCarForDisplay);
+  // Filter and transform cars using useMemo for performance
+  const filteredCars = useMemo(() => {
+    return cars
+      .filter(car => {
+        // Search filter
+        if (searchQuery && !car.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !car.make.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !car.model.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !(car.location_city || '').toLowerCase().includes(searchQuery.toLowerCase())) {
+          return false;
+        }
+        
+        // Seat filter
+        if (seatFilter !== "all" && car.seats !== parseInt(seatFilter)) {
+          return false;
+        }
+        
+        // Fuel filter
+        if (fuelFilter !== "all" && car.fuel_type.toLowerCase() !== fuelFilter.toLowerCase()) {
+          return false;
+        }
+        
+        return true;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'price-asc':
+            return a.price_per_day - b.price_per_day;
+          case 'price-desc':
+            return b.price_per_day - a.price_per_day;
+          case 'rating-desc':
+          case 'popular':
+          default:
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
+      })
+      .map(transformCarForDisplay);
+  }, [cars, searchQuery, seatFilter, fuelFilter, sortBy]);
 
-  const totalCount = filteredCars.length;
+  const totalCountFiltered = filteredCars.length;
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -334,42 +413,6 @@ export const UserCarListing = () => {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Active Filters */}
-          <div className="flex flex-wrap gap-2 mt-4">
-            {seatFilter !== "all" && (
-              <Badge variant="secondary">
-                {filterOptions.find(f => f.value === seatFilter)?.label}
-              </Badge>
-            )}
-            {fuelFilter !== "all" && (
-              <Badge variant="secondary">
-                {fuelTypes.find(f => f.value === fuelFilter)?.label}
-              </Badge>
-            )}
-            {searchQuery && (
-              <Badge variant="secondary">
-                Search: {searchQuery}
-              </Badge>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Results Summary */}
-        <motion.div 
-          className="flex items-center justify-between mb-8"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-        >
-          <p className="text-muted-foreground">
-            Found <span className="font-semibold text-foreground">{totalCount} cars</span> in our fleet
-          </p>
-          <Button variant="outline" size="sm" className="flex items-center space-x-2">
-            <SlidersHorizontal className="w-4 h-4" />
-            <span>Advanced Filters</span>
-          </Button>
         </motion.div>
 
         {/* Content */}
@@ -395,7 +438,7 @@ export const UserCarListing = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <CarListingErrorState error={error} onRetry={fetchCars} />
+              <CarListingErrorState error={error || 'Failed to load cars'} onRetry={() => fetchCars(0)} />
             </motion.div>
           ) : filteredCars.length === 0 ? (
             <motion.div
@@ -409,84 +452,58 @@ export const UserCarListing = () => {
             </motion.div>
           ) : (
             <motion.div
-              key="cars"
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
+              key="content"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
             >
-              {filteredCars.map((car, index) => (
-                <motion.div key={car.id} variants={itemVariants}>
-                  {car.bookingStatus === 'booked' ? (
-                    // Display booked car with different UI
-                    <div className="group">
-                      <div className="overflow-hidden bg-white shadow-card rounded-lg border-0">
-                        <div className="relative aspect-video overflow-hidden">
-                          <img
-                            src={car.image}
-                            alt={car.title}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                            <Badge variant="destructive" className="bg-red-500 text-white shadow-lg flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              Already Booked
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="p-6 bg-gradient-to-br from-white via-white to-gray-50/30">
-                          <div className="space-y-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-bold text-lg text-foreground leading-tight">
-                                  {car.title}
-                                </h3>
-                                <div className="flex items-center text-sm text-muted-foreground mt-1">
-                                  <span>{car.make} {car.model} ({car.year})</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between pt-4 border-t border-border/30">
-                              <div className="flex flex-col">
-                                <div className="text-2xl font-bold text-primary">
-                                  {formatINRFromPaise(car.pricePerDay * 100)}
-                                </div>
-                                <div className="text-sm text-muted-foreground">per day</div>
-                              </div>
-                              <div className="text-sm text-muted-foreground italic">
-                                Be fast next time!
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    // Display available car with booking option
+              <div className="mb-4 text-sm text-muted-foreground">
+                Showing {filteredCars.length} of {totalCount} cars
+              </div>
+              
+              <motion.div 
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                {filteredCars.map((car) => (
+                  <motion.div key={car.id} variants={itemVariants}>
                     <CarCard car={car} />
-                  )}
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* Load More Button */}
+              {hasMore && (
+                <div className="flex justify-center mt-8">
+                  <Button 
+                    onClick={loadMore}
+                    disabled={loading}
+                    variant="outline"
+                    className="bg-white hover:bg-primary hover:text-white border-primary"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <SlidersHorizontal className="w-4 h-4 mr-2" />
+                        Load More Cars
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Load More */}
-        {!loading && !error && filteredCars.length > 0 && (
-          <motion.div 
-            className="text-center mt-12"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4 }}
-          >
-            <Button variant="outline" size="lg" className="px-8">
-              Load More Cars
-            </Button>
-          </motion.div>
-        )}
       </div>
     </section>
   );
 };
+
+export default UserCarListing;

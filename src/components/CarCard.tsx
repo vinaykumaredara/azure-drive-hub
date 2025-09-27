@@ -7,6 +7,9 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CarImageGalleryCompact } from "@/components/CarImageGallery";
 import { AtomicBookingFlow } from "@/components/AtomicBookingFlow";
+import LazyImage from "@/components/LazyImage";
+import { RatingsSummary } from "@/components/RatingsSummary";
+import ImageCarousel from '@/components/ImageCarousel';
 
 export interface CarCardProps {
   car: {
@@ -28,6 +31,7 @@ export interface CarCardProps {
     bookingStatus?: string;
     title?: string;
     price_in_paise?: number;
+    image_urls?: string[];
   };
   className?: string;
 }
@@ -35,6 +39,7 @@ export interface CarCardProps {
 export const CarCard = ({ car, className = "" }: CarCardProps) => {
   const navigate = useNavigate();
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleBookNow = () => {
     if (car.isAvailable) {
@@ -56,6 +61,45 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
     window.location.reload();
   };
 
+  // Generate sample ratings data for the rating summary
+  // In a real app, this would come from the database
+  const generateSampleRatings = () => {
+    const ratings = [];
+    const avgRating = car.rating;
+    const count = car.reviewCount;
+    
+    // Generate ratings that average to the given rating
+    for (let i = 0; i < count; i++) {
+      // Generate ratings with some variance around the average
+      const variance = (Math.random() - 0.5) * 2; // -1 to 1
+      const rating = Math.max(1, Math.min(5, Math.round((avgRating + variance) * 2) / 2)); // Round to nearest 0.5
+      ratings.push(rating);
+    }
+    
+    return ratings;
+  };
+
+  // Get the first image URL for the card display
+  const getPrimaryImageUrl = () => {
+    // Prefer image_urls if available
+    if (car.image_urls && car.image_urls.length > 0) {
+      return car.image_urls[0];
+    }
+    
+    // Fallback to images array
+    if (car.images && car.images.length > 0) {
+      return car.images[0];
+    }
+    
+    // Fallback to single image
+    if (car.image) {
+      return car.image;
+    }
+    
+    // Default placeholder
+    return 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
+  };
+
   return (
     <>
       <motion.div
@@ -69,10 +113,23 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
       >
         <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
           <div className="relative aspect-video overflow-hidden">
-            <CarImageGalleryCompact
-              images={car.images || [car.image]}
-              carTitle={car.make ? `${car.make} ${car.model}` : car.model}
-            />
+            {/* Lazy loading placeholder */}
+            {!imageLoaded && (
+              <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+              </div>
+            )}
+            
+            {/* Use ImageCarousel with fallback UI */}
+            {car.image_urls && car.image_urls.length > 0 ? (
+              <ImageCarousel images={car.image_urls} className="h-full" />
+            ) : (
+              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+            )}
             
             {/* Enhanced Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -142,6 +199,15 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
                 </div>
               </div>
 
+              {/* Modern Ratings Summary */}
+              <div className="pt-2">
+                <RatingsSummary 
+                  ratings={generateSampleRatings()} 
+                  reviewCount={car.reviewCount}
+                  className="scale-90 origin-left"
+                />
+              </div>
+
               <div className="flex items-center space-x-6 text-sm text-muted-foreground">
                 <motion.div 
                   className="flex items-center space-x-1 hover:text-primary transition-colors"
@@ -164,26 +230,6 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
                   <Settings className="w-4 h-4" />
                   <span className="capitalize">{car.transmission}</span>
                 </motion.div>
-              </div>
-
-              <div className="flex items-center space-x-2 text-sm py-2">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.1 }}
-                    >
-                      <Star className={`w-4 h-4 ${
-                        i < Math.floor(car.rating) 
-                          ? "fill-yellow-400 text-yellow-400" 
-                          : "text-gray-300"
-                      }`} />
-                    </motion.div>
-                  ))}
-                </div>
-                <span className="text-muted-foreground font-medium">({car.reviewCount} reviews)</span>
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-border/30">

@@ -1,258 +1,184 @@
-# RP CARS Deployment Instructions
+# Azure Drive Hub - Deployment Instructions
 
-## Overview
-This document provides step-by-step instructions for deploying the updated RP CARS application with all admin functionality.
+This document provides step-by-step instructions to deploy all the fixes implemented for the Azure Drive Hub car rental application.
 
 ## Prerequisites
-1. Supabase project with project ID: `rcpkhtlvfvafympulywx`
-2. Supabase service role key (for admin operations)
-3. Node.js and npm installed
-4. Git repository access
+
+Before deploying, ensure you have:
+1. Supabase CLI installed
+2. Proper environment variables set up
+3. Database connection access
 
 ## Deployment Steps
 
-### 1. Environment Setup
+### 1. Apply Database Migrations
 
-Create a `.env.local` file with the following variables:
-```env
-# Supabase Configuration
-SUPABASE_URL=https://rcpkhtlvfvafympulywx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+Apply all the new migrations to update the database schema:
 
-# Payment Gateway Configuration (if needed for production)
-RAZORPAY_KEY_ID=your_razorpay_key_id
-RAZORPAY_KEY_SECRET=your_razorpay_secret
-STRIPE_SECRET_KEY=your_stripe_secret_key
-```
-
-### 2. Apply Database Migrations
-
-Navigate to the project directory and apply migrations:
 ```bash
-cd /path/to/azure-drive-hub
-npx supabase migration up
-```
+# Navigate to the project directory
+cd azure-drive-hub
 
-Or if using the Supabase CLI directly:
-```bash
+# Apply migrations
 supabase db push
 ```
 
-### 3. Verify Database Schema
+This will apply the following migrations:
+- `20250920010000_ensure_currency_column_exists.sql`
+- `20250920020000_fix_rls_policies.sql`
 
-Run the following SQL queries to verify the schema:
+### 2. Refresh Schema Cache
 
+If you still encounter schema cache errors after applying migrations, you need to refresh the PostgREST schema cache:
+
+**Option 1: Using SQL (if you have service role access)**
 ```sql
--- Check cars table columns
-SELECT column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'cars' 
-AND column_name IN ('price_in_paise', 'currency');
-
--- Check users table columns
-SELECT column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'users' 
-AND column_name IN ('is_suspended', 'suspension_reason', 'suspended_at', 'suspended_by');
-
--- Check system_settings table
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_name = 'system_settings';
-
--- Check audit_logs table
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_name = 'audit_logs';
+NOTIFY pgrst, 'reload schema';
 ```
 
-### 4. Make Admin User
+**Option 2: Restart Supabase Project**
+- Go to your Supabase project dashboard
+- Navigate to Settings > Database
+- Click "Restart" to restart the database
 
-Run the admin script to make the specified user an admin:
+**Option 3: Run the refresh script**
 ```bash
-node scripts/make-admin.js rpcars2025@gmail.com
+node scripts/refresh-postgrest-cache.js
 ```
 
-Verify the admin status:
-```sql
-SELECT id, email, is_admin 
-FROM public.users 
-WHERE email = 'rpcars2025@gmail.com';
-```
+### 3. Regenerate Supabase Types
 
-### 5. Build and Deploy Application
-
-Install dependencies and build the application:
-```bash
-npm install
-npm run build
-```
-
-Deploy using your preferred method (Netlify, Vercel, etc.)
-
-### 6. Verification Testing
-
-Run the verification scripts to ensure everything is working:
+Update the TypeScript types to include the new columns:
 
 ```bash
-# Test TypeScript compilation
-npx tsc --noEmit
-
-# Test admin functionality
-node scripts/test-admin-functionality.js
-
-# Test currency conversion
-node scripts/test-currency-conversion.js
+npm run gen:supabase-types
 ```
 
-### 7. Manual Verification
+### 4. Restart Development Server
 
-#### a) Admin Car Management
-1. Login as admin (rpcars2025@gmail.com)
-2. Navigate to Admin Dashboard → Car Management
-3. Create a new car with:
-   - Title: "Deployment Test Car"
-   - Price: 3500 INR per day
-   - Status: "published"
-   - Upload an image
-4. Verify the car appears in the public dashboard
-5. Verify price displays as ₹3,500.00
+Restart the Vite development server to ensure all changes are loaded:
 
-#### b) Customer Management
-1. In Admin Dashboard → Customer Management
-2. Find a test user
-3. Suspend the user with a reason
-4. Verify the user appears suspended
-5. Check audit logs for the suspension action
+```bash
+npm run dev
+```
 
-#### c) System Settings
-1. In Admin Dashboard → System Settings
-2. Change "site_name" to "RP Cars Deployment Test"
-3. Save settings
-4. Verify the change is reflected
-5. Check audit logs for the settings update
+### 5. Verify Deployment
 
-#### d) Security & Compliance
-1. In Admin Dashboard → Security & Compliance
-2. Verify audit logs are displayed
-3. Test CSV export functionality
-4. Verify different action types are shown
+Run the verification scripts to ensure everything is working correctly:
 
-### 8. Post-Deployment Checklist
+```bash
+# Verify RLS policies
+npm run verify:rls
 
-- [ ] Database migrations applied successfully
-- [ ] Admin user (rpcars2025@gmail.com) has admin privileges
-- [ ] Application builds without errors
-- [ ] All verification scripts pass
-- [ ] Manual testing completed successfully
-- [ ] Storage bucket configured correctly
-- [ ] RLS policies working as expected
-- [ ] All environment variables set
+# Run smoke tests
+npm run test:smoke
+
+# Final verification
+node scripts/final-verification.js
+```
 
 ## Troubleshooting
 
-### Common Issues and Solutions
+### Schema Cache Issues
 
-#### 1. Permission Denied Errors
-**Issue**: Database operations fail with permission errors
-**Solution**: Ensure you're using the service role key for admin operations
+If you still see "Could not find the 'currency' column" errors:
 
-#### 2. Missing Tables/Columns
-**Issue**: Database queries fail due to missing tables or columns
-**Solution**: Verify all migration scripts have been applied
+1. Double-check that migrations were applied:
+   ```bash
+   supabase db push
+   ```
 
-#### 3. Image Upload Failures
-**Issue**: Car images fail to upload
-**Solution**: Check storage bucket exists and policies are correct
+2. Manually verify the column exists:
+   ```sql
+   SELECT column_name 
+   FROM information_schema.columns 
+   WHERE table_name = 'cars' AND column_name = 'currency';
+   ```
 
-#### 4. Audit Log Errors
-**Issue**: Audit logs are not being created
-**Solution**: Verify audit_logs table exists with correct schema
+3. Force refresh the schema cache:
+   ```sql
+   NOTIFY pgrst, 'reload schema';
+   ```
 
-### Database Verification Queries
+### RLS Policy Issues
 
-```sql
--- Check for cars with proper pricing
-SELECT id, title, price_in_paise, currency, status 
-FROM public.cars 
-WHERE price_in_paise IS NOT NULL 
-AND currency = 'INR' 
-AND status = 'published'
-LIMIT 5;
+If admin users cannot insert cars:
 
--- Check for audit logs
-SELECT action, description, timestamp 
-FROM public.audit_logs 
-ORDER BY timestamp DESC 
-LIMIT 10;
+1. Verify the is_admin column exists:
+   ```sql
+   SELECT column_name 
+   FROM information_schema.columns 
+   WHERE table_name = 'users' AND column_name = 'is_admin';
+   ```
 
--- Check system settings
-SELECT key, value 
-FROM public.system_settings;
+2. Check that your user account has is_admin = true:
+   ```sql
+   SELECT id, email, is_admin FROM users WHERE id = 'YOUR_USER_ID';
+   ```
 
--- Check suspended users
-SELECT id, email, is_suspended, suspension_reason 
-FROM public.users 
-WHERE is_suspended = true;
-```
+3. If needed, manually set is_admin for your user:
+   ```sql
+   UPDATE users SET is_admin = true WHERE id = 'YOUR_USER_ID';
+   ```
 
-## Rollback Procedures
+### Performance Issues
 
-If issues are encountered during deployment:
+If queries are still slow:
 
-### 1. Database Rollback
-Apply rollback migrations in reverse order:
-```bash
-# Apply rollback migrations (if needed)
-supabase migration down  # Repeat for each migration to rollback
-```
+1. Verify indexes were created:
+   ```sql
+   SELECT indexname 
+   FROM pg_indexes 
+   WHERE tablename = 'cars';
+   ```
 
-### 2. Code Rollback
-Revert to previous commit:
-```bash
-git checkout previous-commit-hash
-```
+2. Check that you're using planned counts instead of exact counts in your queries
 
-### 3. Configuration Rollback
-Restore previous environment variables and configuration files.
+## Rollback Plan
 
-## Monitoring and Maintenance
+If issues occur after deployment:
 
-### 1. Regular Monitoring
-- Monitor audit logs for security events
-- Check application performance
-- Verify database backups are working
+1. **Database Rollback**:
+   ```bash
+   # If you have a backup
+   supabase db reset
+   
+   # Or manually drop the added columns
+   ALTER TABLE cars DROP COLUMN IF EXISTS currency;
+   ALTER TABLE bookings DROP COLUMN IF EXISTS currency;
+   ALTER TABLE payments DROP COLUMN IF EXISTS currency;
+   ```
 
-### 2. Maintenance Tasks
-- Regular database backups
-- Security audits
-- Performance optimization
-- Dependency updates
+2. **Code Rollback**:
+   ```bash
+   git checkout HEAD~1
+   ```
 
-## Support and Contact
+3. **Restart Services**:
+   ```bash
+   # Restart Supabase project from dashboard
+   # Restart development server
+   npm run dev
+   ```
 
-For issues with deployment or functionality:
-1. Check the console logs for error messages
-2. Verify all environment variables are set correctly
-3. Ensure all migration scripts have been applied
-4. Contact the development team for assistance
+## Post-Deployment Verification
 
-## Success Metrics
+After deployment, verify that:
 
-✅ Application deploys without errors
-✅ Admin functionality works as expected
-✅ All verification tests pass
-✅ Users can access the application
-✅ Cars are properly displayed with correct pricing
-✅ Admin actions are logged in audit trails
-✅ System settings are configurable
-✅ Customer management functions correctly
+1. ✅ Admins can create cars with images
+2. ✅ Cars appear immediately on both admin and user dashboards
+3. ✅ Images are visible to all users
+4. ✅ No schema cache errors occur
+5. ✅ Performance is improved (queries complete in < 2 seconds)
+6. ✅ RLS policies are working correctly (admins can modify, public can only view)
 
-## Next Steps After Deployment
+## Monitoring
 
-1. **User Training**: Provide training for admin users
-2. **Documentation**: Update user guides and documentation
-3. **Monitoring Setup**: Implement monitoring and alerting
-4. **Performance Testing**: Conduct load testing
-5. **Security Review**: Perform security audit
-6. **Feedback Collection**: Gather user feedback for improvements
+Monitor the application after deployment for:
+
+1. Error logs in the browser console
+2. Network tab for failed requests
+3. Database performance metrics
+4. User feedback on car listing speed
+
+If everything is working correctly, the schema cache error should be resolved and the application should have improved performance and functionality.

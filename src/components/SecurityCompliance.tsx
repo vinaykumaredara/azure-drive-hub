@@ -93,7 +93,7 @@ const SecurityCompliance: React.FC = () => {
         .order('timestamp', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       // Transform data to include user email
       const logsWithUser = data?.map(log => ({

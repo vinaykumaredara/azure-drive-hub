@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
+    "lib": ["ES2022", "DOM", "dom.asynciterable"],
     "module": "ESNext", 
     "moduleResolution": "node",
     "allowJs": true,
@@ -11,6 +11,6 @@
     "noEmit": true,
     "types": ["@supabase/functions-js"]
   },
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "**/*.d.ts"],
   "exclude": ["node_modules"]
 }

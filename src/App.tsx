@@ -18,6 +18,7 @@ const Booking = React.lazy(() => import("./pages/Booking"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const UserDashboard = React.lazy(() => import("./pages/UserDashboard"));
 const TestPage = React.lazy(() => import("./pages/TestPage"));
+const ImageDebugPage = React.lazy(() => import("./pages/ImageDebugPage"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -73,6 +74,7 @@ const App = () => (
                   }
                 />
                 <Route path="/test" element={<TestPage />} />
+                <Route path="/debug-images" element={<ImageDebugPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

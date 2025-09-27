@@ -1,45 +1,75 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
+import { config } from 'dotenv';
 
-// Use the same configuration as in the client.ts file
-const SUPABASE_URL = "https://rcpkhtlvfvafympulywx.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcGtodGx2ZnZhZnltcHVseXd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1Mzg3OTMsImV4cCI6MjA3MjExNDc5M30.RE6vsYIpq44QrXwrvHDoHkfC9IE3Fwd-PfXFQ9_2cqE";
+// Load environment variables
+config({ path: '.env' });
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Get the Supabase URL and service role key from environment variables
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+console.log('Supabase URL:', supabaseUrl);
+
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  console.error('Missing environment variables');
+  process.exit(1);
+}
+
+// Create a Supabase client with service role key for full access
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 async function checkSchema() {
-  console.log('Checking if booking_status column exists...');
-  
   try {
-    // Try to query the booking_status column
+    console.log('Checking cars table schema...');
+    
+    // Get table info
     const { data, error } = await supabase
       .from('cars')
-      .select('id, title, booking_status')
+      .select('*')
       .limit(1);
-      
+    
     if (error) {
-      console.log('Error querying booking_status column:', error);
-      console.log('This confirms the column is missing from the database schema.');
-      
-      // Let's check what columns actually exist by selecting all
-      const { data: sampleData, error: sampleError } = await supabase
-        .from('cars')
-        .select('*')
-        .limit(1);
-        
-      if (sampleError) {
-        console.log('Error getting car data:', sampleError);
-      } else if (sampleData && sampleData.length > 0) {
-        console.log('Available columns in cars table:');
-        Object.keys(sampleData[0]).forEach(key => {
-          console.log(`- ${key}`);
-        });
-      }
-    } else {
-      console.log('Success! booking_status column exists.');
-      console.log('Sample data:', data);
+      console.error('Error fetching cars:', error);
+      return;
     }
-  } catch (err) {
-    console.error('Unexpected error:', err);
+    
+    console.log('Sample car data:', data?.[0] || 'No data');
+    
+    // Check table columns
+    const { data: columns, error: columnsError } = await supabase
+      .from('information_schema.columns')
+      .select('column_name, data_type')
+      .eq('table_name', 'cars')
+      .eq('table_schema', 'public');
+    
+    if (columnsError) {
+      console.error('Error fetching columns:', columnsError);
+      return;
+    }
+    
+    console.log('\nCars table columns:');
+    columns.forEach(column => {
+      console.log(`- ${column.column_name} (${column.data_type})`);
+    });
+    
+    // Check storage buckets
+    console.log('\nChecking storage buckets...');
+    const { data: buckets, error: bucketsError } = await supabase
+      .storage
+      .listBuckets();
+    
+    if (bucketsError) {
+      console.error('Error fetching buckets:', bucketsError);
+      return;
+    }
+    
+    console.log('Storage buckets:');
+    buckets.forEach(bucket => {
+      console.log(`- ${bucket.name} (public: ${bucket.public})`);
+    });
+    
+  } catch (error) {
+    console.error('Schema check error:', error);
   }
 }
 

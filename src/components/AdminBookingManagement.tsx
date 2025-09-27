@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Car, User, CheckCircle, XCircle, RotateCcw, DollarSign, ArrowLeft } from 'lucide-react';
+import { Calendar, Car, User, CheckCircle, XCircle, RotateCcw, DollarSign, ArrowLeft, FileText, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtime';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
+import ImageCarousel from '@/components/ImageCarousel';
 
 interface Booking {
   id: string;
@@ -20,6 +21,9 @@ interface Booking {
   total_amount: number;
   payment_id?: string;
   hold_expires_at?: string;
+  hold_until?: string;
+  hold_amount?: number;
+  payment_status?: string;
   created_at: string;
   cars?: {
     title: string;
@@ -153,6 +157,19 @@ const AdminBookingManagement: React.FC = () => {
     }
   };
 
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'bg-success text-success-foreground';
+      case 'partial_hold':
+        return 'bg-warning text-warning-foreground';
+      case 'unpaid':
+        return 'bg-destructive text-destructive-foreground';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'confirmed':
@@ -220,14 +237,12 @@ const AdminBookingManagement: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                      {booking.cars?.image_urls?.[0] ? (
-                        <img
-                          src={booking.cars.image_urls[0]}
-                          alt={booking.cars.title}
-                          className="w-full h-full object-cover rounded-lg"
-                        />
+                      {booking.cars.image_urls && booking.cars.image_urls.length > 0 ? (
+                        <ImageCarousel images={booking.cars.image_urls} className="w-16 h-16 rounded" />
                       ) : (
-                        <Car className="h-8 w-8 text-muted-foreground" />
+                        <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center">
+                          <Car className="w-6 h-6 text-gray-400" />
+                        </div>
                       )}
                     </div>
                     <div className="space-y-1">
@@ -250,6 +265,15 @@ const AdminBookingManagement: React.FC = () => {
                         {getStatusIcon(booking.status)}
                         <span className="ml-1">{booking.status}</span>
                       </Badge>
+                      {booking.payment_status && (
+                        <Badge className={getPaymentStatusColor(booking.payment_status)}>
+                          <DollarSign className="h-3 w-3" />
+                          <span className="ml-1">
+                            {booking.payment_status === 'partial_hold' ? 'Hold' : 
+                             booking.payment_status === 'paid' ? 'Paid' : 'Unpaid'}
+                          </span>
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {new Date(booking.start_datetime).toLocaleDateString()} - {' '}
@@ -343,13 +367,27 @@ const AdminBookingManagement: React.FC = () => {
                   </div>
                 </div>
 
-                {booking.hold_expires_at && booking.status === 'pending' && (
-                  <div className="mt-4 p-2 bg-warning/10 rounded-lg">
-                    <p className="text-sm text-warning-foreground">
-                      Hold expires: {new Date(booking.hold_expires_at).toLocaleString()}
-                    </p>
-                  </div>
-                )}
+                {/* Hold and License Information */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {booking.hold_until && booking.payment_status === 'partial_hold' && (
+                    <div className="p-3 bg-warning/10 rounded-lg flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-warning" />
+                      <div>
+                        <p className="text-sm font-medium text-warning">Hold Active</p>
+                        <p className="text-xs text-warning-foreground">
+                          Expires: {new Date(booking.hold_until).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {booking.hold_amount && booking.payment_status === 'partial_hold' && (
+                    <div className="p-3 bg-blue-100 rounded-lg">
+                      <p className="text-sm font-medium text-blue-800">Hold Amount</p>
+                      <p className="text-lg font-bold text-blue-600">₹{booking.hold_amount.toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </motion.div>

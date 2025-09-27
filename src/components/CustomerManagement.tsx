@@ -74,7 +74,7 @@ const CustomerManagement: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (usersError) throw usersError;
+      if (usersError) {throw usersError;}
 
       // Transform data to match Customer interface
       const transformedCustomers = usersData?.map(user => ({
@@ -106,7 +106,7 @@ const CustomerManagement: React.FC = () => {
   };
 
   const handleSuspendCustomer = async () => {
-    if (!selectedCustomer) return;
+    if (!selectedCustomer) {return;}
 
     try {
       // Update customer suspension status
@@ -120,7 +120,7 @@ const CustomerManagement: React.FC = () => {
         })
         .eq('id', selectedCustomer.id);
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       toast({
         title: "Success",

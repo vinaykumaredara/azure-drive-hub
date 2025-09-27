@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, Chrome } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,18 +17,26 @@ const Auth: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn, signUp, signInWithGoogle, user, isAdmin } = useAuth();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (user && !isLoading) {
-      if (isAdmin) {
+      // Check for redirect URL in query parameters
+      const searchParams = new URLSearchParams(location.search);
+      const nextUrl = searchParams.get('next');
+      
+      if (nextUrl) {
+        // Redirect to the original page
+        navigate(nextUrl, { replace: true });
+      } else if (isAdmin) {
         navigate('/admin', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, isAdmin, navigate, isLoading]);
+  }, [user, isAdmin, navigate, isLoading, location.search]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

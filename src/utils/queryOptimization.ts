@@ -238,7 +238,7 @@ export class OptimizedQueries {
       // Use a custom query instead of RPC for now
       const { data, error } = await supabase
         .from('cars')
-        .select('id', { count: 'exact', head: true });
+        .select('id', { count: 'planned', head: true });
 
       if (error) {
         errorLogger.logError(new Error(error.message), {

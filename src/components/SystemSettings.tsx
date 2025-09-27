@@ -88,7 +88,7 @@ const SystemSettings: React.FC = () => {
         .from('system_settings')
         .select('*');
         
-      if (error) throw error;
+      if (error) {throw error;}
       
       // Override defaults with actual values
       data?.forEach(row => {
@@ -139,7 +139,7 @@ const SystemSettings: React.FC = () => {
             onConflict: 'key'
           });
           
-        if (error) throw error;
+        if (error) {throw error;}
       }
       
       // Update local state
