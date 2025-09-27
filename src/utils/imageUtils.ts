@@ -1,5 +1,9 @@
 // src/utils/imageUtils.ts
 import { supabase } from '@/integrations/supabase/client';
+import { resolveCarImageUrl, resolveCarImageUrls } from '@/utils/carImageUtils';
+
+// Export the unified resolver functions for backward compatibility
+export { resolveCarImageUrl, resolveCarImageUrls };
 
 // Returns either:
 // 1. If value is already a full URL return it.
@@ -7,109 +11,48 @@ import { supabase } from '@/integrations/supabase/client';
 // 3. If value is null return null.
 export function getPublicOrSignedUrl(value: string | null): string | null {
   if (!value) return null;
-  if (value.startsWith('http')) return value;
-
-  // value is a relative storage path like "cars/<id>/file.jpg"
-  const { data } = supabase.storage.from('cars-photos').getPublicUrl(value);
-  return data?.publicUrl ?? null;
+  return resolveCarImageUrl(value);
 }
 
 // Ensure image_urls array is populated on the JS object before render
-export function resolveCarImageUrls(car: any): any {
+export function resolveCarImageUrlsLegacy(car: any): any {
   if (!car) return car;
   if (Array.isArray(car.image_urls) && car.image_urls.length) return car;
 
   const paths = Array.isArray(car.image_paths) ? car.image_paths : [];
-  car.image_urls = paths.map(p => getPublicOrSignedUrl(p)).filter(Boolean) as string[];
+  car.image_urls = paths.map((p: string) => getPublicOrSignedUrl(p)).filter(Boolean) as string[];
   return car;
 }
 
 // Return a stable public URL for an image in the cars-photos bucket
 // This function maintains compatibility with existing code that was using the old getPublicImageUrl
 export function getPublicImageUrl(imagePath: string): string {
-  try {
-    // Extract the file name from the path if it's a full URL
-    let fileName = imagePath;
-    if (imagePath.includes('/')) {
-      const url = new URL(imagePath);
-      fileName = url.pathname.split('/').pop() || fileName;
-    }
-    
-    // Validate that the file has an image extension
-    const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
-    const lowerFileName = fileName.toLowerCase();
-    const hasValidExtension = validExtensions.some(ext => lowerFileName.endsWith(ext));
-    
-    if (!hasValidExtension) {
-      console.warn('Invalid image extension:', fileName);
-      // Return a fallback image
-      return 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
-    }
-    
-    // Get the public URL from Supabase storage
-    const { data } = supabase.storage
-      .from('cars-photos')
-      .getPublicUrl(fileName);
-    
-    return data.publicUrl;
-  } catch (error) {
-    console.error('Error getting public image URL:', error);
-    // Return a fallback image
-    return 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
-  }
+  return resolveCarImageUrl(imagePath);
 }
 
 // Return a stable public URL for a stored file path or a full URL if already present.
 export function getPublicUrlForPath(path: string): string | null {
-  if (!path) return null;
-  if (path.startsWith('http')) return path; // already a full URL
-
-  // Keep full folder structure exactly as stored
-  const { data } = supabase.storage.from('cars-photos').getPublicUrl(path);
-  return data?.publicUrl ?? null;
+  return resolveCarImageUrl(path);
 }
 
 // Get a public or signed URL for an image, with fallback to a default image
 // This function is used in the useCars hook to ensure all images are accessible
 export async function getPublicOrSignedUrlAsync(path: string): Promise<string | null> {
-  if (!path) return null;
-  
-  // If it's already a full URL, return it
-  if (path.startsWith('http')) {
-    return path;
+  const resolvedUrl = resolveCarImageUrl(path);
+  if (resolvedUrl) {
+    return resolvedUrl;
   }
-  
-  // Try to get a public URL first
-  try {
-    const publicUrl = getPublicUrlForPath(path);
-    if (publicUrl) {
-      // Verify the URL is accessible
-      const response = await fetch(publicUrl, { method: 'HEAD' });
-      if (response.ok) {
-        return publicUrl;
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to get public URL for path:', path, error);
-  }
-  
-  // If public URL fails, return a fallback image
-  return 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
+  return null;
+}
+
+// Add this enhanced function:
+export async function validateAndResolveImageUrl(url: string | null): Promise<string> {
+  return resolveCarImageUrl(url);
 }
 
 // Ensure car.image_urls is populated. If image_urls empty but image_paths exist, convert them.
-export async function resolveImageUrlsForCar(car: any) {
-  if (!car) return car;
-  if (Array.isArray(car.image_urls) && car.image_urls.length) return car;
-
-  const urls: string[] = [];
-  const paths = Array.isArray(car.image_paths) ? car.image_paths : [];
-  for (const p of paths) {
-    const u = getPublicUrlForPath(p);
-    if (u) urls.push(u);
-  }
-  car.image_urls = urls;
-  return car;
+export async function resolveImageUrlsForCarLegacy(car: any) {
+  return await resolveCarImageUrls(car);
 }
 
 // Upload multiple files, return { paths: string[], urls: string[] }
@@ -120,8 +63,8 @@ export async function uploadMultipleFiles(carId: string, files: File[]) {
       cacheControl: 'public, max-age=31536000, immutable'
     });
     if (upErr) throw upErr;
-    const { data: pub } = supabase.storage.from('cars-photos').getPublicUrl(filePath);
-    const publicUrl = pub?.publicUrl ?? null;
+    // Use our unified resolver to get the public URL
+    const publicUrl = resolveCarImageUrl(filePath);
     return { path: filePath, url: publicUrl };
   }));
 
@@ -137,7 +80,9 @@ export async function appendImageUrlsToCar(carId: string, newUrls: string[], new
   const { data: row, error: selErr } = await supabase.from('cars').select('image_urls').eq('id', carId).single();
   if (selErr) throw selErr;
   const existingUrls = Array.isArray(row?.image_urls) ? row.image_urls : [];
-  const mergedUrls = [...existingUrls, ...newUrls];
+  // Resolve all URLs before merging
+  const resolvedNewUrls = newUrls.map(resolveCarImageUrl);
+  const mergedUrls = [...existingUrls, ...resolvedNewUrls];
 
   const { error: updErr } = await supabase.from('cars').update({
     image_urls: mergedUrls

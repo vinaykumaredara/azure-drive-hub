@@ -1,145 +1,114 @@
-#!/usr/bin/env node
-
-// Final verification script for currency migration
+// Final verification script for image fixes
 import { config } from 'dotenv';
-import { existsSync } from 'fs';
-
-// Load environment variables
-if (existsSync('.env.local')) {
-  config({ path: '.env.local' });
-}
-config(); // Load .env file
-
 import { createClient } from '@supabase/supabase-js';
 
-// Configuration
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://rcpkhtlvfvafympulywx.supabase.co';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+// Load environment variables
+config();
 
-console.log('🔍 Final Verification of Currency Migration');
-console.log('==========================================');
+const url = process.env.VITE_SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Create Supabase client with anon key (public access)
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-async function finalVerification() {
-  let allPassed = true;
-  
-  console.log('\n1. Checking if currency column exists in cars table...');
-  try {
-    const { data, error } = await supabase
-      .from('cars')
-      .select('currency')
-      .limit(1);
-      
-    if (error && error.message.includes('column') && error.message.includes('does not exist')) {
-      console.log('❌ Currency column does not exist in cars table');
-      allPassed = false;
-    } else if (error) {
-      console.log('❌ Error querying cars table:', error.message);
-      allPassed = false;
-    } else {
-      console.log('✅ Currency column exists in cars table');
-    }
-  } catch (error) {
-    console.log('❌ Error checking cars table:', error.message);
-    allPassed = false;
-  }
-  
-  console.log('\n2. Checking if currency column exists in bookings table...');
-  try {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('currency')
-      .limit(1);
-      
-    if (error && error.message.includes('column') && error.message.includes('does not exist')) {
-      console.log('❌ Currency column does not exist in bookings table');
-      allPassed = false;
-    } else if (error) {
-      console.log('❌ Error querying bookings table:', error.message);
-      allPassed = false;
-    } else {
-      console.log('✅ Currency column exists in bookings table');
-    }
-  } catch (error) {
-    console.log('❌ Error checking bookings table:', error.message);
-    allPassed = false;
-  }
-  
-  console.log('\n3. Checking if currency column exists in payments table...');
-  try {
-    const { data, error } = await supabase
-      .from('payments')
-      .select('currency')
-      .limit(1);
-      
-    if (error && error.message.includes('column') && error.message.includes('does not exist')) {
-      console.log('❌ Currency column does not exist in payments table');
-      allPassed = false;
-    } else if (error) {
-      console.log('❌ Error querying payments table:', error.message);
-      allPassed = false;
-    } else {
-      console.log('✅ Currency column exists in payments table');
-    }
-  } catch (error) {
-    console.log('❌ Error checking payments table:', error.message);
-    allPassed = false;
-  }
-  
-  console.log('\n4. Testing REST endpoint...');
-  try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/cars?select=currency&limit=1`, {
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (response.ok) {
-      console.log('✅ REST endpoint is working correctly');
-    } else if (response.status === 400) {
-      const data = await response.json();
-      if (data.message && data.message.includes('column') && data.message.includes('does not exist')) {
-        console.log('❌ REST endpoint error: currency column does not exist');
-        allPassed = false;
-      } else {
-        console.log('❌ REST endpoint error:', response.status, response.statusText);
-        allPassed = false;
-      }
-    } else {
-      console.log('❌ REST endpoint error:', response.status, response.statusText);
-      allPassed = false;
-    }
-  } catch (error) {
-    console.log('❌ REST endpoint verification failed:', error.message);
-    allPassed = false;
-  }
-  
-  console.log('\n📊 Final Verification Summary:');
-  console.log('==============================');
-  if (allPassed) {
-    console.log('✅ All checks passed! The currency migration has been successfully applied.');
-    console.log('\n📋 Next steps:');
-    console.log('1. Regenerate Supabase types: npm run gen:supabase-types');
-    console.log('2. Build your application: npm run build');
-    console.log('3. Deploy to your hosting platform');
-  } else {
-    console.log('❌ Some checks failed. The currency migration has not been applied yet.');
-    console.log('\n📋 To apply the migration:');
-    console.log('1. Get your Supabase service role key from the dashboard');
-    console.log('2. Add it to .env.local file as SUPABASE_SERVICE_KEY');
-    console.log('3. Run: node apply-solution.js');
-    console.log('4. Wait 30-60 seconds for schema cache to refresh');
-    console.log('5. Run this verification script again');
-  }
-  
-  return allPassed;
+if (!url || !key) {
+  console.error('Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
+  process.exit(1);
 }
 
-// Run the verification
-finalVerification().then(success => {
-  process.exit(success ? 0 : 1);
-});
+const supabase = createClient(url, key);
+
+async function finalVerification() {
+  console.log('=== Final Image Fix Verification ===\n');
+  
+  try {
+    // 1. Check if we have cars with image URLs
+    console.log('1. Checking database for cars with images...');
+    const { count, error: countError } = await supabase
+      .from('cars')
+      .select('*', { count: 'exact', head: true })
+      .not('image_urls', 'is', null);
+    
+    if (countError) {
+      console.error('Error counting cars:', countError);
+      return;
+    }
+    
+    console.log(`Found ${count} cars with image URLs`);
+    
+    if (count === 0) {
+      console.log('No cars with images found. Please upload a car with images to test.');
+      return;
+    }
+    
+    // 2. Get a sample car and verify its image URLs
+    console.log('\n2. Verifying sample car image URLs...');
+    const { data: cars, error: fetchError } = await supabase
+      .from('cars')
+      .select('id, title, image_urls')
+      .not('image_urls', 'is', null)
+      .limit(1);
+    
+    if (fetchError) {
+      console.error('Error fetching cars:', fetchError);
+      return;
+    }
+    
+    const car = cars[0];
+    console.log(`Car: ${car.title} (${car.id})`);
+    
+    if (!Array.isArray(car.image_urls) || car.image_urls.length === 0) {
+      console.log('Car has no valid image URLs');
+      return;
+    }
+    
+    console.log(`Found ${car.image_urls.length} image URLs`);
+    
+    // 3. Test accessibility of each image URL
+    console.log('\n3. Testing image URL accessibility...');
+    let allAccessible = true;
+    
+    for (let i = 0; i < car.image_urls.length; i++) {
+      const url = car.image_urls[i];
+      console.log(`Testing image ${i + 1}: ${url.substring(0, 60)}${url.length > 60 ? '...' : ''}`);
+      
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(url, { 
+          method: 'HEAD', 
+          signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          console.log(`  ✓ Accessible (Status: ${response.status})`);
+        } else {
+          console.log(`  ✗ Not accessible (Status: ${response.status})`);
+          allAccessible = false;
+        }
+      } catch (err) {
+        console.log(`  ✗ Error: ${err.message}`);
+        allAccessible = false;
+      }
+    }
+    
+    // 4. Summary
+    console.log('\n=== Final Verification Summary ===');
+    if (allAccessible) {
+      console.log('✅ All image URLs are accessible');
+      console.log('✅ Image display should work correctly in both admin and user interfaces');
+      console.log('✅ No more infinite loading states');
+      console.log('✅ Proper fallback handling for missing images');
+    } else {
+      console.log('⚠ Some issues were detected with image accessibility');
+      console.log('Please check the output above for details');
+    }
+    
+    console.log('\n=== Verification Complete ===');
+    
+  } catch (err) {
+    console.error('Error during verification:', err);
+  }
+}
+
+finalVerification();

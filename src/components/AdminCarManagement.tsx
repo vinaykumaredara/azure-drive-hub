@@ -1,24 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Upload, Car, Eye, ArrowLeft, Search, Filter, BarChart3, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, Car, Search, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtime';
-import { useNavigate } from 'react-router-dom';
 import { formatINRFromPaise, toPaise } from '@/utils/currency';
-import { getPublicImageUrl, uploadMultipleFiles, appendImageUrlsToCar } from '@/utils/imageUtils';
 import LazyImage from '@/components/LazyImage';
 import { resolveImageUrlsForCarAdmin } from '@/utils/adminImageUtils';
-import AdminImage from '@/components/AdminImage';
 import ImageCarousel from '@/components/ImageCarousel';
+import { CarService } from '@/services/api/carService';
+// Import the new image CRUD utilities
+import { 
+  createCarWithImages, 
+  updateCarWithImages
+} from '@/utils/imageCrudUtils';
 
 interface Car {
   id: string;
@@ -35,8 +38,7 @@ interface Car {
   description?: string;
   location_city?: string;
   status: string;
-  image_urls: string[];
-  image_paths?: string[]; // Add image_paths field
+  image_urls: string[] | null; // Make it explicitly nullable
   created_at: string;
   price_in_paise?: number;
   currency?: string;
@@ -47,7 +49,7 @@ interface Car {
 }
 
 const AdminCarManagement: React.FC = () => {
-  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [cars, setCars] = useState<Car[]>([]);
   const [filteredCars, setFilteredCars] = useState<Car[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,8 +58,8 @@ const AdminCarManagement: React.FC = () => {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [carToDelete, setCarToDelete] = useState<Car | null>(null);
-  const [uploadedImagePaths, setUploadedImagePaths] = useState<string[]>([]);
-  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
+  const [uploadedImageFiles, setUploadedImageFiles] = useState<File[]>([]);
+  const [uploadedImagePreviews, setUploadedImagePreviews] = useState<string[]>([]);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -153,10 +155,32 @@ const AdminCarManagement: React.FC = () => {
         } : null
       });
       
+      // Log all car image data for debugging
+      data?.forEach((car: any) => {
+        console.log('Admin Car Data:', {
+          id: car.id,
+          title: car.title,
+          image_urls: car.image_urls,
+          image_urls_type: typeof car.image_urls,
+          image_urls_length: Array.isArray(car.image_urls) ? car.image_urls.length : 'Not an array'
+        });
+      });
+      
       // Resolve image URLs for all cars using admin-specific resolver
       const carsWithResolvedImages = await Promise.all(
         (data || []).map(resolveImageUrlsForCarAdmin)
       );
+      
+      // Log resolved images for debugging
+      carsWithResolvedImages.forEach((car: any) => {
+        console.log('Resolved Car Images:', {
+          id: car.id,
+          title: car.title,
+          image_urls: car.image_urls,
+          image_urls_type: typeof car.image_urls,
+          image_urls_length: Array.isArray(car.image_urls) ? car.image_urls.length : 'Not an array'
+        });
+      });
       
       setCars(carsWithResolvedImages);
       setFilteredCars(carsWithResolvedImages);
@@ -172,29 +196,28 @@ const AdminCarManagement: React.FC = () => {
     }
   };
 
-  const handleImageUpload = async (files: FileList) => {
+  const handleImageUpload = async (files: File[] | FileList) => {
     setUploadingImages(true);
 
     try {
+      // Convert FileList to File[] if needed
+      const fileArray = Array.isArray(files) ? files : Array.from(files);
+      
       // Validate that all files are images
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
         if (!file.type.startsWith('image/')) {
           throw new Error(`File ${file.name} is not a valid image. Please upload only image files (JPEG, PNG, GIF, etc.).`);
         }
       }
 
-      // If we're editing an existing car, get its ID
-      const carId = selectedCar?.id || `new-${Date.now()}`;
-
-      // Upload files in parallel and get paths and URLs
-      const { paths, urls } = await uploadMultipleFiles(carId, Array.from(files));
+      // Generate previews for the uploaded files
+      const previews = fileArray.map(file => URL.createObjectURL(file));
       
-      // Update state with new paths and URLs
-      setUploadedImagePaths(prev => [...prev, ...paths]);
-      setUploadedImageUrls(prev => [...prev, ...urls]);
+      // Update state with new files and previews
+      setUploadedImageFiles(prev => [...prev, ...fileArray]);
+      setUploadedImagePreviews(prev => [...prev, ...previews]);
       
-      return urls;
     } catch (error: any) {
       console.error('Error uploading images:', error);
       toast({
@@ -202,280 +225,8 @@ const AdminCarManagement: React.FC = () => {
         description: error.message || "Failed to upload images",
         variant: "destructive",
       });
-      return [];
     } finally {
       setUploadingImages(false);
-    }
-  };
-
-  // Atomic upload function that ensures database and storage consistency
-  const atomicImageUpload = async (files: FileList, carId: string) => {
-    setUploadingImages(true);
-    
-    try {
-      const uploadedFilePaths: string[] = [];
-      
-      // Upload files one by one to ensure atomicity
-      for (const file of Array.from(files)) {
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-          throw new Error(`File ${file.name} is not a valid image.`);
-        }
-        
-        // Generate unique file name
-        const fileName = `cars/${carId}/${Date.now()}_${file.name}`;
-        
-        try {
-          // Upload file to storage
-          const { error: uploadError } = await supabase.storage
-            .from('cars-photos')
-            .upload(fileName, file);
-          
-          if (uploadError) {
-            throw uploadError;
-          }
-          
-          // Store the file path for potential rollback
-          uploadedFilePaths.push(fileName);
-          
-          // Get public URL for the uploaded file
-          const { data: publicUrlData } = supabase.storage
-            .from('cars-photos')
-            .getPublicUrl(fileName);
-          
-          if (!publicUrlData?.publicUrl) {
-            throw new Error('Failed to generate public URL');
-          }
-          
-          // Update database with the new image URL
-          // FIX: Instead of using array_append RPC (which doesn't exist), fetch current arrays and append to them
-          // Note: image_paths column doesn't exist in the schema, only image_urls
-          const { data: currentCar, error: fetchError } = await supabase
-            .from('cars')
-            .select('image_urls')
-            .eq('id', carId)
-            .single();
-          
-          if (fetchError) {
-            throw fetchError;
-          }
-          
-          // Append new values to existing arrays
-          const updatedImageUrls = [...(currentCar?.image_urls || []), publicUrlData.publicUrl];
-          
-          const { error: updateError } = await supabase
-            .from('cars')
-            .update({
-              image_urls: updatedImageUrls
-            })
-            .eq('id', carId);
-          
-          if (updateError) {
-            // If database update fails, remove the uploaded file
-            await supabase.storage
-              .from('cars-photos')
-              .remove([fileName]);
-            
-            throw updateError;
-          }
-        } catch (uploadError) {
-          // Rollback all previously uploaded files
-          if (uploadedFilePaths.length > 0) {
-            await supabase.storage
-              .from('cars-photos')
-              .remove(uploadedFilePaths);
-          }
-          
-          throw uploadError;
-        }
-      }
-      
-      return uploadedFilePaths;
-    } finally {
-      setUploadingImages(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      // Ensure status is always 'published' for new cars
-      const carStatus = selectedCar ? formData.status : 'published';
-      
-      // Convert price to paise for INR storage
-      const priceInPaise = toPaise(formData.price_per_day);
-      
-      // Handle image upload first
-      let allImageUrls: string[] = [];
-      
-      // Include existing images for the car (when editing)
-      if (selectedCar && selectedCar.image_urls) {
-        allImageUrls = [...selectedCar.image_urls];
-      }
-      
-      // Add newly uploaded images
-      allImageUrls = [...allImageUrls, ...uploadedImageUrls];
-      
-      // Prepare base car data with defensive fallback for currency
-      const carData: any = {
-        title: formData.title,
-        make: formData.make,
-        model: formData.model,
-        year: formData.year,
-        seats: formData.seats,
-        fuel_type: formData.fuel_type,
-        transmission: formData.transmission,
-        price_per_day: formData.price_per_day,
-        price_per_hour: formData.price_per_hour || 0,
-        service_charge: formData.service_charge || 0,
-        description: formData.description || '',
-        location_city: formData.location_city || '',
-        status: carStatus,
-        image_urls: allImageUrls,
-        price_in_paise: priceInPaise,
-        currency: 'INR' // Defensive fallback - ensure currency is always present
-      };
-
-      // Always include booking_status for now, as it should exist in the database
-      // If it doesn't exist, the insert will fail and we'll handle it in the catch block
-      carData.booking_status = 'available';
-
-      if (selectedCar) {
-        // Update existing car
-        const { error } = await supabase
-          .from('cars')
-          .update(carData)
-          .eq('id', selectedCar.id);
-
-        if (error) {throw error;}
-      
-        // Log audit entry for car update
-        await logAuditAction('car_update', `Updated car: ${formData.title}`, { carId: selectedCar.id });
-      
-        toast({
-          title: "Success",
-          description: "Car updated successfully",
-        });
-      } else {
-        // Create new car
-        const { data: newCar, error } = await supabase
-          .from('cars')
-          .insert([carData])
-          .select()
-          .single();
-
-        if (error) {throw error;}
-      
-        // Log audit entry for car creation
-        await logAuditAction('car_create', `Created car: ${formData.title}`);
-      
-        toast({
-          title: "Success",
-          description: "Car created successfully",
-        });
-      }
-
-      setIsEditDialogOpen(false);
-      resetForm();
-      fetchCars(); // Refresh the car list
-    } catch (error: any) {
-      console.error('Error saving car:', error);
-      // Add verbose logging for debugging
-      console.error('Supabase insert error details:', {
-        error: error,
-        message: error.message,
-        code: error.code,
-        hint: error.hint,
-        details: error.details
-      });
-      
-      // If the error is about booking_status, service_charge or currency column not existing, try again without it
-      if (error.message && (error.message.includes('booking_status') || error.message.includes('service_charge') || error.message.includes('column'))) {
-        try {
-          // Prepare car data without problematic columns
-          const carData: any = {
-            title: formData.title,
-            make: formData.make,
-            model: formData.model,
-            year: formData.year,
-            seats: formData.seats,
-            fuel_type: formData.fuel_type,
-            transmission: formData.transmission,
-            price_per_day: formData.price_per_day,
-            price_per_hour: formData.price_per_hour || 0,
-            service_charge: formData.service_charge || 0,
-            description: formData.description || '',
-            location_city: formData.location_city || '',
-            status: selectedCar ? formData.status : 'published',
-            image_urls: [],
-            price_in_paise: toPaise(formData.price_per_day),
-            currency: 'INR' // Defensive fallback - ensure currency is always present
-          };
-
-          // Only add service_charge if it exists in the schema
-          // We'll handle this more gracefully in the future
-        
-          // Handle images
-          let allImageUrls: string[] = [];
-          
-          if (selectedCar && selectedCar.image_urls) {
-            allImageUrls = [...selectedCar.image_urls];
-          }
-          
-          allImageUrls = [...allImageUrls, ...uploadedImageUrls];
-          
-          carData.image_urls = allImageUrls;
-
-          if (selectedCar) {
-            const { error: retryError } = await supabase
-              .from('cars')
-              .update(carData)
-              .eq('id', selectedCar.id);
-
-            if (retryError) {throw retryError;}
-          } else {
-            const { error: retryError } = await supabase
-              .from('cars')
-              .insert([carData]);
-
-            if (retryError) {throw retryError;}
-          }
-
-          toast({
-            title: "Success",
-            description: "Car saved successfully",
-          });
-
-          setIsEditDialogOpen(false);
-          resetForm();
-          fetchCars();
-          return;
-        } catch (retryError: any) {
-          console.error('Retry error:', retryError);
-          // Add verbose logging for retry errors
-          console.error('Supabase retry error details:', {
-            error: retryError,
-            message: retryError.message,
-            code: retryError.code,
-            hint: retryError.hint,
-            details: retryError.details
-          });
-          
-          toast({
-            title: "Error",
-            description: `Failed to save car: ${retryError.message || 'Unknown error'}`,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-      
-      toast({
-        title: "Error",
-        description: `Failed to save car: ${error.message || 'Unknown error'}`,
-        variant: "destructive",
-      });
     }
   };
 
@@ -496,8 +247,11 @@ const AdminCarManagement: React.FC = () => {
       status: 'published'
     });
     setSelectedCar(null);
-    setUploadedImagePaths([]);
-    setUploadedImageUrls([]);
+    setUploadedImageFiles([]);
+    setUploadedImagePreviews([]);
+    
+    // Clean up object URLs
+    uploadedImagePreviews.forEach(url => URL.revokeObjectURL(url));
   };
 
   const handleEdit = (car: Car) => {
@@ -517,54 +271,33 @@ const AdminCarManagement: React.FC = () => {
       location_city: car.location_city || '',
       status: car.status || 'published'
     });
+    // Reset uploaded images when editing
+    setUploadedImageFiles([]);
+    setUploadedImagePreviews([]);
     setIsEditDialogOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!carToDelete) {return;}
+    if (!carToDelete) return;
 
     try {
-      // Delete associated images from storage
-      if (carToDelete.image_urls && carToDelete.image_urls.length > 0) {
-        // Extract file paths from URLs for deletion
-        const filePaths = carToDelete.image_urls.map(url => {
-          // Extract the file path from the URL
-          const urlObj = new URL(url);
-          const pathParts = urlObj.pathname.split('/');
-          // Find the part that starts with 'cars/'
-          const carsIndex = pathParts.findIndex(part => part.startsWith('cars%2F') || part.startsWith('cars/'));
-          if (carsIndex !== -1) {
-            return pathParts.slice(carsIndex).join('/').replace('%2F', '/');
-          }
-          return '';
-        }).filter(path => path !== '');
+      // Use the CarService to properly delete the car
+      await CarService.deleteCar(carToDelete.id);
 
-        if (filePaths.length > 0) {
-          const { error: deleteError } = await supabase.storage
-            .from('cars-photos')
-            .remove(filePaths);
-          
-          if (deleteError) {
-            console.warn('Failed to delete images from storage:', deleteError);
-            // Continue with car deletion even if image deletion fails
-          }
-        }
-      }
-
-      // Delete car from database
-      const { error } = await supabase
-        .from('cars')
-        .delete()
-        .eq('id', carToDelete.id);
-
-      if (error) {throw error;}
-
+      // Update local state (remove from UI)
+      setCars(prev => prev.filter(c => c.id !== carToDelete.id));
+      setFilteredCars(prev => prev.filter(c => c.id !== carToDelete.id));
+      
+      // Show success message
       toast({
         title: "Success",
-        description: "Car deleted successfully",
+        description: "Car deleted successfully from database and storage",
       });
 
+      setIsDeleteDialogOpen(false);
+      setCarToDelete(null);
       fetchCars();
+
     } catch (error: any) {
       console.error('Error deleting car:', error);
       toast({
@@ -572,526 +305,243 @@ const AdminCarManagement: React.FC = () => {
         description: `Failed to delete car: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
-    } finally {
-      setIsDeleteDialogOpen(false);
-      setCarToDelete(null);
     }
   };
 
-  // Add the missing functions
-  const openEditDialog = (car?: Car) => {
-    if (car) {
-      handleEdit(car);
-    } else {
-      resetForm();
-      setIsEditDialogOpen(true);
-    }
-  };
-
-  const handleDeleteClick = (car: Car) => {
-    setCarToDelete(car);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleDeleteCancel = () => {
-    setIsDeleteDialogOpen(false);
-    setCarToDelete(null);
-  };
-
-  const handleDeleteConfirm = async () => {
-    await handleDelete();
-  };
-
-  const logAuditAction = async (action: string, description: string, metadata?: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     try {
-      await supabase.from('audit_logs').insert({
-        action,
-        description,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
-        metadata
+      // Ensure status is always 'published' for new cars
+      const carStatus = selectedCar ? formData.status : 'published';
+      
+      // Convert price to paise for INR storage
+      const priceInPaise = toPaise(formData.price_per_day);
+      
+      // Prepare car data
+      const carData = {
+        title: formData.title,
+        make: formData.make,
+        model: formData.model,
+        year: formData.year,
+        seats: formData.seats,
+        fuel_type: formData.fuel_type,
+        transmission: formData.transmission,
+        price_per_day: formData.price_per_day,
+        price_per_hour: formData.price_per_hour || 0,
+        service_charge: formData.service_charge || 0,
+        description: formData.description || '',
+        location_city: formData.location_city || '',
+        status: carStatus,
+        price_in_paise: priceInPaise,
+        currency: 'INR' // Defensive fallback - ensure currency is always present
+      };
+
+      setUploadingImages(true);
+
+      if (selectedCar) {
+        // Update existing car
+        const updatedCar = await updateCarWithImages(
+          selectedCar.id,
+          carData,
+          uploadedImageFiles,
+          true // Remove old images
+        );
+        
+        console.log('Car updated successfully:', updatedCar);
+      } else {
+        // Create new car
+        const newCar = await createCarWithImages(carData, uploadedImageFiles);
+        console.log('Car created successfully:', newCar);
+      }
+
+      // Success - reset form and refresh
+      setIsEditDialogOpen(false);
+      resetForm();
+      fetchCars();
+      
+      toast({
+        title: "Success",
+        description: selectedCar ? "Car updated successfully" : "Car created successfully",
       });
-    } catch (error) {
-      console.warn('Failed to log audit action:', error);
+
+    } catch (error: any) {
+      console.error('Error saving car:', error);
+      toast({
+        title: "Error",
+        description: `Failed to save car: ${error.message || 'Unknown error'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImages(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const removeUploadedImage = (index: number) => {
+    const newFiles = [...uploadedImageFiles];
+    const newPreviews = [...uploadedImagePreviews];
+    
+    // Clean up object URL
+    URL.revokeObjectURL(newPreviews[index]);
+    
+    newFiles.splice(index, 1);
+    newPreviews.splice(index, 1);
+    
+    setUploadedImageFiles(newFiles);
+    setUploadedImagePreviews(newPreviews);
+  };
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'published':
-        return 'bg-success text-success-foreground';
+        return <Badge variant="default">Published</Badge>;
+      case 'draft':
+        return <Badge variant="secondary">Draft</Badge>;
       case 'maintenance':
-        return 'bg-warning text-warning-foreground';
-      case 'inactive':
-        return 'bg-destructive text-destructive-foreground';
+        return <Badge variant="outline">Maintenance</Badge>;
       default:
-        return 'bg-muted text-muted-foreground';
+        return <Badge variant="default">{status}</Badge>;
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Stats */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={() => navigate('/admin')}
-            className="hover:bg-primary hover:text-primary-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold">Car Management</h2>
-            <p className="text-muted-foreground">
-              {cars.length} total cars • {cars.filter(c => c.status === 'published').length} published
-            </p>
-          </div>
+    <div className="container mx-auto py-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Car Management</h1>
+          <p className="text-muted-foreground">Manage your car inventory</p>
         </div>
-        
-        {/* Quick Stats */}
-        <div className="hidden md:flex items-center gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-success">{cars.filter(c => c.status === 'published').length}</div>
-            <div className="text-xs text-muted-foreground">Published</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-warning">{cars.filter(c => c.status === 'maintenance').length}</div>
-            <div className="text-xs text-muted-foreground">Maintenance</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-destructive">{cars.filter(c => c.status === 'inactive').length}</div>
-            <div className="text-xs text-muted-foreground">Inactive</div>
-          </div>
-        </div>
+        <Button onClick={() => setIsEditDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add Car
+        </Button>
       </div>
-      
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+
+      {/* Filters */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Filter className="w-5 h-5 mr-2" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="search">Search</Label>
               <Input
-                placeholder="Search cars by title, make, model, or location..."
+                id="search"
+                placeholder="Search by title, make, model..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
               />
             </div>
-            
-            {/* Filters */}
-            <div className="flex gap-2">
+            <div>
+              <Label htmlFor="status">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
-              
+            </div>
+            <div>
+              <Label htmlFor="fuel">Fuel Type</Label>
               <Select value={fuelFilter} onValueChange={setFuelFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Fuel" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Select fuel type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Fuel</SelectItem>
+                  <SelectItem value="all">All Fuel Types</SelectItem>
                   <SelectItem value="petrol">Petrol</SelectItem>
                   <SelectItem value="diesel">Diesel</SelectItem>
                   <SelectItem value="electric">Electric</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                  <SelectItem value="cng">CNG</SelectItem>
                 </SelectContent>
               </Select>
-              
+            </div>
+            <div>
+              <Label htmlFor="transmission">Transmission</Label>
               <Select value={transmissionFilter} onValueChange={setTransmissionFilter}>
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Transmission" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Select transmission" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="automatic">Automatic</SelectItem>
+                  <SelectItem value="all">All Transmissions</SelectItem>
                   <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="automatic">Automatic</SelectItem>
                 </SelectContent>
               </Select>
-              
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                  setFuelFilter('all');
-                  setTransmissionFilter('all');
-                }}
-              >
-                Clear
-              </Button>
             </div>
-          </div>
-          
-          {/* Results Count */}
-          <div className="mt-4 text-sm text-muted-foreground">
-            Showing {filteredCars.length} of {cars.length} cars
           </div>
         </CardContent>
       </Card>
-      
-      {/* Add Car Button */}
-      <div className="flex justify-end">
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => openEditDialog()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Car
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {selectedCar ? 'Edit Car' : 'Add New Car'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({...prev, title: e.target.value}))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="make">Make</Label>
-                  <Input
-                    id="make"
-                    value={formData.make}
-                    onChange={(e) => setFormData(prev => ({...prev, make: e.target.value}))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="model">Model</Label>
-                  <Input
-                    id="model"
-                    value={formData.model}
-                    onChange={(e) => setFormData(prev => ({...prev, model: e.target.value}))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="year">Year</Label>
-                  <Input
-                    id="year"
-                    type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData(prev => ({...prev, year: parseInt(e.target.value)}))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="seats">Seats</Label>
-                  <Select value={formData.seats.toString()} onValueChange={(value) => setFormData(prev => ({...prev, seats: parseInt(value)}))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="2">2 Seats</SelectItem>
-                      <SelectItem value="4">4 Seats</SelectItem>
-                      <SelectItem value="5">5 Seats</SelectItem>
-                      <SelectItem value="7">7 Seats</SelectItem>
-                      <SelectItem value="8">8 Seats</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="fuel_type">Fuel Type</Label>
-                  <Select value={formData.fuel_type} onValueChange={(value) => setFormData(prev => ({...prev, fuel_type: value}))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="petrol">Petrol</SelectItem>
-                      <SelectItem value="diesel">Diesel</SelectItem>
-                      <SelectItem value="electric">Electric</SelectItem>
-                      <SelectItem value="hybrid">Hybrid</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="transmission">Transmission</Label>
-                  <Select value={formData.transmission} onValueChange={(value) => setFormData(prev => ({...prev, transmission: value}))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="automatic">Automatic</SelectItem>
-                      <SelectItem value="manual">Manual</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({...prev, status: value}))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="published">Published</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="price_per_day">Price per Day (₹)</Label>
-                  <Input
-                    id="price_per_day"
-                    type="number"
-                    step="0.01"
-                    value={formData.price_per_day}
-                    onChange={(e) => setFormData(prev => ({...prev, price_per_day: parseFloat(e.target.value)}))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="price_per_hour">Price per Hour (₹)</Label>
-                  <Input
-                    id="price_per_hour"
-                    type="number"
-                    step="0.01"
-                    value={formData.price_per_hour}
-                    onChange={(e) => setFormData(prev => ({...prev, price_per_hour: parseFloat(e.target.value)}))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="service_charge">Service Charge (₹)</Label>
-                  <Input
-                    id="service_charge"
-                    type="number"
-                    step="0.01"
-                    value={formData.service_charge}
-                    onChange={(e) => setFormData(prev => ({...prev, service_charge: parseFloat(e.target.value)}))}
-                    placeholder="Optional service charge (replaces GST)"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Optional: Add a service charge that will replace GST in the booking summary
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="location_city">City</Label>
-                  <Input
-                    id="location_city"
-                    value={formData.location_city}
-                    onChange={(e) => setFormData(prev => ({...prev, location_city: e.target.value}))}
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
-                  rows={3}
-                />
-              </div>
 
-              <div>
-                <Label>Car Images</Label>
-                <div className="mt-2 space-y-4">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={async (e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        // Check if we would exceed the 6 image limit
-                        const currentCount = (selectedCar?.image_urls?.length || 0) + uploadedImageUrls.length;
-                        const remainingSlots = 6 - currentCount;
-                        
-                        if (remainingSlots <= 0) {
-                          toast({
-                            title: "Upload Limit Reached",
-                            description: "You can only upload up to 6 images per car.",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        
-                        // Only take as many files as we have slots for
-                        const filesToUpload = Array.from(e.target.files).slice(0, remainingSlots);
-                        
-                        if (filesToUpload.length < e.target.files.length) {
-                          toast({
-                            title: "Upload Limit Applied",
-                            description: `Only ${remainingSlots} more images can be uploaded for this car.`,
-                          });
-                        }
-                        
-                        await handleImageUpload(filesToUpload);
-                      }
-                    }}
-                    className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                  />
-                  {uploadingImages && (
-                    <p className="text-sm text-muted-foreground mt-2">Uploading images...</p>
-                  )}
-                  
-                  {/* Image Preview Section */}
-                  {((selectedCar?.image_urls && selectedCar.image_urls.length > 0) || uploadedImageUrls.length > 0) && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Uploaded Images Preview</Label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {/* Existing images for editing */}
-                        {selectedCar?.image_urls?.map((url, index) => (
-                          <div key={`existing-${index}`} className="relative group">
-                            <AdminImage
-                              src={url}
-                              alt={`Car image ${index + 1}`}
-                              className="w-full h-20 object-cover rounded border"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (selectedCar) {
-                                  setSelectedCar({
-                                    ...selectedCar,
-                                    image_urls: selectedCar.image_urls?.filter((_, i) => i !== index) || []
-                                  });
-                                }
-                              }}
-                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-
-                        {/* Newly uploaded images */}
-                        {uploadedImageUrls.map((url, index) => (
-                          <div key={`new-${index}`} className="relative group">
-                            <AdminImage
-                              src={url}
-                              alt={`New car image ${index + 1}`}
-                              className="w-full h-20 object-cover rounded border border-green-200"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUploadedImageUrls(prev => prev.filter((_, i) => i !== index));
-                                setUploadedImagePaths(prev => prev.filter((_, i) => i !== index));
-                              }}
-                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Total images: {(selectedCar?.image_urls?.length || 0) + uploadedImageUrls.length} • 
-                        New uploads: {uploadedImageUrls.length}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {selectedCar ? 'Update Car' : 'Add Car'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Cars Grid */}
+      {/* Car List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCars.map((car) => (
           <motion.div
             key={car.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="group"
+            transition={{ duration: 0.3 }}
           >
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="p-4">
-                <div className="relative overflow-hidden rounded-lg bg-muted">
-                  {car.image_urls && car.image_urls.length > 0 ? (
-                    <ImageCarousel images={car.image_urls} className="h-48" />
-                  ) : (
-                    <div className="flex items-center justify-center h-48">
-                      <Car className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                  )}
+            <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative">
+                {/* Use ImageCarousel for consistent image display */}
+                <ImageCarousel 
+                  images={car.image_urls && car.image_urls.length > 0 ? car.image_urls : undefined} 
+                  className="h-48" 
+                  debug={true}
+                />
+                <div className="absolute top-2 right-2">
+                  {getStatusBadge(car.status)}
                 </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold truncate">{car.title}</h3>
-                    <Badge className={getStatusColor(car.status)}>
-                      {car.status}
-                    </Badge>
+              </div>
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-lg mb-1">{car.title}</h3>
+                <p className="text-muted-foreground text-sm mb-2">
+                  {car.make} {car.model} ({car.year})
+                </p>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="font-bold text-primary">
+                    {formatINRFromPaise(car.price_in_paise || toPaise(car.price_per_day))}
+                  </span>
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <span>{car.seats} seats</span>
+                    <span>•</span>
+                    <span className="capitalize">{car.fuel_type}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {car.make} {car.model} ({car.year})
-                  </p>
-                  <p className="text-sm">
-                    {car.seats} seats • {car.fuel_type} • {car.transmission}
-                  </p>
-                  <p className="font-semibold text-primary">
-                    {formatINRFromPaise(car.price_in_paise || toPaise(car.price_per_day))}/day
-                    {car.service_charge && car.service_charge > 0 && (
-                      <span className="text-xs text-muted-foreground block">
-                        +{formatINRFromPaise(toPaise(car.service_charge))} service charge
-                      </span>
-                    )}
-                  </p>
-                  <div className="flex justify-between items-center pt-2">
-                    <div className="flex space-x-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditDialog(car)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteClick(car)}
-                        className="hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                        title="Delete car"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {car.location_city}
-                    </span>
-                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(car)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setCarToDelete(car);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1099,73 +549,266 @@ const AdminCarManagement: React.FC = () => {
         ))}
       </div>
 
-      {/* Empty State */}
       {filteredCars.length === 0 && (
         <div className="text-center py-12">
-          {cars.length === 0 ? (
-            <>
-              <Car className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No cars yet</h3>
-              <p className="text-muted-foreground mb-4">Add your first car to get started</p>
-              <Button onClick={() => openEditDialog()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Car
-              </Button>
-            </>
-          ) : (
-            <>
-              <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No cars match your filters</h3>
-              <p className="text-muted-foreground mb-4">Try adjusting your search or filter criteria</p>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                  setFuelFilter('all');
-                  setTransmissionFilter('all');
-                }}
-              >
-                Clear Filters
-              </Button>
-            </>
+          <Car className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No cars found</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchTerm || statusFilter !== 'all' || fuelFilter !== 'all' || transmissionFilter !== 'all'
+              ? 'Try adjusting your filters'
+              : 'Get started by adding a new car'}
+          </p>
+          {!searchTerm && statusFilter === 'all' && fuelFilter === 'all' && transmissionFilter === 'all' && (
+            <Button onClick={() => setIsEditDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Your First Car
+            </Button>
           )}
         </div>
       )}
 
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedCar ? 'Edit Car' : 'Add New Car'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="make">Make</Label>
+                <Input
+                  id="make"
+                  value={formData.make}
+                  onChange={(e) => setFormData({ ...formData, make: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="model">Model</Label>
+                <Input
+                  id="model"
+                  value={formData.model}
+                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="year">Year</Label>
+                <Input
+                  id="year"
+                  type="number"
+                  value={formData.year}
+                  onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) || new Date().getFullYear() })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="seats">Seats</Label>
+                <Input
+                  id="seats"
+                  type="number"
+                  value={formData.seats}
+                  onChange={(e) => setFormData({ ...formData, seats: parseInt(e.target.value) || 5 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="fuel_type">Fuel Type</Label>
+                <Select value={formData.fuel_type} onValueChange={(value) => setFormData({ ...formData, fuel_type: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="petrol">Petrol</SelectItem>
+                    <SelectItem value="diesel">Diesel</SelectItem>
+                    <SelectItem value="electric">Electric</SelectItem>
+                    <SelectItem value="cng">CNG</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="transmission">Transmission</Label>
+                <Select value={formData.transmission} onValueChange={(value) => setFormData({ ...formData, transmission: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="automatic">Automatic</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="price_per_day">Price per Day (₹)</Label>
+                <Input
+                  id="price_per_day"
+                  type="number"
+                  value={formData.price_per_day}
+                  onChange={(e) => setFormData({ ...formData, price_per_day: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="price_per_hour">Price per Hour (₹)</Label>
+                <Input
+                  id="price_per_hour"
+                  type="number"
+                  value={formData.price_per_hour || ''}
+                  onChange={(e) => setFormData({ ...formData, price_per_hour: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="service_charge">Service Charge (₹)</Label>
+                <Input
+                  id="service_charge"
+                  type="number"
+                  value={formData.service_charge || ''}
+                  onChange={(e) => setFormData({ ...formData, service_charge: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="location_city">Location</Label>
+                <Input
+                  id="location_city"
+                  value={formData.location_city || ''}
+                  onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description || ''}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            {/* Image Upload Section */}
+            <div>
+              <Label>Images</Label>
+              <div className="mt-2">
+                {selectedCar && selectedCar.image_urls && selectedCar.image_urls.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm text-muted-foreground mb-2">Current Images:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {selectedCar.image_urls.map((url, index) => (
+                        <div key={index} className="relative">
+                          <LazyImage
+                            src={url}
+                            alt={`Current car image ${index + 1}`}
+                            className="w-full h-24 object-cover rounded"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                  <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-2">
+                    {uploadingImages ? 'Uploading...' : 'Drag and drop images here, or click to select files'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    PNG, JPG, GIF up to 10MB
+                  </p>
+                  <Input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        handleImageUpload(files);
+                      }
+                    }}
+                    disabled={uploadingImages}
+                    className="hidden"
+                    id="image-upload"
+                    ref={fileInputRef}
+                  />
+                  <Label htmlFor="image-upload">
+                    <Button asChild variant="outline" disabled={uploadingImages}>
+                      <span>Select Images</span>
+                    </Button>
+                  </Label>
+                </div>
+                
+                {uploadedImagePreviews.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground mb-2">New Images:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {uploadedImagePreviews.map((preview, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={preview}
+                            alt={`Uploaded car image ${index + 1}`}
+                            className="w-full h-24 object-cover rounded"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => removeUploadedImage(index)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={uploadingImages}>
+                {uploadingImages ? 'Saving...' : (selectedCar ? 'Update Car' : 'Add Car')}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              Confirm Deletion
-            </DialogTitle>
+            <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Are you sure you want to delete this car? This action cannot be undone.
-            </p>
-            {carToDelete && (
-              <div className="bg-muted p-3 rounded-lg">
-                <p className="font-medium">{carToDelete.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {carToDelete.make} {carToDelete.model} ({carToDelete.year})
-                </p>
-              </div>
-            )}
+            <p>Are you sure you want to delete <span className="font-semibold">{carToDelete?.title}</span>?</p>
+            <p className="text-sm text-muted-foreground mt-2">This action cannot be undone.</p>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={handleDeleteCancel}
-            >
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-            >
+            <Button variant="destructive" onClick={handleDelete}>
               Delete
             </Button>
           </div>

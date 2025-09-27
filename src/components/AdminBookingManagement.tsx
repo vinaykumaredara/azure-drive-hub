@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Car, User, CheckCircle, XCircle, RotateCcw, DollarSign, ArrowLeft, FileText, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,27 +13,27 @@ import ImageCarousel from '@/components/ImageCarousel';
 
 interface Booking {
   id: string;
-  user_id: string;
-  car_id: string;
+  user_id: string | null;
+  car_id: string | null;
   start_datetime: string;
   end_datetime: string;
   status: string;
-  total_amount: number;
-  payment_id?: string;
-  hold_expires_at?: string;
-  hold_until?: string;
-  hold_amount?: number;
-  payment_status?: string;
-  created_at: string;
+  total_amount: number | null;
+  payment_id?: string | null;
+  hold_expires_at?: string | null;
+  hold_until?: string | null;
+  hold_amount?: number | null;
+  payment_status?: string | null;
+  created_at: string | null;
   cars?: {
-    title: string;
-    make: string;
-    model: string;
-    image_urls: string[];
-  };
+    title: string | null;
+    make: string | null;
+    model: string | null;
+    image_urls: string[] | null;
+  } | null;
   users?: {
-    full_name: string;
-  };
+    full_name: string | null;
+  } | null;
 }
 
 const AdminBookingManagement: React.FC = () => {
@@ -50,11 +50,11 @@ const AdminBookingManagement: React.FC = () => {
   useRealtimeSubscription(
     'bookings',
     (payload) => {
-      setBookings(prev => [...prev, payload.new]);
+      setBookings(prev => [...prev, payload.new as Booking]);
     },
     (payload) => {
       setBookings(prev => prev.map(booking => 
-        booking.id === payload.new.id ? payload.new : booking
+        booking.id === payload.new.id ? payload.new as Booking : booking
       ));
     },
     (payload) => {
@@ -81,7 +81,7 @@ const AdminBookingManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) {throw error;}
-      setBookings(data || []);
+      setBookings(data as Booking[] || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast({
@@ -237,7 +237,7 @@ const AdminBookingManagement: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                      {booking.cars.image_urls && booking.cars.image_urls.length > 0 ? (
+                      {booking.cars?.image_urls && booking.cars.image_urls.length > 0 ? (
                         <ImageCarousel images={booking.cars.image_urls} className="w-16 h-16 rounded" />
                       ) : (
                         <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center">

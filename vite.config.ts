@@ -48,9 +48,15 @@ export default defineConfig(({ mode }) => ({
           router: ['react-router-dom'],
           query: ['@tanstack/react-query'],
           ui: ['lucide-react', 'framer-motion'],
+          supabase: ['@supabase/supabase-js'],
+          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
         },
       },
     },
+    // Enable gzip compression
+    brotliSize: true,
+    // Enable CSS code splitting
+    cssCodeSplit: true,
   },
   optimizeDeps: {
     include: [

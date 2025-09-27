@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,10 @@ import { useRealtimeSubscription } from "@/hooks/useRealtime";
 interface Message {
   id: string;
   room_id: string;
-  sender_id: string;
-  message: string;
-  attachments?: string[];
-  created_at: string;
+  sender_id: string | null;
+  message: string | null;
+  attachments?: string[] | null;
+  created_at: string | null;
 }
 
 interface ChatWidgetProps {
@@ -53,7 +53,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
         .order("created_at", { ascending: true });
 
       if (error) {throw error;}
-      setMessages(data || []);
+      setMessages(data as Message[] || []);
     } catch (error) {
       console.error("Error fetching messages:", error);
       toast({
@@ -119,7 +119,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
       if (error) {throw error;}
 
       setNewMessage("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending message:", error);
       toast({
         title: "Failed to send message",
@@ -138,14 +138,15 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   };
 
-  const formatTime = (timestamp: string) => {
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) {return "";}
     return new Date(timestamp).toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
   };
 
-  const isOwnMessage = (senderId: string) => senderId === user?.id;
+  const isOwnMessage = (senderId: string | null) => senderId === user?.id;
 
   if (!user) {
     return null;

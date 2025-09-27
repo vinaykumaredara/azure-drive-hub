@@ -1,5 +1,6 @@
 // src/utils/adminImageUtils.ts
 import { supabase } from '@/integrations/supabase/client';
+import { resolveCarImageUrls } from '@/utils/carImageUtils';
 
 /**
  * Get a public URL for an image in the cars-photos bucket
@@ -27,28 +28,22 @@ export function getPublicUrlFromPath(path: string): string | null {
  * @returns The car object with resolved image URLs
  */
 export async function resolveImageUrlsForCarAdmin(car: any) {
-  if (!car) return car;
+  console.log('resolveImageUrlsForCarAdmin: Processing car', {
+    id: car?.id,
+    title: car?.title,
+    image_urls: car?.image_urls,
+    image_urls_type: typeof car?.image_urls
+  });
   
-  // If we already have valid image_urls, ensure they are full URLs
-  if (Array.isArray(car.image_urls) && car.image_urls.length > 0) {
-    // Check if the URLs are valid (not just file paths)
-    const resolvedUrls = car.image_urls.map((url: string) => {
-      // If it's already a full URL, keep it
-      if (url && (url.startsWith('http') || url.startsWith('https'))) {
-        return url;
-      }
-      // Otherwise, treat it as a file path and generate a public URL
-      return getPublicUrlFromPath(url) || url; // Fallback to original if conversion fails
-    });
-    
-    car.image_urls = resolvedUrls;
-    return car;
-  }
+  // Use our unified resolver for consistency
+  const result = await resolveCarImageUrls(car);
   
-  // Fallback: if no images, ensure we have an empty array
-  if (!car.image_urls) {
-    car.image_urls = [];
-  }
+  console.log('resolveImageUrlsForCarAdmin: Result', {
+    id: result?.id,
+    title: result?.title,
+    image_urls: result?.image_urls,
+    image_urls_type: typeof result?.image_urls
+  });
   
-  return car;
+  return result;
 }

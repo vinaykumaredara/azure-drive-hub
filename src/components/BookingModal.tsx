@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [startTime, setStartTime] = useState("10:00");
   const [endTime, setEndTime] = useState("18:00");
   const [isLoading, setIsLoading] = useState(false);
-  const [bookingHold, setBookingHold] = useState(null);
+  interface BookingHold {
+  id: string;
+  car_id: string | null;
+  user_id: string | null;
+  start_datetime: string;
+  end_datetime: string;
+  status: string;
+  total_amount: number | null;
+  total_amount_in_paise: number | null;
+  currency: string | null;
+  payment_id: string | null;
+  created_at: string | null;
+  hold_expires_at: string | null;
+}
+
+const [bookingHold, setBookingHold] = useState<BookingHold | null>(null);
   const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
   const [step, setStep] = useState(1); // 1: dates, 2: license, 3: payment
   const [licenseId, setLicenseId] = useState<string | null>(null);
@@ -229,7 +244,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         description: "You have 10 minutes to complete payment.",
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Booking hold error:", error);
       toast({
         title: "Booking Failed",

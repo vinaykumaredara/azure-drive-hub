@@ -60,12 +60,12 @@ export class GlobalErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error);
     console.error('Error info:', errorInfo);
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <ErrorFallback 

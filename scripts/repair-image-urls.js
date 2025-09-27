@@ -17,6 +17,24 @@ if (!url || !key) {
 
 const supabase = createClient(url, key);
 
+// Add validation function
+async function validateUrl(url) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    const response = await fetch(url, { 
+      method: 'HEAD', 
+      signal: controller.signal 
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok && response.headers.get('content-type')?.startsWith('image');
+  } catch {
+    return false;
+  }
+}
+
 async function repairImageUrls() {
   console.log('Repairing image URLs in database...');
   
@@ -35,35 +53,33 @@ async function repairImageUrls() {
     
     let updatedCount = 0;
     
+    // In the repair loop, add validation:
     for (const car of cars) {
       let updated = false;
       let newImageUrls = [];
       
-      // Process image_urls array
       if (Array.isArray(car.image_urls) && car.image_urls.length > 0) {
-        newImageUrls = car.image_urls.map(url => {
-          // If it's already a full URL, keep it
+        for (const url of car.image_urls) {
           if (typeof url === 'string' && url.startsWith('http')) {
-            return url;
-          }
-          
-          // If it's a file path, convert to public URL
-          if (typeof url === 'string' && url.length > 0) {
-            try {
-              const { data } = supabase.storage
-                .from('cars-photos')
-                .getPublicUrl(url);
-              return data?.publicUrl || url;
-            } catch (err) {
-              console.warn(`Failed to convert path to URL for car ${car.id}:`, url);
-              return url;
+            // Validate existing full URLs
+            const isValid = await validateUrl(url);
+            if (isValid) {
+              newImageUrls.push(url);
+            } else {
+              // Convert invalid URL to new public URL
+              const fileName = url.split('/').pop();
+              if (fileName) {
+                const { data } = supabase.storage.from('cars-photos').getPublicUrl(fileName);
+                newImageUrls.push(data?.publicUrl || url);
+              }
             }
+          } else if (typeof url === 'string' && url.length > 0) {
+            // Convert relative paths to public URLs
+            const { data } = supabase.storage.from('cars-photos').getPublicUrl(url);
+            newImageUrls.push(data?.publicUrl || url);
           }
-          
-          return url;
-        });
-        
-        // Check if any URLs were changed
+        }
+
         if (JSON.stringify(car.image_urls) !== JSON.stringify(newImageUrls)) {
           updated = true;
         }

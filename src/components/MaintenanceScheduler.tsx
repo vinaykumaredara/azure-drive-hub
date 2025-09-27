@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,22 +17,22 @@ import { useNavigate } from "react-router-dom";
 
 interface Maintenance {
   id: string;
-  car_id: string;
+  car_id: string | null;
   start_date: string;
   end_date: string;
-  notes: string;
+  notes: string | null;
   cars?: {
     title: string;
-    make: string;
-    model: string;
-  };
+    make: string | null;
+    model: string | null;
+  } | null;
 }
 
 interface Car {
   id: string;
   title: string;
-  make: string;
-  model: string;
+  make: string | null;
+  model: string | null;
 }
 
 export const MaintenanceScheduler: React.FC = () => {
@@ -65,8 +65,8 @@ export const MaintenanceScheduler: React.FC = () => {
         .order("start_date", { ascending: true });
 
       if (error) {throw error;}
-      setMaintenances(data || []);
-    } catch (error) {
+      setMaintenances(data as Maintenance[] || []);
+    } catch (error: any) {
       console.error("Error fetching maintenances:", error);
       toast({
         title: "Error",
@@ -85,8 +85,8 @@ export const MaintenanceScheduler: React.FC = () => {
         .order("title");
 
       if (error) {throw error;}
-      setCars(data || []);
-    } catch (error) {
+      setCars(data as Car[] || []);
+    } catch (error: any) {
       console.error("Error fetching cars:", error);
     }
   };
@@ -174,7 +174,7 @@ export const MaintenanceScheduler: React.FC = () => {
 
       setIsDialogOpen(false);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving maintenance:", error);
       toast({
         title: "Error",
@@ -186,7 +186,7 @@ export const MaintenanceScheduler: React.FC = () => {
 
   const handleEdit = (maintenance: Maintenance) => {
     setEditingMaintenance(maintenance);
-    setSelectedCarId(maintenance.car_id);
+    setSelectedCarId(maintenance.car_id || "");
     setStartDate(new Date(maintenance.start_date));
     setEndDate(new Date(maintenance.end_date));
     setNotes(maintenance.notes || "");

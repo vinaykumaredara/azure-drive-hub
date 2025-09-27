@@ -5,10 +5,7 @@ import { CarCard } from "@/components/CarCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Search, Filter, SlidersHorizontal, Clock, CheckCircle } from "lucide-react";
-import { CarListSkeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ErrorBoundary";
+import { Search, Filter, SlidersHorizontal } from "lucide-react";
 import { EmptyCarState } from "@/components/EmptyCarState";
 import { CarTravelingLoader } from "@/components/LoadingAnimations";
 import { CarListingErrorState } from "@/components/CarListingErrorState";
@@ -18,29 +15,29 @@ import { toast } from "@/hooks/use-toast";
 import { formatINRFromPaise } from '@/utils/currency';
 import { getPublicImageUrl } from '@/utils/imageUtils';
 
-// Car interface for Supabase data with booking information
-interface Car {
+// Interface for the data we receive from Supabase (allows null values)
+interface SupabaseCar {
   id: string;
   title: string;
-  make: string;
-  model: string;
-  year: number;
-  seats: number;
-  fuel_type: string;
-  transmission: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  seats: number | null;
+  fuel_type: string | null;
+  transmission: string | null;
   price_per_day: number;
-  price_per_hour?: number;
-  description?: string;
-  location_city?: string;
-  status: string;
-  image_urls: string[];
-  created_at: string;
-  price_in_paise?: number;
-  currency?: string;
+  price_per_hour?: number | null;
+  description?: string | null;
+  location_city?: string | null;
+  status: string | null;
+  image_urls: string[] | null;
+  created_at: string | null;
+  price_in_paise?: number | null;
+  currency?: string | null;
   // New fields for atomic booking (optional as they may not exist in all environments)
-  booking_status?: string;
-  booked_by?: string;
-  booked_at?: string;
+  booking_status?: string | null;
+  booked_by?: string | null;
+  booked_at?: string | null;
 }
 
 // Transform Supabase car to display format
@@ -130,7 +127,7 @@ export const UserCarListing = () => {
   const [seatFilter, setSeatFilter] = useState("all");
   const [fuelFilter, setFuelFilter] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
-  const [cars, setCars] = useState<Car[]>([]);
+  const [cars, setCars] = useState<SupabaseCar[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -209,13 +206,13 @@ export const UserCarListing = () => {
 
         if (retryError) {throw retryError;}
         
-        setCars(prev => pageNum === 0 ? retryData || [] : [...prev, ...(retryData || [])]);
+        setCars(prev => pageNum === 0 ? (retryData || []) : [...prev, ...(retryData || [])]);
         setTotalCount(retryCount || 0);
         setHasMore(!!retryData && retryData.length === ITEMS_PER_PAGE);
       } else if (fetchError) {
         throw fetchError;
       } else {
-        setCars(prev => pageNum === 0 ? data || [] : [...prev, ...(data || [])]);
+        setCars(prev => pageNum === 0 ? (data || []) : [...prev, ...(data || [])]);
         setTotalCount(count || 0);
         setHasMore(!!data && data.length === ITEMS_PER_PAGE);
       }
@@ -249,13 +246,13 @@ export const UserCarListing = () => {
   // Re-enable real-time subscription now that loading is fixed
   useRealtimeSubscription(
     'cars',
-    (payload) => {
+    (payload: { new: SupabaseCar }) => {
       // Only add published cars
       if (payload.new.status === 'published') {
         setCars(prev => [payload.new, ...prev]);
       }
     },
-    (payload) => {
+    (payload: { new: SupabaseCar }) => {
       // Only update published cars
       if (payload.new.status === 'published') {
         setCars(prev => prev.map(car => 
@@ -263,7 +260,7 @@ export const UserCarListing = () => {
         ));
       }
     },
-    (payload) => {
+    (payload: { old: { id: string } }) => {
       setCars(prev => prev.filter(car => car.id !== payload.old.id));
     }
   );
@@ -273,20 +270,27 @@ export const UserCarListing = () => {
     return cars
       .filter(car => {
         // Search filter
-        if (searchQuery && !car.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !car.make.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !car.model.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !(car.location_city || '').toLowerCase().includes(searchQuery.toLowerCase())) {
+        const searchableTitle = car.title || '';
+        const searchableMake = car.make || '';
+        const searchableModel = car.model || '';
+        const searchableLocation = car.location_city || '';
+        
+        if (searchQuery && 
+            !searchableTitle.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !searchableMake.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !searchableModel.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !searchableLocation.toLowerCase().includes(searchQuery.toLowerCase())) {
           return false;
         }
         
         // Seat filter
-        if (seatFilter !== "all" && car.seats !== parseInt(seatFilter)) {
+        if (seatFilter !== "all" && car.seats !== null && car.seats !== parseInt(seatFilter)) {
           return false;
         }
         
         // Fuel filter
-        if (fuelFilter !== "all" && car.fuel_type.toLowerCase() !== fuelFilter.toLowerCase()) {
+        const carFuelType = car.fuel_type || '';
+        if (fuelFilter !== "all" && carFuelType.toLowerCase() !== fuelFilter.toLowerCase()) {
           return false;
         }
         
@@ -301,7 +305,9 @@ export const UserCarListing = () => {
           case 'rating-desc':
           case 'popular':
           default:
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return dateB - dateA;
         }
       })
       .map(transformCarForDisplay);

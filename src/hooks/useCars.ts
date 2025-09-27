@@ -1,30 +1,30 @@
 // Robust car fetching hook with proper error handling
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { resolveCarImageUrls } from '../utils/imageUtils';
+import { getPublicOrSignedUrl } from '../utils/imageUtils';
 
 export interface Car {
   id: string;
   title: string;
-  make: string;
-  model: string;
-  year: number;
-  seats: number;
-  fuel_type: string;
-  transmission: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  seats: number | null;
+  fuel_type: string | null;
+  transmission: string | null;
   price_per_day: number;
-  price_per_hour?: number;
-  description?: string;
-  location_city?: string;
-  status: string;
-  image_urls: string[];
-  created_at: string;
-  price_in_paise?: number;
-  currency?: string;
+  price_per_hour?: number | null;
+  description?: string | null;
+  location_city?: string | null;
+  status: string | null;
+  image_urls: string[] | null; // Make it explicitly nullable
+  created_at: string | null;
+  price_in_paise?: number | null;
+  currency?: string | null;
   // Fields for atomic booking
-  booking_status?: string;
-  booked_by?: string;
-  booked_at?: string;
+  booking_status?: string | null;
+  booked_by?: string | null;
+  booked_at?: string | null;
 }
 
 export default function useCars() {
@@ -64,10 +64,46 @@ export default function useCars() {
         .order('created_at', { ascending: false });
       
       if (error) {throw error;}
-      
-      // Process images to ensure they have valid URLs
-      const carsWithValidImages = (data ?? []).map(resolveCarImageUrls);
-      
+
+      // CRITICAL: Validate and resolve ALL image URLs before setting state
+      const carsWithValidImages = await Promise.all(
+        (data ?? []).map(async (car) => {
+          if (car.image_urls && car.image_urls.length > 0) {
+            const validUrls = [];
+            for (const url of car.image_urls) {
+              // Use existing getPublicOrSignedUrl function
+              const resolvedUrl = getPublicOrSignedUrl(url);
+              if (resolvedUrl) {
+                try {
+                  // Quick HEAD check to verify URL accessibility with timeout
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 5000);
+                  
+                  const response = await fetch(resolvedUrl, { 
+                    method: 'HEAD', 
+                    signal: controller.signal
+                  });
+                  
+                  clearTimeout(timeoutId);
+                  
+                  if (response.ok && response.headers.get('content-type')?.startsWith('image')) {
+                    validUrls.push(resolvedUrl);
+                  } else {
+                    // Use fallback for invalid responses
+                    validUrls.push('https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80');
+                  }
+                } catch {
+                  // Use fallback for network errors
+                  validUrls.push('https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80');
+                }
+              }
+            }
+            car.image_urls = validUrls.length > 0 ? validUrls : ['https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80'];
+          }
+          return car;
+        })
+      );
+
       setCars(carsWithValidImages);
     } catch (err) {
       console.error('Failed to fetch cars', err);

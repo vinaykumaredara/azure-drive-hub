@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, User, CreditCard, CheckCircle, Car, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -129,13 +129,22 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
         title: "Success",
         description: "Car booked successfully!",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Booking error:', error);
-      setBookingError(error.message || 'Failed to book car. Please try again.');
+      let errorMessage = 'Failed to book car. Please try again.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        errorMessage = (error as { message: string }).message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      setBookingError(errorMessage);
       
       toast({
         title: "Booking Failed",
-        description: error.message || "Failed to book car. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -510,7 +519,7 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
               const isCompleted = index < currentStepIndex;
               
               return (
-                <React.Fragment key={step}>
+                <Fragment key={step}>
                   <div className={`flex items-center justify-center w-8 h-8 rounded-full transition-all ${
                     isCompleted ? 'bg-success text-white' :
                     isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
@@ -522,7 +531,7 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
                       isCompleted ? 'bg-success' : 'bg-muted'
                     }`} />
                   )}
-                </React.Fragment>
+                </Fragment>
               );
             })}
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,11 +76,11 @@ export const AnalyticsDashboard: React.FC = () => {
 
       setAnalyticsData(data.data);
       setLastUpdated(new Date());
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Analytics fetch error:", error);
       toast({
         title: "Failed to load analytics",
-        description: error.message || "Please try again",
+        description: (error as Error).message || "Please try again",
         variant: "destructive",
       });
     } finally {

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,7 +93,7 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
         fileInputRef.current.value = "";
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error);
       toast({
         title: "Upload Failed",

@@ -1,13 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Star, Users, Fuel, Settings, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { CarImageGalleryCompact } from "@/components/CarImageGallery";
 import { AtomicBookingFlow } from "@/components/AtomicBookingFlow";
-import LazyImage from "@/components/LazyImage";
 import { RatingsSummary } from "@/components/RatingsSummary";
 import ImageCarousel from '@/components/ImageCarousel';
 
@@ -31,15 +28,13 @@ export interface CarCardProps {
     bookingStatus?: string;
     title?: string;
     price_in_paise?: number;
-    image_urls?: string[];
+    image_urls?: string[] | null; // Make it explicitly nullable
   };
   className?: string;
 }
 
 export const CarCard = ({ car, className = "" }: CarCardProps) => {
-  const navigate = useNavigate();
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleBookNow = () => {
     if (car.isAvailable) {
@@ -83,7 +78,9 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
   const getPrimaryImageUrl = () => {
     // Prefer image_urls if available
     if (car.image_urls && car.image_urls.length > 0) {
-      return car.image_urls[0];
+      const imageUrl = car.image_urls[0];
+      console.log('CarCard - Rendering car:', car.title || car.model, 'with image URL:', imageUrl);
+      return imageUrl;
     }
     
     // Fallback to images array
@@ -113,12 +110,6 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
       >
         <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
           <div className="relative aspect-video overflow-hidden">
-            {/* Lazy loading placeholder */}
-            {!imageLoaded && (
-              <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-              </div>
-            )}
             
             {/* Use ImageCarousel with fallback UI */}
             {car.image_urls && car.image_urls.length > 0 ? (

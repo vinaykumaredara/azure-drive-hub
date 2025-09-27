@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Search, Filter, Eye, Shield, AlertCircle, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,12 +16,12 @@ interface Customer {
   email: string;
   phone: string | null;
   is_admin: boolean | null;
-  created_at: string;
+  created_at: string | null;
   is_suspended: boolean;
-  suspension_reason?: string;
-  suspended_at?: string;
-  suspended_by?: string;
-  last_login?: string;
+  suspension_reason?: string | null;
+  suspended_at?: string | null;
+  suspended_by?: string | null;
+  last_login?: string | null;
 }
 
 const CustomerManagement: React.FC = () => {
@@ -91,8 +91,8 @@ const CustomerManagement: React.FC = () => {
         last_login: null // Placeholder - would need to fetch from auth
       })) || [];
 
-      setCustomers(transformedCustomers);
-      setFilteredCustomers(transformedCustomers);
+      setCustomers(transformedCustomers as Customer[]);
+      setFilteredCustomers(transformedCustomers as Customer[]);
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast({
@@ -312,7 +312,7 @@ const CustomerManagement: React.FC = () => {
                     </td>
                     <td className="py-3 px-4">
                       <div className="text-sm">
-                        {new Date(customer.created_at).toLocaleDateString()}
+                        {customer.created_at ? new Date(customer.created_at).toLocaleDateString() : 'N/A'}
                       </div>
                     </td>
                     <td className="py-3 px-4">
