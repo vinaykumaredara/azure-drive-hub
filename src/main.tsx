@@ -2,6 +2,10 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { applyDeviceOptimizations } from './utils/deviceOptimizations';
+
+// Apply device-specific optimizations
+applyDeviceOptimizations();
 
 // Enhanced error handling for app mounting
 function initializeApp() {

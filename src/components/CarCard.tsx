@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { AtomicBookingFlow } from "@/components/AtomicBookingFlow";
 import { RatingsSummary } from "@/components/RatingsSummary";
 import ImageCarousel from '@/components/ImageCarousel';
+import { getCarImageData } from '@/utils/imageDisplayUtils';
 
 export interface CarCardProps {
   car: {
@@ -29,6 +30,8 @@ export interface CarCardProps {
     title?: string;
     price_in_paise?: number;
     image_urls?: string[] | null; // Make it explicitly nullable
+    image_paths?: string[] | null;
+    thumbnail?: string;
   };
   className?: string;
 }
@@ -74,13 +77,16 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
     return ratings;
   };
 
-  // Get the first image URL for the card display
+  // Get the primary image URL for the card display
   const getPrimaryImageUrl = () => {
-    // Prefer image_urls if available
+    // Use the standardized thumbnail if available
+    if (car.thumbnail) {
+      return car.thumbnail;
+    }
+    
+    // Fallback to image_urls if available
     if (car.image_urls && car.image_urls.length > 0) {
-      const imageUrl = car.image_urls[0];
-      console.log('CarCard - Rendering car:', car.title || car.model, 'with image URL:', imageUrl);
-      return imageUrl;
+      return car.image_urls[0];
     }
     
     // Fallback to images array
@@ -97,6 +103,12 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
     return 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
   };
 
+  // Ensure title is always a string for the booking flow
+  const carForBooking = {
+    ...car,
+    title: car.title || car.model || 'Car'
+  };
+
   return (
     <>
       <motion.div
@@ -111,8 +123,10 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
         <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
           <div className="relative aspect-video overflow-hidden">
             
-            {/* Use ImageCarousel with fallback UI */}
-            {car.image_urls && car.image_urls.length > 0 ? (
+            {/* Use ImageCarousel with standardized images */}
+            {car.images && car.images.length > 0 ? (
+              <ImageCarousel images={car.images} className="h-full" />
+            ) : car.image_urls && car.image_urls.length > 0 ? (
               <ImageCarousel images={car.image_urls} className="h-full" />
             ) : (
               <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -199,68 +213,40 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
                 />
               </div>
 
-              <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-                <motion.div 
-                  className="flex items-center space-x-1 hover:text-primary transition-colors"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Users className="w-4 h-4" />
-                  <span>{car.seats} seats</span>
-                </motion.div>
-                <motion.div 
-                  className="flex items-center space-x-1 hover:text-primary transition-colors"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Fuel className="w-4 h-4" />
-                  <span className="capitalize">{car.fuel}</span>
-                </motion.div>
-                <motion.div 
-                  className="flex items-center space-x-1 hover:text-primary transition-colors"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span className="capitalize">{car.transmission}</span>
-                </motion.div>
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                  <div className="flex items-center">
+                    <Users className="w-4 h-4 mr-1 text-primary" />
+                    {car.seats} seats
+                  </div>
+                  <div className="flex items-center">
+                    <Fuel className="w-4 h-4 mr-1 text-primary" />
+                    <span className="capitalize">{car.fuel}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Settings className="w-4 h-4 mr-1 text-primary" />
+                    <span className="capitalize">{car.transmission}</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-border/30">
-                <div className="flex flex-col">
-                  <motion.div 
-                    className="text-2xl font-bold text-primary group-hover:text-primary/80 transition-colors"
-                    whileHover={{ scale: 1.05 }}
-                  >
-                    ₹{car.pricePerDay.toLocaleString()}
-                  </motion.div>
-                  <div className="text-sm text-muted-foreground">per day</div>
+              <div className="flex items-center justify-between pt-2">
+                <div>
+                  <span className="text-2xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}</span>
+                  <span className="text-sm text-muted-foreground">/day</span>
                 </div>
-                
-                <div className="flex gap-2">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                <div className="flex space-x-2">
+                  <Button size="sm" onClick={handleWhatsAppContact} variant="outline">
+                    Contact
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={handleBookNow}
+                    disabled={!car.isAvailable}
+                    className={car.isAvailable ? "" : "opacity-50 cursor-not-allowed"}
                   >
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleWhatsAppContact}
-                      className="border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
-                    >
-                      Contact
-                    </Button>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Button
-                      size="sm"
-                      disabled={!car.isAvailable}
-                      onClick={handleBookNow}
-                      className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {car.isAvailable ? "Book Now" : "Unavailable"}
-                    </Button>
-                  </motion.div>
+                    Book Now
+                  </Button>
                 </div>
               </div>
             </div>
@@ -269,17 +255,8 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
       </motion.div>
 
       {isBookingFlowOpen && (
-        <AtomicBookingFlow
-          car={{
-            id: car.id,
-            title: car.title || car.model,
-            image: car.image,
-            pricePerDay: car.pricePerDay,
-            price_in_paise: car.price_in_paise,
-            seats: car.seats,
-            fuel: car.fuel,
-            transmission: car.transmission
-          }}
+        <AtomicBookingFlow 
+          car={carForBooking} 
           onClose={() => setIsBookingFlowOpen(false)}
           onBookingSuccess={handleBookingSuccess}
         />

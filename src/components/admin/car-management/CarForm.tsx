@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useCarMutations } from '@/hooks/data/useCarMutations';
 import { Car as CarType } from '@/services/api/car.types';
-import LazyImage from '@/components/LazyImage';
+import SimpleImage from '@/components/SimpleImage';
 
 const carFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -422,7 +422,7 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                     <div className="grid grid-cols-3 gap-2">
                       {car.image_urls.map((url, index) => (
                         <div key={index} className="relative">
-                          <LazyImage
+                          <SimpleImage
                             src={url}
                             alt={`Current car image ${index + 1}`}
                             className="w-full h-24 object-cover rounded"

@@ -88,16 +88,19 @@ const SystemSettings: React.FC = () => {
         .from('system_settings')
         .select('*');
         
-      if (error) {throw error;}
-      
-      // Override defaults with actual values
-      data?.forEach(row => {
-        try {
-          initialSettings[row.key] = JSON.parse(row.value);
-        } catch {
-          initialSettings[row.key] = row.value;
-        }
-      });
+      if (error) {
+        console.warn('No system settings found, using defaults:', error);
+        // Continue with default values if no settings exist
+      } else {
+        // Override defaults with actual values
+        data?.forEach(row => {
+          try {
+            initialSettings[row.key] = JSON.parse(row.value);
+          } catch {
+            initialSettings[row.key] = row.value;
+          }
+        });
+      }
       
       setSettings(initialSettings);
       setLocalSettings(initialSettings);
@@ -151,7 +154,11 @@ const SystemSettings: React.FC = () => {
       });
       
       // Log audit entry
-      await logAuditAction('settings_update', 'System settings updated');
+      try {
+        await logAuditAction('settings_update', 'System settings updated');
+      } catch (auditError) {
+        console.warn('Failed to log audit action:', auditError);
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
       toast({

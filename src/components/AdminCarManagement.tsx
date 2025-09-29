@@ -13,8 +13,8 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtime';
 import { formatINRFromPaise, toPaise } from '@/utils/currency';
-import LazyImage from '@/components/LazyImage';
-import { resolveImageUrlsForCarAdmin } from '@/utils/adminImageUtils';
+import SimpleImage from '@/components/SimpleImage';
+import { resolveImageUrlsForCarAdmin, mapCarForUI } from '@/utils/adminImageUtils';
 import ImageCarousel from '@/components/ImageCarousel';
 import { CarService } from '@/services/api/carService';
 // Import the new image CRUD utilities
@@ -60,6 +60,7 @@ const AdminCarManagement: React.FC = () => {
   const [carToDelete, setCarToDelete] = useState<Car | null>(null);
   const [uploadedImageFiles, setUploadedImageFiles] = useState<File[]>([]);
   const [uploadedImagePreviews, setUploadedImagePreviews] = useState<string[]>([]);
+  const [imagesToRemove, setImagesToRemove] = useState<string[]>([]);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,15 +123,15 @@ const AdminCarManagement: React.FC = () => {
   // Real-time subscription for cars
   useRealtimeSubscription(
     'cars',
-    (payload) => {
+    (payload: { new: any }) => {
       setCars(prev => [...prev, payload.new]);
     },
-    (payload) => {
+    (payload: { new: any }) => {
       setCars(prev => prev.map(car => 
         car.id === payload.new.id ? payload.new : car
       ));
     },
-    (payload) => {
+    (payload: { old: any }) => {
       setCars(prev => prev.filter(car => car.id !== payload.old.id));
     }
   );
@@ -148,9 +149,9 @@ const AdminCarManagement: React.FC = () => {
       console.info('Admin: Fetched cars from DB', {
         count: data?.length,
         sampleCar: data?.[0] ? {
-          id: data[0].id,
-          title: data[0].title,
-          image_urls: data[0].image_urls,
+          id: (data[0] as any).id,
+          title: (data[0] as any).title,
+          image_urls: (data[0] as any).image_urls,
           envUrl: import.meta.env.VITE_SUPABASE_URL
         } : null
       });
@@ -161,29 +162,31 @@ const AdminCarManagement: React.FC = () => {
           id: car.id,
           title: car.title,
           image_urls: car.image_urls,
+          image_paths: car.image_paths,
           image_urls_type: typeof car.image_urls,
-          image_urls_length: Array.isArray(car.image_urls) ? car.image_urls.length : 'Not an array'
+          image_paths_type: typeof car.image_paths,
+          image_urls_length: Array.isArray(car.image_urls) ? car.image_urls.length : 'Not an array',
+          image_paths_length: Array.isArray(car.image_paths) ? car.image_paths.length : 'Not an array'
         });
       });
       
-      // Resolve image URLs for all cars using admin-specific resolver
-      const carsWithResolvedImages = await Promise.all(
-        (data || []).map(resolveImageUrlsForCarAdmin)
-      );
+      // Map car data for UI using the new utility function
+      const carsWithMappedImages = (data || []).map((car: any) => mapCarForUI(car));
       
-      // Log resolved images for debugging
-      carsWithResolvedImages.forEach((car: any) => {
-        console.log('Resolved Car Images:', {
+      // Log mapped images for debugging
+      carsWithMappedImages.forEach((car: any) => {
+        console.log('Mapped Car Images:', {
           id: car.id,
           title: car.title,
-          image_urls: car.image_urls,
-          image_urls_type: typeof car.image_urls,
-          image_urls_length: Array.isArray(car.image_urls) ? car.image_urls.length : 'Not an array'
+          images: car.images,
+          thumbnail: car.thumbnail,
+          images_type: typeof car.images,
+          images_length: Array.isArray(car.images) ? car.images.length : 'Not an array'
         });
       });
       
-      setCars(carsWithResolvedImages);
-      setFilteredCars(carsWithResolvedImages);
+      setCars(carsWithMappedImages as Car[]);
+      setFilteredCars(carsWithMappedImages as Car[]);
     } catch (error) {
       console.error('Error fetching cars:', error);
       toast({
@@ -249,6 +252,7 @@ const AdminCarManagement: React.FC = () => {
     setSelectedCar(null);
     setUploadedImageFiles([]);
     setUploadedImagePreviews([]);
+    setImagesToRemove([]); // Reset images to remove
     
     // Clean up object URLs
     uploadedImagePreviews.forEach(url => URL.revokeObjectURL(url));
@@ -274,6 +278,7 @@ const AdminCarManagement: React.FC = () => {
     // Reset uploaded images when editing
     setUploadedImageFiles([]);
     setUploadedImagePreviews([]);
+    setImagesToRemove([]); // Reset images to remove
     setIsEditDialogOpen(true);
   };
 
@@ -281,22 +286,77 @@ const AdminCarManagement: React.FC = () => {
     if (!carToDelete) return;
 
     try {
-      // Use the CarService to properly delete the car
-      await CarService.deleteCar(carToDelete.id);
+      // First try server-side deletion endpoint
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      let serverDeleteSuccess = false;
+      
+      if (supabaseUrl) {
+        try {
+          // Construct the correct Edge Function URL
+          const functionUrl = `${supabaseUrl.replace('.co', '-functions.supabase.co')}/delete-car`;
+          
+          // Get current session
+          const { data } = await supabase.auth.getSession();
+          
+          const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${data?.session?.access_token || ''}`
+            },
+            body: JSON.stringify({ carId: carToDelete.id })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('Server-side deletion result:', result);
+            serverDeleteSuccess = true;
+            
+            // Show success message
+            toast({
+              title: "Success",
+              description: "Car deleted successfully from database and storage",
+            });
+          } else {
+            const errorText = await response.text();
+            console.warn('Server-side deletion failed:', response.status, errorText);
+            
+            // Don't return here, try client-side deletion as fallback
+            toast({
+              title: "Warning",
+              description: `Server deletion failed, trying client-side deletion...`,
+              variant: "default",
+            });
+          }
+        } catch (serverError) {
+          console.warn('Server-side deletion error:', serverError);
+          // Continue to client-side deletion
+        }
+      }
+
+      // Fallback to client-side deletion if server deletion failed
+      if (!serverDeleteSuccess) {
+        try {
+          // Import the client-side deletion utility
+          const { deleteCarWithImages } = await import('@/utils/imageCrudUtils');
+          await deleteCarWithImages(carToDelete.id);
+          
+          toast({
+            title: "Success",
+            description: "Car deleted successfully using client-side method",
+          });
+        } catch (clientError: any) {
+          console.error('Client-side deletion failed:', clientError);
+          throw new Error(`Failed to delete car using both methods: ${clientError.message || 'Unknown error'}`);
+        }
+      }
 
       // Update local state (remove from UI)
       setCars(prev => prev.filter(c => c.id !== carToDelete.id));
       setFilteredCars(prev => prev.filter(c => c.id !== carToDelete.id));
       
-      // Show success message
-      toast({
-        title: "Success",
-        description: "Car deleted successfully from database and storage",
-      });
-
       setIsDeleteDialogOpen(false);
       setCarToDelete(null);
-      fetchCars();
 
     } catch (error: any) {
       console.error('Error deleting car:', error);
@@ -340,12 +400,13 @@ const AdminCarManagement: React.FC = () => {
       setUploadingImages(true);
 
       if (selectedCar) {
-        // Update existing car
+        // Update existing car - append new images and remove selected ones
         const updatedCar = await updateCarWithImages(
           selectedCar.id,
           carData,
           uploadedImageFiles,
-          true // Remove old images
+          false, // Don't remove all old images
+          imagesToRemove // Remove specific images selected by admin
         );
         
         console.log('Car updated successfully:', updatedCar);
@@ -391,6 +452,16 @@ const AdminCarManagement: React.FC = () => {
     setUploadedImagePreviews(newPreviews);
   };
 
+  const toggleImageToRemove = (imageUrl: string) => {
+    setImagesToRemove(prev => {
+      if (prev.includes(imageUrl)) {
+        return prev.filter(url => url !== imageUrl);
+      } else {
+        return [...prev, imageUrl];
+      }
+    });
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'published':
@@ -434,7 +505,7 @@ const AdminCarManagement: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="search">Search</Label>
               <Input
@@ -491,7 +562,7 @@ const AdminCarManagement: React.FC = () => {
       </Card>
 
       {/* Car List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {filteredCars.map((car) => (
           <motion.div
             key={car.id}
@@ -505,7 +576,6 @@ const AdminCarManagement: React.FC = () => {
                 <ImageCarousel 
                   images={car.image_urls && car.image_urls.length > 0 ? car.image_urls : undefined} 
                   className="h-48" 
-                  debug={true}
                 />
                 <div className="absolute top-2 right-2">
                   {getStatusBadge(car.status)}
@@ -574,7 +644,7 @@ const AdminCarManagement: React.FC = () => {
             <DialogTitle>{selectedCar ? 'Edit Car' : 'Add New Car'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="title">Title *</Label>
                 <Input
@@ -710,17 +780,40 @@ const AdminCarManagement: React.FC = () => {
                 {selectedCar && selectedCar.image_urls && selectedCar.image_urls.length > 0 && (
                   <div className="mb-4">
                     <p className="text-sm text-muted-foreground mb-2">Current Images:</p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {selectedCar.image_urls.map((url, index) => (
-                        <div key={index} className="relative">
-                          <LazyImage
+                        <div key={index} className="relative group">
+                          <SimpleImage
                             src={url}
                             alt={`Current car image ${index + 1}`}
                             className="w-full h-24 object-cover rounded"
                           />
+                          <Button
+                            type="button"
+                            variant={imagesToRemove.includes(url) ? "default" : "destructive"}
+                            size="sm"
+                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => toggleImageToRemove(url)}
+                          >
+                            {imagesToRemove.includes(url) ? (
+                              <span className="text-xs">Undo</span>
+                            ) : (
+                              <Trash2 className="w-3 h-3" />
+                            )}
+                          </Button>
+                          {imagesToRemove.includes(url) && (
+                            <div className="absolute inset-0 bg-red-500/50 rounded flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">REMOVE</span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
+                    {imagesToRemove.length > 0 && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {imagesToRemove.length} image(s) marked for removal
+                      </p>
+                    )}
                   </div>
                 )}
                 
@@ -757,7 +850,7 @@ const AdminCarManagement: React.FC = () => {
                 {uploadedImagePreviews.length > 0 && (
                   <div className="mt-4">
                     <p className="text-sm text-muted-foreground mb-2">New Images:</p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {uploadedImagePreviews.map((preview, index) => (
                         <div key={index} className="relative group">
                           <img

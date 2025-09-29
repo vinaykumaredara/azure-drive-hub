@@ -17,6 +17,11 @@ interface AuditLog {
   user_email: string | null;
   metadata: any;
   timestamp: string;
+  // Add user property for the join
+  user?: {
+    full_name: string | null;
+    email: string | null;
+  } | null;
 }
 
 interface KYCStatus {
@@ -28,6 +33,16 @@ interface KYCStatus {
   submitted_at: string;
   verified_at?: string;
   verified_by?: string;
+}
+
+// Define the user interface for KYC data
+interface User {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  license_path: string | null;
+  license_verified: boolean | null;
+  created_at: string;
 }
 
 const SecurityCompliance: React.FC = () => {
@@ -95,11 +110,11 @@ const SecurityCompliance: React.FC = () => {
 
       if (error) {throw error;}
 
-      // Transform data to include user email
-      const logsWithUser = data?.map(log => ({
-        ...log,
-        user_email: (log as any).user?.email || (log.metadata as any)?.user_email || 'System'
-      })) || [];
+      // Transform data to include user email with proper type checking
+      const logsWithUser: AuditLog[] = (data || []).map(log => ({
+        ...log as AuditLog,
+        user_email: (log as any).user?.email || ((log as AuditLog).metadata as any)?.user_email || 'System'
+      }));
 
       setAuditLogs(logsWithUser);
       setFilteredLogs(logsWithUser);
@@ -115,41 +130,26 @@ const SecurityCompliance: React.FC = () => {
 
   const fetchKycStatuses = async () => {
     try {
-      // In a real implementation, this would fetch from a KYC table
-      // For now, we'll simulate some data
-      const mockKycData: KYCStatus[] = [
-        {
-          user_id: 'user1',
-          full_name: 'John Doe',
-          email: 'john@example.com',
-          kyc_status: 'verified',
-          kyc_documents: ['license_front.jpg', 'license_back.jpg'],
-          submitted_at: new Date(Date.now() - 86400000).toISOString(),
-          verified_at: new Date(Date.now() - 43200000).toISOString(),
-          verified_by: 'admin@rpcars.in'
-        },
-        {
-          user_id: 'user2',
-          full_name: 'Jane Smith',
-          email: 'jane@example.com',
-          kyc_status: 'pending',
-          kyc_documents: ['license_front.jpg'],
-          submitted_at: new Date(Date.now() - 172800000).toISOString()
-        },
-        {
-          user_id: 'user3',
-          full_name: 'Bob Johnson',
-          email: 'bob@example.com',
-          kyc_status: 'rejected',
-          kyc_documents: ['license_front.jpg', 'license_back.jpg'],
-          submitted_at: new Date(Date.now() - 259200000).toISOString(),
-          verified_at: new Date(Date.now() - 172800000).toISOString(),
-          verified_by: 'admin@rpcars.in'
-        }
-      ];
+      // Fetch actual KYC data from users table
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, full_name, email, license_path, license_verified, created_at')
+        .not('license_path', 'is', null);
 
-      setKycStatuses(mockKycData);
-      setFilteredKyc(mockKycData);
+      if (error) throw error;
+
+      // Transform data to match KYCStatus interface with proper type checking
+      const kycData: KYCStatus[] = (data || []).map((user: User) => ({
+        user_id: user.id,
+        full_name: user.full_name,
+        email: user.email || '',
+        kyc_status: user.license_verified ? 'verified' : 'pending',
+        kyc_documents: user.license_path ? [user.license_path] : [],
+        submitted_at: user.created_at || new Date().toISOString(),
+      }));
+
+      setKycStatuses(kycData);
+      setFilteredKyc(kycData);
     } catch (error) {
       console.error('Error fetching KYC statuses:', error);
       toast({
@@ -163,9 +163,12 @@ const SecurityCompliance: React.FC = () => {
   };
 
   const exportAuditLogs = () => {
+    // Ensure filteredLogs is an array before spreading
+    const logData = Array.isArray(filteredLogs) ? filteredLogs : [];
+    
     const csvContent = [
       ['Timestamp', 'Action', 'Description', 'User', 'Metadata'],
-      ...filteredLogs.map(log => [
+      ...logData.map(log => [
         new Date(log.timestamp).toISOString(),
         log.action,
         log.description,

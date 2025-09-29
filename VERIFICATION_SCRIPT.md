@@ -1,3 +1,182 @@
+# Verification Script
+
+This script provides step-by-step instructions to verify that all critical fixes have been applied correctly.
+
+## Prerequisites
+
+Before running this verification script, ensure you have:
+
+1. The application running locally with `npm run dev`
+2. Access to the Supabase dashboard
+3. A test admin account
+4. Test images ready for upload
+
+## Step 1: Verify Build and Dev Server
+
+### Expected Result
+The dev server should start without any build errors.
+
+### Verification
+1. Run `npm run dev`
+2. Check output for:
+   ```
+   VITE v7.1.7  ready in 1079 ms
+   ➜  Local:   http://localhost:5173/
+   ```
+
+✅ PASS if dev server starts without errors
+❌ FAIL if there are build errors or esbuild pre-bundle errors
+
+## Step 2: Verify TypeScript Configuration
+
+### Expected Result
+No TypeScript errors in editor or during build.
+
+### Verification
+1. Open `src/components/UserCarListing.tsx` in your editor
+2. Check that imports from `@/utils/carImageUtils` are resolved correctly
+3. Run `npm run type-check`
+
+✅ PASS if no TypeScript errors
+❌ FAIL if there are import resolution errors or type errors
+
+## Step 3: Verify Image Display
+
+### Expected Result
+Images should display correctly in both admin and user interfaces.
+
+### Verification
+1. Navigate to http://localhost:5173/admin (login as admin)
+2. Create a new car with images
+3. Save the car
+4. Check that images display in the admin car listing
+5. Navigate to http://localhost:5173 (user view)
+6. Check that the same car shows images correctly
+
+#### DevTools Verification
+1. Open browser DevTools (F12)
+2. Go to Network tab
+3. Reload the page
+4. Find image requests
+5. Verify they return HTTP 200 status
+
+✅ PASS if images display correctly and return HTTP 200
+❌ FAIL if images are broken or return HTTP 403/404
+
+## Step 4: Verify Delete Flow
+
+### Expected Result
+Deleting a car should remove both the database record and associated images from storage.
+
+### Verification
+1. In admin interface, create a test car with images
+2. Note the car ID and image names
+3. Delete the car using the delete button
+4. Check Supabase dashboard:
+   - Car record should be removed from `cars` table
+   - Images should be removed from `cars-photos` storage bucket
+
+#### API Verification
+1. Open browser DevTools (F12)
+2. Go to Network tab
+3. Delete a car
+4. Find the delete request to `/functions/v1/delete-car`
+5. Verify it returns HTTP 200 with success response
+
+✅ PASS if car and images are deleted, API returns 200
+❌ FAIL if either record or images remain, or API fails
+
+## Step 5: Verify Orphan Cleanup
+
+### Expected Result
+Orphaned images script should identify and remove unused images.
+
+### Verification
+1. Manually upload an image to the `cars-photos` bucket (not associated with any car)
+2. Run the cleanup script in dry-run mode:
+   ```bash
+   node scripts/cleanup-orphaned-images.js --dry-run
+   ```
+3. Verify the orphaned image is identified
+4. Run the cleanup script in delete mode:
+   ```bash
+   node scripts/cleanup-orphaned-images.js --delete
+   ```
+5. Verify the orphaned image is removed from storage
+
+✅ PASS if orphaned images are correctly identified and removed
+❌ FAIL if orphaned images are not handled properly
+
+## Step 6: Run All Tests
+
+### Expected Result
+All tests should pass without errors.
+
+### Verification
+1. Run all tests:
+   ```bash
+   npm test
+   ```
+2. Check that all test suites pass
+
+✅ PASS if all tests pass
+❌ FAIL if any tests fail
+
+## Step 7: Check Database Schema
+
+### Expected Result
+Database should have the required image columns.
+
+### Verification
+1. In Supabase dashboard, go to Table Editor
+2. View the `cars` table schema
+3. Verify it has:
+   - `image_paths` column (text array)
+   - `image_urls` column (text array)
+
+✅ PASS if required columns exist
+❌ FAIL if columns are missing
+
+## Summary
+
+After completing all verification steps:
+
+| Step | Description | Status |
+|------|-------------|--------|
+| 1 | Build and Dev Server | ⬜ |
+| 2 | TypeScript Configuration | ⬜ |
+| 3 | Image Display | ⬜ |
+| 4 | Delete Flow | ⬜ |
+| 5 | Orphan Cleanup | ⬜ |
+| 6 | Tests | ⬜ |
+| 7 | Database Schema | ⬜ |
+
+✅ ALL CHECKS PASSED - Ready for deployment
+❌ ISSUES FOUND - Address failures before deployment
+
+## Troubleshooting
+
+### If Build Fails
+1. Clear Vite cache: `rm -rf node_modules/.vite`
+2. Reinstall dependencies: `npm ci`
+3. Check path alias configuration in `tsconfig.json` and `vite.config.ts`
+
+### If Images Don't Display
+1. Check browser DevTools Network tab for image requests
+2. Verify HTTP status codes
+3. Check storage bucket permissions
+4. Verify `image_paths` and `image_urls` columns exist
+
+### If Delete Fails
+1. Check Supabase function logs
+2. Verify service role key is configured correctly
+3. Check RLS policies on `cars` table and `cars-photos` bucket
+
+### If Tests Fail
+1. Run individual test files to isolate failures
+2. Check for missing mock implementations
+3. Verify test environment configuration
+
 # Verification Script for Admin Functionality Implementation
 
 ## Overview

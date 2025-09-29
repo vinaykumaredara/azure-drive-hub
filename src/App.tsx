@@ -18,12 +18,7 @@ const Auth = React.lazy(() => import("./pages/Auth"));
 const Booking = React.lazy(() => import("./pages/Booking"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const UserDashboard = React.lazy(() => import("./pages/UserDashboard"));
-const TestPage = React.lazy(() => import("./pages/TestPage"));
-const ImageDebugPage = React.lazy(() => import("./pages/ImageDebugPage"));
-const ImageAlignmentDebugPage = React.lazy(() => import("./pages/ImageAlignmentDebugPage"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
-
-
 
 const App = () => (
   <GlobalErrorBoundary>
@@ -60,9 +55,6 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/test" element={<TestPage />} />
-                <Route path="/debug-images" element={<ImageDebugPage />} />
-                <Route path="/debug-image-alignment" element={<ImageAlignmentDebugPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

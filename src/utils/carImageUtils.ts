@@ -1,7 +1,8 @@
 // src/utils/carImageUtils.ts
 // Unified utility for resolving car image URLs consistently across the application
 
-import { supabase } from '@/integrations/supabase/client';
+// Cache for resolved URLs to improve performance
+const urlCache = new Map<string, string>();
 
 // Fallback image URL for when images fail to load
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
@@ -11,74 +12,31 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579a
  * @param imagePath - Storage path or full URL
  * @returns Resolved public URL or fallback image
  */
-export function resolveCarImageUrl(imagePath: string | null | undefined): string {
+export function resolveCarImageUrl(path: string | null | undefined): string {
   // Handle null/undefined/empty cases
-  if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === '') {
-    console.log('resolveCarImageUrl: Returning fallback for null/empty imagePath', { imagePath });
+  if (!path || typeof path !== 'string' || path.trim() === '') {
     return FALLBACK_IMAGE;
   }
-
+  
+  // Check cache first
+  if (urlCache.has(path)) {
+    return urlCache.get(path)!;
+  }
+  
+  let result: string;
+  
   // If it's already a full HTTP URL, return it as-is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    console.log('resolveCarImageUrl: Returning full URL as-is', { imagePath });
-    return imagePath;
-  }
-
-  // Otherwise, treat it as a storage path and generate a public URL
-  try {
-    const { data } = supabase.storage.from('cars-photos').getPublicUrl(imagePath);
-    const publicUrl = data?.publicUrl ?? FALLBACK_IMAGE;
-    console.log('resolveCarImageUrl: Generated public URL', { imagePath, publicUrl });
-    return publicUrl;
-  } catch (error) {
-    console.error('Error resolving car image URL:', error, imagePath);
-    return FALLBACK_IMAGE;
-  }
-}
-
-/**
- * Validate that a URL points to an actual image by checking content type
- * @param url - URL to validate
- * @returns Promise that resolves to true if URL points to an image
- */
-export async function validateImageUrl(url: string): Promise<boolean> {
-  if (!url) return false;
-  
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
-    const response = await fetch(url, { 
-      method: 'HEAD', 
-      signal: controller.signal 
-    });
-    
-    clearTimeout(timeoutId);
-    
-    return response.ok && response.headers.get('content-type')?.startsWith('image') === true;
-  } catch (error) {
-    console.warn('Failed to validate image URL:', url, error);
-    return false;
-  }
-}
-
-/**
- * Resolve and validate a car image URL
- * @param imagePath - Storage path or full URL
- * @returns Resolved and validated public URL or fallback image
- */
-export async function resolveAndValidateCarImageUrl(imagePath: string | null | undefined): Promise<string> {
-  const resolvedUrl = resolveCarImageUrl(imagePath);
-  
-  // If it's the fallback image, return it immediately
-  if (resolvedUrl === FALLBACK_IMAGE) {
-    return resolvedUrl;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    result = path;
+  } else {
+    // For storage paths, construct the public URL
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rcpkhtlvfvafympulywx.supabase.co';
+    result = `${supabaseUrl}/storage/v1/object/public/cars-photos/${path}`;
   }
   
-  // Validate the resolved URL
-  const isValid = await validateImageUrl(resolvedUrl);
-  
-  return isValid ? resolvedUrl : FALLBACK_IMAGE;
+  // Cache the result
+  urlCache.set(path, result);
+  return result;
 }
 
 /**
@@ -86,46 +44,66 @@ export async function resolveAndValidateCarImageUrl(imagePath: string | null | u
  * @param car - Car object with image_urls array
  * @returns Car object with resolved image URLs
  */
-export async function resolveCarImageUrls(car: any): Promise<any> {
-  console.log('resolveCarImageUrls: Processing car', {
-    id: car?.id,
-    title: car?.title,
-    image_urls: car?.image_urls,
-    image_urls_type: typeof car?.image_urls
-  });
+export function resolveCarImageUrls(car: any): any {
+  if (!car) {
+    return car;
+  }
   
-  if (!car) return car;
+  // If we have image_paths, resolve them
+  if (Array.isArray(car.image_paths) && car.image_paths.length > 0) {
+    car.image_urls = car.image_paths.map(resolveCarImageUrl);
+    return car;
+  }
   
-  // If we already have image_urls, resolve each one
+  // If we already have image_urls, resolve them to ensure they are full URLs
   if (Array.isArray(car.image_urls) && car.image_urls.length > 0) {
-    console.log('resolveCarImageUrls: Resolving image URLs', car.image_urls);
-    
-    // Resolve all URLs in parallel
-    const resolvedUrls = await Promise.all(
-      car.image_urls.map(resolveAndValidateCarImageUrl)
-    );
-    
-    console.log('resolveCarImageUrls: Resolved URLs', resolvedUrls);
-    
-    // Filter out any remaining invalid URLs and remove duplicates
-    const validUrls = resolvedUrls
-      .filter(url => url && url !== FALLBACK_IMAGE)
-      .filter((url, index, self) => self.indexOf(url) === index);
-    
-    console.log('resolveCarImageUrls: Valid URLs', validUrls);
-    
-    // If we have valid URLs, use them; otherwise use fallback
-    car.image_urls = validUrls.length > 0 ? validUrls : [FALLBACK_IMAGE];
-    
-    console.log('resolveCarImageUrls: Final image_urls', car.image_urls);
-    
+    car.image_urls = car.image_urls.map(resolveCarImageUrl);
     return car;
   }
   
   // Fallback: ensure we have at least one fallback image
   car.image_urls = [FALLBACK_IMAGE];
-  
-  console.log('resolveCarImageUrls: Using fallback image', car.image_urls);
-  
   return car;
+}
+
+/**
+ * Standardize car data for display by ensuring consistent image properties
+ * @param car The car object to standardize
+ * @returns Car object with standardized image properties
+ */
+export function standardizeCarImageData(car: any) {
+  if (!car) {
+    return car;
+  }
+
+  // Ensure we have proper arrays for image_paths and image_urls
+  const image_paths: string[] = (Array.isArray(car?.image_paths) && car.image_paths.length > 0) 
+    ? car.image_paths 
+    : [];
+    
+  const image_urls: string[] = (Array.isArray(car?.image_urls) && car.image_urls.length > 0) 
+    ? car.image_urls.map(resolveCarImageUrl)
+    : (image_paths.length > 0 ? image_paths.map(resolveCarImageUrl) : []);
+  
+  // Ensure we have valid images array
+  const images = (Array.isArray(image_urls) && image_urls.length > 0) 
+    ? image_urls 
+    : [FALLBACK_IMAGE];
+    
+  // Ensure we have a valid thumbnail
+  const thumbnail = (typeof images[0] === 'string' && images[0].length > 0) 
+    ? images[0] 
+    : FALLBACK_IMAGE;
+  
+  return { ...car, image_paths, image_urls, images, thumbnail };
+}
+
+/**
+ * Map car data from database to UI format
+ * @param car The car object from database
+ * @returns Car object formatted for UI display
+ */
+export function mapCarForUI(car: any): any {
+  // wrapper mapping used across UI components
+  return standardizeCarImageData(car);
 }

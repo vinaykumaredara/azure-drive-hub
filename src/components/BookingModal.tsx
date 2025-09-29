@@ -12,10 +12,11 @@ import { useAuth } from "./AuthProvider";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import LazyImage from "@/components/LazyImage";
+import SimpleImage from "@/components/SimpleImage";
 import ImageCarousel from '@/components/ImageCarousel';
 import "./modal.css";
 import { useNavigate } from "react-router-dom";
+import type { Database } from "@/integrations/supabase/types";
 
 interface Car {
   id: string;
@@ -45,7 +46,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [startTime, setStartTime] = useState("10:00");
   const [endTime, setEndTime] = useState("18:00");
   const [isLoading, setIsLoading] = useState(false);
-  interface BookingHold {
+interface BookingHold {
   id: string;
   car_id: string | null;
   user_id: string | null;
@@ -220,17 +221,19 @@ const [bookingHold, setBookingHold] = useState<BookingHold | null>(null);
       }
 
       // Create booking with hold
-      const { data: booking, error } = await supabase
-        .from("bookings")
-        .insert({
-          user_id: user.id,
-          car_id: car.id,
-          start_datetime: startDateTime.toISOString(),
-          end_datetime: endDateTime.toISOString(),
-          total_amount: totalAmount,
-          status: "pending",
-          hold_expires_at: holdExpiresAt.toISOString(),
-        })
+      const bookingData = {
+        user_id: user.id,
+        car_id: car.id,
+        start_datetime: startDateTime.toISOString(),
+        end_datetime: endDateTime.toISOString(),
+        total_amount: totalAmount,
+        status: "pending",
+        hold_expires_at: holdExpiresAt.toISOString(),
+      };
+
+      // Type assertion to avoid TypeScript errors with Supabase client typing
+      const { data: booking, error } = await (supabase.from("bookings") as any)
+        .insert([bookingData])
         .select()
         .single();
 

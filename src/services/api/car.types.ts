@@ -16,6 +16,7 @@ export interface Car {
   location_city?: string | null;
   status: string | null;
   image_urls: string[] | null;
+  image_paths?: string[] | null;
   created_at: string | null;
   price_in_paise?: number | null;
   currency?: string | null;

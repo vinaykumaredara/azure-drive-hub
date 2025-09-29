@@ -12,7 +12,7 @@ import {
   CarouselNext, 
   CarouselPrevious 
 } from '@/components/ui/carousel';
-import LazyImage from '@/components/LazyImage';
+import SimpleImage from '@/components/SimpleImage';
 
 interface CarImageGalleryProps {
   images: string[];
@@ -87,12 +87,14 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
             </div>
           )}
           
-          <LazyImage
-            src={displayImages[0]}
-            alt={carTitle}
-            className={`w-full h-full object-cover transition-transform duration-300 hover:scale-105 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-            onLoad={() => handleImageLoad(0)}
-          />
+          <div className={`w-full h-full ${aspectRatioClasses[aspectRatio]}`}>
+            <SimpleImage
+              src={displayImages[0]}
+              alt={carTitle}
+              className={`w-full h-full object-cover transition-transform duration-300 hover:scale-105 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              onLoad={() => handleImageLoad(0)}
+            />
+          </div>
           
           {interactive && (
             <div className="absolute top-2 right-2">
@@ -108,7 +110,7 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
                 </DialogTrigger>
                 <DialogContent className="max-w-7xl h-[90vh] p-0">
                   <div className="relative w-full h-full flex items-center justify-center bg-black">
-                    <LazyImage
+                    <SimpleImage
                       src={displayImages[0]}
                       alt={carTitle}
                       className="max-w-full max-h-full object-contain"
@@ -148,7 +150,7 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
                       animate={{ opacity: isLoaded ? 1 : 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <LazyImage
+                      <SimpleImage
                         src={image}
                         alt={`${carTitle} - Image ${index + 1}`}
                         className={`w-full h-full object-cover ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
@@ -197,7 +199,7 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
 
       {/* Thumbnail Strip */}
       {showThumbnails && displayImages.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2">
           {displayImages.map((image, index) => {
             const isLoaded = loadedImages[index] || false;
             
@@ -205,20 +207,21 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
               <motion.button
                 key={index}
                 onClick={() => handleThumbnailClick(index)}
-                className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                className={`relative flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all ${
                   selectedIndex === index 
                     ? 'border-primary scale-105' 
                     : 'border-transparent hover:border-primary/50'
                 }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label={`View image ${index + 1}`}
               >
                 {/* Loading placeholder */}
                 {!isLoaded && (
                   <div className="absolute inset-0 bg-muted animate-pulse"></div>
                 )}
                 
-                <LazyImage
+                <SimpleImage
                   src={image}
                   alt={`Thumbnail ${index + 1}`}
                   className={`w-full h-full object-cover ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
@@ -226,7 +229,7 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
                 />
                 {selectedIndex === index && (
                   <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                    <Eye className="w-4 h-4 text-primary" />
+                    <Eye className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
                   </div>
                 )}
               </motion.button>
@@ -242,14 +245,15 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 text-white hover:bg-white/20"
               onClick={() => setIsFullscreenOpen(false)}
+              aria-label="Close fullscreen view"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </Button>
             
             <div className="relative w-full h-full">
-              <LazyImage
+              <SimpleImage
                 src={displayImages[selectedIndex]}
                 alt={`${carTitle} - Fullscreen`}
                 className="max-w-full max-h-full object-contain mx-auto"
@@ -260,18 +264,20 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
                     onClick={handlePrevious}
+                    aria-label="Previous image"
                   >
-                    <ChevronLeft className="w-8 h-8" />
+                    <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
                     onClick={handleNext}
+                    aria-label="Next image"
                   >
-                    <ChevronRight className="w-8 h-8" />
+                    <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
                   </Button>
                 </>
               )}

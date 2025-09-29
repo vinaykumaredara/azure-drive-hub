@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Car, Users, Calendar, DollarSign, Settings, Plus, 
   Edit, Trash2, Eye, BarChart3, Bell, Upload,
-  CheckCircle, XCircle, Clock, MapPin
+  CheckCircle, XCircle, Clock, MapPin, Shield, 
+  MessageCircle, Ticket, Wrench, User, TrendingUp,
+  Phone, Mail, Navigation, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,83 +17,75 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
-const mockStats = {
-  totalCars: 24,
-  activeBookings: 18,
-  monthlyRevenue: 45000,
-  totalUsers: 156,
-  carsAvailable: 15,
-  carsInUse: 9,
-  pendingBookings: 3,
-  completedBookings: 142
+// Import all the new section components
+// Fixed import issue
+import BookingManagement from '@/components/BookingManagement';
+import FinancialManagement from '@/components/FinancialManagement';
+import FleetOptimization from '@/components/FleetOptimization';
+import LicenseVerification from '@/components/LicenseVerification';
+import PromoCodeManagement from '@/components/PromoCodeManagement';
+import CommunicationCenter from '@/components/CommunicationCenter';
+import { MaintenanceScheduler } from '@/components/MaintenanceScheduler';
+import CustomerManagement from '@/components/CustomerManagement';
+import SystemSettings from '@/components/SystemSettings';
+import SecurityCompliance from '@/components/SecurityCompliance';
+import StaffManagement from '@/components/StaffManagement';
+import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
+
+interface DashboardStats {
+  totalCars: number;
+  activeBookings: number;
+  monthlyRevenue: number;
+  totalUsers: number;
+  carsAvailable: number;
+  carsInUse: number;
+  pendingBookings: number;
+  completedBookings: number;
+}
+
+// Define proper interfaces for the data structures
+interface CarData {
+  id: string;
+  title: string;
+  model: string;
+  make: string;
+  location_city: string;
+  price_per_day: number;
+  status: string;
+}
+
+interface BookingData {
+  id: string;
+  status: string;
+  total_amount: number;
+  start_datetime: string;
+  end_datetime: string;
+  hold_expires_at: string;
+  cars?: {
+    title: string;
+  };
+  users?: {
+    full_name: string;
+  };
+}
+
+const initialStats: DashboardStats = {
+  totalCars: 0,
+  activeBookings: 0,
+  monthlyRevenue: 0,
+  totalUsers: 0,
+  carsAvailable: 0,
+  carsInUse: 0,
+  pendingBookings: 0,
+  completedBookings: 0
 };
 
-const mockCars = [
-  {
-    id: '1',
-    model: 'Honda City',
-    status: 'available',
-    location: 'Banjara Hills',
-    pricePerDay: 1200,
-    bookings: 24,
-    rating: 4.8,
-    lastService: '2024-01-15'
-  },
-  {
-    id: '2', 
-    model: 'Hyundai Creta',
-    status: 'booked',
-    location: 'HITEC City',
-    pricePerDay: 2200,
-    bookings: 18,
-    rating: 4.9,
-    lastService: '2024-01-10'
-  },
-  {
-    id: '3',
-    model: 'Maruti Swift',
-    status: 'maintenance',
-    location: 'Secunderabad',
-    pricePerDay: 999,
-    bookings: 31,
-    rating: 4.6,
-    lastService: '2024-01-20'
-  }
-];
+// Real-time car data will be fetched from database
 
-const mockBookings = [
-  {
-    id: 'BK001',
-    car: 'Honda City',
-    user: 'Rajesh Kumar',
-    startDate: '2024-02-01',
-    endDate: '2024-02-03',
-    status: 'confirmed',
-    amount: 3600,
-    holdExpiry: null
-  },
-  {
-    id: 'BK002',
-    car: 'Hyundai Creta', 
-    user: 'Priya Sharma',
-    startDate: '2024-02-02',
-    endDate: '2024-02-04',
-    status: 'pending',
-    amount: 4400,
-    holdExpiry: '2024-01-31T15:30:00Z'
-  },
-  {
-    id: 'BK003',
-    car: 'Maruti Swift',
-    user: 'Amit Patel',
-    startDate: '2024-01-28',
-    endDate: '2024-01-30',
-    status: 'completed',
-    amount: 1998,
-    holdExpiry: null
-  }
-];
+// Real-time booking data will be fetched from database
 
 interface AdminDashboardProps {
   onClose?: () => void;
@@ -109,6 +103,98 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     location: '',
     images: [] as string[]
   });
+  
+  // Real-time dashboard data
+  const [stats, setStats] = useState<DashboardStats>(initialStats);
+  const [cars, setCars] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real-time dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch cars with all needed fields
+        const { data: carsData, error: carsError } = await supabase
+          .from('cars')
+          .select('id, title, model, make, location_city, price_per_day, status');
+        
+        if (carsError) throw carsError;
+        
+        // Fetch bookings with user and car info
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from('bookings')
+          .select(`
+            id, 
+            status, 
+            total_amount,
+            start_datetime,
+            end_datetime,
+            hold_expires_at,
+            cars(title),
+            users(full_name)
+          `);
+        
+        if (bookingsError) throw bookingsError;
+        
+        // Fetch users count
+        const { count: usersCount, error: usersError } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true });
+        
+        if (usersError) throw usersError;
+        
+        // Calculate stats
+        const totalCars = carsData?.length || 0;
+        const carsAvailable = carsData?.filter((car: CarData) => car.status === 'active').length || 0;
+        const carsInUse = carsData?.filter((car: CarData) => car.status === 'booked').length || 0;
+        
+        const activeBookings = bookingsData?.filter((booking: BookingData) => 
+          ['pending', 'confirmed'].includes(booking.status)
+        ).length || 0;
+        
+        const pendingBookings = bookingsData?.filter((booking: BookingData) => 
+          booking.status === 'pending'
+        ).length || 0;
+        
+        const completedBookings = bookingsData?.filter((booking: BookingData) => 
+          booking.status === 'completed'
+        ).length || 0;
+        
+        const monthlyRevenue = bookingsData?.reduce((sum: number, booking: BookingData) => 
+          booking.status === 'completed' ? sum + (booking.total_amount || 0) : sum, 0
+        ) || 0;
+        
+        setStats({
+          totalCars,
+          activeBookings,
+          monthlyRevenue,
+          totalUsers: usersCount || 0,
+          carsAvailable,
+          carsInUse,
+          pendingBookings,
+          completedBookings
+        });
+        
+        // Set cars and bookings for display
+        setCars(carsData || []);
+        setBookings(bookingsData || []);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
+  }, []);
 
   const StatCard = ({ icon: Icon, title, value, change, color = 'primary' }: any) => (
     <motion.div
@@ -143,26 +229,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         <StatCard
           icon={Car}
           title="Total Cars"
-          value={mockStats.totalCars}
-          change={12}
+          value={stats.totalCars}
+          change={0}
         />
         <StatCard
           icon={Calendar}
           title="Active Bookings"
-          value={mockStats.activeBookings}
-          change={8}
+          value={stats.activeBookings}
+          change={0}
         />
         <StatCard
           icon={DollarSign}
           title="Monthly Revenue"
-          value={`₹${mockStats.monthlyRevenue.toLocaleString()}`}
-          change={15}
+          value={`₹${stats.monthlyRevenue.toLocaleString()}`}
+          change={0}
         />
         <StatCard
           icon={Users}
           title="Total Users"
-          value={mockStats.totalUsers}
-          change={22}
+          value={stats.totalUsers}
+          change={0}
         />
       </div>
 
@@ -200,11 +286,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockBookings.slice(0, 3).map((booking) => (
+              {bookings.slice(0, 3).map((booking: BookingData) => (
                 <div key={booking.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                   <div>
-                    <p className="font-medium">{booking.car}</p>
-                    <p className="text-sm text-muted-foreground">{booking.user}</p>
+                    <p className="font-medium">{booking.cars?.title || 'Unknown Car'}</p>
+                    <p className="text-sm text-muted-foreground">{booking.users?.full_name || 'Unknown User'}</p>
                   </div>
                   <Badge variant={
                     booking.status === 'confirmed' ? 'default' :
@@ -229,21 +315,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <CheckCircle className="w-4 h-4 text-success" />
                   <span>Available</span>
                 </span>
-                <span className="font-bold">{mockStats.carsAvailable}</span>
+                <span className="font-bold">{stats.carsAvailable}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center space-x-2">
                   <Car className="w-4 h-4 text-primary" />
                   <span>In Use</span>
                 </span>
-                <span className="font-bold">{mockStats.carsInUse}</span>
+                <span className="font-bold">{stats.carsInUse}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center space-x-2">
                   <XCircle className="w-4 h-4 text-destructive" />
                   <span>Maintenance</span>
                 </span>
-                <span className="font-bold">3</span>
+                <span className="font-bold">{cars.length - stats.carsAvailable - stats.carsInUse}</span>
               </div>
             </div>
           </CardContent>
@@ -263,7 +349,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
       </div>
 
       <div className="grid gap-4">
-        {mockCars.map((car) => (
+        {cars.map((car: CarData) => (
           <motion.div
             key={car.id}
             initial={{ opacity: 0, y: 20 }}
@@ -277,22 +363,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       <Car className="w-8 h-8 text-muted-foreground" />
                     </div>
                     <div>
-                      <h4 className="font-semibold">{car.model}</h4>
+                      <h4 className="font-semibold">{car.model || car.title}</h4>
                       <p className="text-sm text-muted-foreground flex items-center space-x-1">
                         <MapPin className="w-3 h-3" />
-                        <span>{car.location}</span>
+                        <span>{car.location_city}</span>
                       </p>
                       <div className="flex items-center space-x-4 mt-1">
-                        <span className="text-sm">₹{car.pricePerDay}/day</span>
-                        <span className="text-sm">⭐ {car.rating}</span>
-                        <span className="text-sm">{car.bookings} bookings</span>
+                        <span className="text-sm">₹{car.price_per_day}/day</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-3">
                     <Badge variant={
-                      car.status === 'available' ? 'default' :
+                      car.status === 'active' ? 'default' :
                       car.status === 'booked' ? 'secondary' : 'destructive'
                     }>
                       {car.status}
@@ -324,7 +408,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
       <h3 className="text-lg font-semibold">Booking Management</h3>
 
       <div className="grid gap-4">
-        {mockBookings.map((booking) => (
+        {bookings.map((booking: BookingData) => (
           <motion.div
             key={booking.id}
             initial={{ opacity: 0, y: 20 }}
@@ -335,7 +419,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center space-x-2">
-                      <h4 className="font-semibold">{booking.id}</h4>
+                      <h4 className="font-semibold">{booking.id.substring(0, 8)}</h4>
                       <Badge variant={
                         booking.status === 'confirmed' ? 'default' :
                         booking.status === 'pending' ? 'secondary' : 'outline'
@@ -344,21 +428,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {booking.user} • {booking.car}
+                      {booking.users?.full_name || 'Unknown User'} • {booking.cars?.title || 'Unknown Car'}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {booking.startDate} to {booking.endDate}
+                      {new Date(booking.start_datetime).toLocaleDateString()} to {new Date(booking.end_datetime).toLocaleDateString()}
                     </p>
-                    {booking.holdExpiry && (
+                    {booking.hold_expires_at && (
                       <p className="text-xs text-warning mt-1 flex items-center space-x-1">
                         <Clock className="w-3 h-3" />
-                        <span>Hold expires: {new Date(booking.holdExpiry).toLocaleTimeString()}</span>
+                        <span>Hold expires: {new Date(booking.hold_expires_at).toLocaleTimeString()}</span>
                       </p>
                     )}
                   </div>
 
                   <div className="text-right">
-                    <p className="font-bold text-lg">₹{booking.amount.toLocaleString()}</p>
+                    <p className="font-bold text-lg">₹{(booking.total_amount || 0).toLocaleString()}</p>
                     <div className="flex space-x-2 mt-2">
                       {booking.status === 'pending' && (
                         <>
@@ -528,11 +612,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-12">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="cars">Cars</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="license">License</TabsTrigger>
+            <TabsTrigger value="promo">Promo Codes</TabsTrigger>
+            <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+            <TabsTrigger value="customers">Customers</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="staff">Staff</TabsTrigger>
+            <TabsTrigger value="financial">Financial</TabsTrigger>
+            <TabsTrigger value="fleet">Fleet</TabsTrigger>
+            <TabsTrigger value="communication">Communication</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
@@ -544,17 +637,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           </TabsContent>
 
           <TabsContent value="bookings" className="mt-6">
-            {renderBookingsManagement()}
+            <BookingManagement />
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-6">
-            <Card>
-              <CardContent className="p-6 text-center">
-                <BarChart3 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Analytics Dashboard</h3>
-                <p className="text-muted-foreground">Advanced analytics and reports coming soon...</p>
-              </CardContent>
-            </Card>
+            <AnalyticsDashboard />
+          </TabsContent>
+
+          <TabsContent value="license" className="mt-6">
+            <LicenseVerification />
+          </TabsContent>
+
+          <TabsContent value="promo" className="mt-6">
+            <PromoCodeManagement />
+          </TabsContent>
+
+          <TabsContent value="maintenance" className="mt-6">
+            <MaintenanceScheduler />
+          </TabsContent>
+
+          <TabsContent value="customers" className="mt-6">
+            <CustomerManagement />
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-6">
+            <SystemSettings />
+          </TabsContent>
+
+          <TabsContent value="security" className="mt-6">
+            <SecurityCompliance />
+          </TabsContent>
+
+          <TabsContent value="staff" className="mt-6">
+            <StaffManagement />
+          </TabsContent>
+
+          <TabsContent value="financial" className="mt-6">
+            <FinancialManagement />
+          </TabsContent>
+
+          <TabsContent value="fleet" className="mt-6">
+            <FleetOptimization />
+          </TabsContent>
+
+          <TabsContent value="communication" className="mt-6">
+            <CommunicationCenter />
           </TabsContent>
         </Tabs>
       </div>

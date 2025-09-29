@@ -11,6 +11,6 @@
     "noEmit": true,
     "types": ["@supabase/functions-js"]
   },
-  "include": ["**/*.ts", "**/*.d.ts"],
+  "include": ["**/*.ts", "**/*.d.ts", "types/**/*.d.ts"],
   "exclude": ["node_modules"]
 }

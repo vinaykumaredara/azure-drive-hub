@@ -131,3 +131,35 @@ export async function removeImagesFromStorage(imageUrls: string[] | null | undef
     // Don't throw error as this shouldn't break the main flow
   }
 }
+
+/**
+ * Remove images from Supabase Storage using file paths
+ * @param filePaths Array of file paths to remove
+ * @returns Promise that resolves when all images are removed
+ */
+export async function removeImagesFromStorageByPaths(filePaths: string[] | null | undefined) {
+  if (!Array.isArray(filePaths) || filePaths.length === 0) {
+    return;
+  }
+
+  // Filter out any null/undefined/empty values
+  const validPaths = filePaths.filter(path => path && typeof path === 'string' && path.length > 0);
+  
+  if (validPaths.length === 0) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase.storage
+      .from('cars-photos')
+      .remove(validPaths);
+    
+    if (error) {
+      console.warn('Warning: Some images could not be removed from storage:', error);
+      // Don't throw error as this shouldn't break the main flow
+    }
+  } catch (err) {
+    console.warn('Warning: Error removing images from storage:', err);
+    // Don't throw error as this shouldn't break the main flow
+  }
+}

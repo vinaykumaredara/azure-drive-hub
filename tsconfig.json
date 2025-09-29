@@ -20,5 +20,6 @@
     "skipLibCheck": true,
     "allowJs": false,
     "types": ["vitest/globals"]
-  }
+  },
+  "exclude": ["supabase/functions"]
 }
