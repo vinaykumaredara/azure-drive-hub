@@ -37,7 +37,7 @@ class AdminErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Admin Dashboard Error:', error, errorInfo);
     toast({
       title: "Application Error",
@@ -46,7 +46,7 @@ class AdminErrorBoundary extends React.Component<
     });
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-background via-primary-light/5 to-accent-purple/5 flex items-center justify-center">

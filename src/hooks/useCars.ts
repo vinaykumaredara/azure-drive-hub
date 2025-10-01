@@ -67,7 +67,7 @@ export default function useCars() {
 
       // CRITICAL: Validate and resolve ALL image URLs before setting state
       const carsWithValidImages = await Promise.all(
-        (data ?? []).map(async (car) => {
+        (data ?? []).map(async (car: any) => {
           if (car.image_urls && car.image_urls.length > 0) {
             const validUrls = [];
             for (const url of car.image_urls) {

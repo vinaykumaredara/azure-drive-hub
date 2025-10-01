@@ -20,7 +20,7 @@ export const useCache = <T>(key: string, fetcher: () => Promise<T>, ttl = 5 * 60
 };
 
 // Performance monitoring
-export const usePerformanceMonitor = () => {
+export const usePerformanceMonitor = (): void => {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'performance' in window) {
       const observer = new PerformanceObserver((list) => {

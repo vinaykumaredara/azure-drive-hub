@@ -14,32 +14,7 @@ import { CarListingErrorState } from "@/components/CarListingErrorState";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
 import { toast } from "@/hooks/use-toast";
-import useCars from "@/hooks/useCars";
-
-// Car interface for Supabase data
-interface Car {
-  id: string;
-  title: string;
-  make: string;
-  model: string;
-  year: number;
-  seats: number;
-  fuel_type: string;
-  transmission: string;
-  price_per_day: number;
-  price_per_hour?: number;
-  description?: string;
-  location_city?: string;
-  status: string;
-  image_urls: string[];
-  created_at: string;
-  price_in_paise?: number;
-  currency?: string;
-  // Fields for atomic booking
-  booking_status?: string;
-  booked_by?: string;
-  booked_at?: string;
-}
+import useCars, { Car } from "@/hooks/useCars";
 
 // Transform Supabase car to display format
 const transformCarForDisplay = (car: Car) => {
@@ -52,8 +27,8 @@ const transformCarForDisplay = (car: Car) => {
     make: car.make || '',
     model: car.model || '',
     year: car.year || new Date().getFullYear(),
-    image: car.image_urls?.[0] || `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=400&h=300&fit=crop&crop=center&auto=format&q=80`,
-    images: car.image_urls?.length > 0 ? car.image_urls : [
+    image: (car.image_urls && car.image_urls.length > 0) ? car.image_urls[0] : `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=400&h=300&fit=crop&crop=center&auto=format&q=80`,
+    images: (car.image_urls && car.image_urls.length > 0) ? car.image_urls : [
       `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80`,
       `https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&crop=center&auto=format&q=80`
     ],
@@ -184,8 +159,7 @@ export const CarListing = () => {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4,
-        ease: [0.4, 0, 0.2, 1]
+        duration: 0.4
       }
     }
   };
