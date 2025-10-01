@@ -63,8 +63,8 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
       const startDateTime = new Date(`${bookingData.startDate}T${bookingData.startTime}:00`);
       const endDateTime = new Date(`${bookingData.endDate}T${bookingData.endTime}:00`);
 
-      const { data, error } = await supabase
-        .from('bookings')
+      const { data, error } = await (supabase
+        .from('bookings') as any)
         .insert({
           user_id: user?.id,
           car_id: bookingData.carId,
@@ -77,7 +77,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
         .single();
 
       if (error) {throw error;}
-      return data.id;
+      return (data as any).id;
     } catch (error) {
       console.error('Booking creation error:', error);
       throw error;

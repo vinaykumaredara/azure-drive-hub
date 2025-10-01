@@ -43,6 +43,7 @@ export const usePerformanceMonitor = (): void => {
       
       return () => observer.disconnect();
     }
+    return undefined;
   }, []);
 };
 

@@ -67,7 +67,7 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
       
       // Filter valid promo codes
       const now = new Date();
-      const validPromos = (data || []).filter(promo => {
+      const validPromos = ((data as any) || []).filter((promo: any) => {
         if (promo.valid_to && new Date(promo.valid_to) < now) {return false;}
         if (promo.valid_from && new Date(promo.valid_from) > now) {return false;}
         if (promo.usage_limit && promo.times_used >= promo.usage_limit) {return false;}
@@ -90,7 +90,7 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
 
   const validatePromoCode = async (code: string): Promise<PromoValidation> => {
     try {
-      const { data, error } = await supabase.rpc('validate_promo_code', {
+      const { data, error } = await (supabase.rpc as any)('validate_promo_code', {
         code_input: code.toUpperCase()
       });
 
@@ -102,13 +102,13 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
       console.log('RPC Response:', data);
       
       // The RPC function returns an array of records
-      if (data && Array.isArray(data) && data.length > 0) {
-        const result = data[0];
+      if (data && Array.isArray(data) && (data as any).length > 0) {
+        const result = (data as any)[0];
         return {
-          valid: result.valid,
-          message: result.message,
-          discount_percent: result.discount_percent,
-          discount_flat: result.discount_flat
+          valid: (result as any).valid,
+          message: (result as any).message,
+          discount_percent: (result as any).discount_percent,
+          discount_flat: (result as any).discount_flat
         };
       }
       

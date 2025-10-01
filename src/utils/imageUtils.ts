@@ -79,12 +79,12 @@ export async function appendImageUrlsToCar(carId: string, newUrls: string[], new
   // Read existing arrays
   const { data: row, error: selErr } = await supabase.from('cars').select('image_urls').eq('id', carId).single();
   if (selErr) throw selErr;
-  const existingUrls = Array.isArray(row?.image_urls) ? row.image_urls : [];
+  const existingUrls = Array.isArray((row as any)?.image_urls) ? (row as any).image_urls : [];
   // Resolve all URLs before merging
   const resolvedNewUrls = newUrls.map(resolveCarImageUrl);
   const mergedUrls = [...existingUrls, ...resolvedNewUrls];
 
-  const { error: updErr } = await supabase.from('cars').update({
+  const { error: updErr } = await (supabase.from('cars') as any).update({
     image_urls: mergedUrls
   }).eq('id', carId);
 

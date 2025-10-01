@@ -63,8 +63,8 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
       if (uploadError) {throw uploadError;}
 
       // Create license record in database
-      const { data: license, error: insertError } = await supabase
-        .from('licenses')
+      const { data: license, error: insertError } = await (supabase
+        .from('licenses') as any)
         .insert({
           user_id: user.id,
           storage_path: filePath,
@@ -85,7 +85,7 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
       });
 
       // Notify parent component
-      onUploaded(license.id);
+      onUploaded((license as any).id);
 
       // Clear file input
       setFile(null);

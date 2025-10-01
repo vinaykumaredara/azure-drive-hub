@@ -208,8 +208,8 @@ const LicenseManagement = React.memo(() => {
       if (action === 'reject') {verified = false;}
       if (action === 'reset') {verified = null;}
       
-      const { error } = await supabase
-        .from('licenses')
+      const { error } = await (supabase
+        .from('licenses') as any)
         .update({ verified })
         .eq('id', licenseId);
 
@@ -490,7 +490,7 @@ const AdminDashboard: React.FC = () => {
         supabase.from('payments').select('amount').eq('status', 'completed').gte('created_at', startOfToday)
       ]);
 
-      const revenueToday = todayRevenue?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+      const revenueToday = (todayRevenue as any)?.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0) || 0;
 
       setDashboardStats({
         totalCars: totalCars || 0,

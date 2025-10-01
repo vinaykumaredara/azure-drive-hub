@@ -147,8 +147,8 @@ export const MaintenanceScheduler: React.FC = () => {
 
       if (editingMaintenance) {
         // Update existing maintenance
-        const { error } = await supabase
-          .from("maintenance")
+        const { error } = await (supabase
+          .from("maintenance") as any)
           .update(maintenanceData)
           .eq("id", editingMaintenance.id);
 
@@ -160,8 +160,8 @@ export const MaintenanceScheduler: React.FC = () => {
         });
       } else {
         // Create new maintenance
-        const { error } = await supabase
-          .from("maintenance")
+        const { error } = await (supabase
+          .from("maintenance") as any)
           .insert(maintenanceData);
 
         if (error) {throw error;}

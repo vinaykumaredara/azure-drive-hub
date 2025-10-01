@@ -93,11 +93,11 @@ const SystemSettings: React.FC = () => {
         // Continue with default values if no settings exist
       } else {
         // Override defaults with actual values
-        data?.forEach(row => {
+        (data as any)?.forEach((row: any) => {
           try {
-            initialSettings[row.key] = JSON.parse(row.value);
+            initialSettings[(row as any).key] = JSON.parse((row as any).value);
           } catch {
-            initialSettings[row.key] = row.value;
+            initialSettings[(row as any).key] = (row as any).value;
           }
         });
       }
@@ -132,8 +132,8 @@ const SystemSettings: React.FC = () => {
           value = Boolean(value);
         }
         
-        const { error } = await supabase
-          .from('system_settings')
+        const { error } = await (supabase
+          .from('system_settings') as any)
           .upsert({
             key,
             value: JSON.stringify(value),
@@ -178,8 +178,8 @@ const SystemSettings: React.FC = () => {
       } = await supabase.auth.getUser();
       
       // Insert audit log entry
-      const { error } = await supabase
-        .from('audit_logs')
+      const { error } = await (supabase
+        .from('audit_logs') as any)
         .insert({
           action,
           description,

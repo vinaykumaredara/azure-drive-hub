@@ -18,9 +18,9 @@ export const paymentService = {
       }
 
       return { success: true, ...data };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Create payment intent error:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error?.message };
     }
   },
 
@@ -42,9 +42,9 @@ export const paymentService = {
       }
 
       return { success: true, ...data };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Confirm payment error:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error?.message };
     }
   },
 
@@ -66,9 +66,9 @@ export const paymentService = {
       }
 
       return { success: true, ...data };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Complete payment error:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error?.message };
     }
   }
 };

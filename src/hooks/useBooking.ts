@@ -69,7 +69,7 @@ export const useBooking = () => {
       if (error) {throw error;}
 
       // Return true if user has at least one verified license
-      return licenses && licenses.length > 0 && licenses[0].verified;
+      return licenses && licenses.length > 0 && (licenses[0] as any).verified;
     } catch (error) {
       console.error("License check error:", error);
       toast({
@@ -114,11 +114,11 @@ export const useBooking = () => {
       });
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Create booking hold error:", error);
       toast({
         title: "Booking Failed",
-        description: error.message || "Failed to create booking",
+        description: error?.message || "Failed to create booking",
         variant: "destructive",
       });
       return null;

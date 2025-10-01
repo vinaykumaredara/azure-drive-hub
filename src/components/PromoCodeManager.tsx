@@ -130,8 +130,8 @@ export const PromoCodeManager: React.FC = () => {
 
       if (editingPromo) {
         // Update existing promo code
-        const { error } = await supabase
-          .from("promo_codes")
+        const { error } = await (supabase
+          .from("promo_codes") as any)
           .update(promoData)
           .eq("id", editingPromo.id);
 
@@ -143,8 +143,8 @@ export const PromoCodeManager: React.FC = () => {
         });
       } else {
         // Create new promo code
-        const { error } = await supabase
-          .from("promo_codes")
+        const { error } = await (supabase
+          .from("promo_codes") as any)
           .insert(promoData);
 
         if (error) {throw error;}
@@ -157,11 +157,11 @@ export const PromoCodeManager: React.FC = () => {
 
       setIsDialogOpen(false);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving promo code:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save promo code",
+        description: error?.message || "Failed to save promo code",
         variant: "destructive",
       });
     }
@@ -208,8 +208,8 @@ export const PromoCodeManager: React.FC = () => {
 
   const handleToggleActive = async (promo: PromoCode) => {
     try {
-      const { error } = await supabase
-        .from("promo_codes")
+      const { error } = await (supabase
+        .from("promo_codes") as any)
         .update({ active: !promo.active })
         .eq("id", promo.id);
 

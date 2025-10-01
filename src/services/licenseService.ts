@@ -16,8 +16,8 @@ export const licenseService = {
       if (uploadError) {throw uploadError;}
 
       // Create license record in database
-      const { data: license, error: insertError } = await supabase
-        .from('licenses')
+      const { data: license, error: insertError } = await (supabase
+        .from('licenses') as any)
         .insert({
           user_id: userId,
           storage_path: filePath,
@@ -32,10 +32,10 @@ export const licenseService = {
         throw insertError;
       }
 
-      return { success: true, licenseId: license.id, filePath };
-    } catch (error) {
+      return { success: true, licenseId: (license as any).id, filePath };
+    } catch (error: any) {
       console.error("License upload error:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error?.message };
     }
   },
 
@@ -49,9 +49,9 @@ export const licenseService = {
       if (error) {throw error;}
 
       return { success: true, url: data.signedUrl };
-    } catch (error) {
+    } catch (error: any) {
       console.error("License preview URL error:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error?.message };
     }
   },
 
@@ -67,9 +67,9 @@ export const licenseService = {
       if (error) {throw error;}
 
       return { success: true, licenses };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Get user licenses error:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error?.message };
     }
   }
 };
