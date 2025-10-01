@@ -96,8 +96,8 @@ const AdminBookingManagement: React.FC = () => {
 
   const updateBookingStatus = async (bookingId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('bookings')
+      const { error } = await (supabase
+        .from('bookings') as any)
         .update({ status: newStatus })
         .eq('id', bookingId);
 

@@ -77,7 +77,7 @@ const CustomerManagement: React.FC = () => {
       if (usersError) {throw usersError;}
 
       // Transform data to match Customer interface
-      const transformedCustomers = usersData?.map(user => ({
+      const transformedCustomers = (usersData as any)?.map((user: any) => ({
         id: user.id,
         full_name: user.full_name,
         email: user.email || 'user@example.com', // Placeholder - would need to fetch from auth
@@ -110,8 +110,8 @@ const CustomerManagement: React.FC = () => {
 
     try {
       // Update customer suspension status
-      const { error } = await supabase
-        .from('users')
+      const { error } = await (supabase
+        .from('users') as any)
         .update({
           is_suspended: !selectedCustomer.is_suspended,
           suspension_reason: !selectedCustomer.is_suspended ? suspendReason : null,
@@ -155,8 +155,8 @@ const CustomerManagement: React.FC = () => {
       } = await supabase.auth.getUser();
       
       // Insert audit log entry
-      const { error } = await supabase
-        .from('audit_logs')
+      const { error } = await (supabase
+        .from('audit_logs') as any)
         .insert({
           action,
           description,

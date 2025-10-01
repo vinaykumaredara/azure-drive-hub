@@ -108,8 +108,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     setIsLoading(true);
     
     try {
-      const { error } = await supabase
-        .from("messages")
+      const { error } = await (supabase
+        .from("messages") as any)
         .insert({
           room_id: currentRoomId,
           sender_id: user.id,

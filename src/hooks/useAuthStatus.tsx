@@ -45,7 +45,7 @@ export const useAuthStatus = (): AuthStatus => {
           if (mounted) {
             setStatus({
               user: session.user,
-              isAdmin: profile?.is_admin || false,
+              isAdmin: (profile as any)?.is_admin || false,
               isLoading: false,
               error: null
             });
@@ -93,7 +93,7 @@ export const useAuthStatus = (): AuthStatus => {
             if (mounted) {
               setStatus({
                 user: session.user,
-                isAdmin: profile?.is_admin || false,
+                isAdmin: (profile as any)?.is_admin || false,
                 isLoading: false,
                 error: null
               });
