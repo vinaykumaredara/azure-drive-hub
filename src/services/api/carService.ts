@@ -46,8 +46,10 @@ export class CarService {
         image_urls: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
         image_paths: uploadedImagePaths.length > 0 ? uploadedImagePaths : null,
         status: carData.status || 'published',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        currency: 'INR',
+        price_in_paise: Math.round((carData.price_per_day || 0) * 100),
+        booking_status: 'available',
+        created_at: new Date().toISOString()
       };
 
       // Remove the images property as it's not needed in the database
@@ -135,11 +137,17 @@ export class CarService {
       }
 
       // Prepare car data for update
-      const carDataWithImages = {
+      const carDataWithImages: any = {
         ...carData,
         image_urls: finalImageUrls,
         image_paths: finalImagePaths
       };
+
+      // Update currency and price_in_paise if price_per_day is being updated
+      if (carData.price_per_day !== undefined) {
+        carDataWithImages.currency = 'INR';
+        carDataWithImages.price_in_paise = Math.round(carData.price_per_day * 100);
+      }
 
       // Remove properties that shouldn't go to the database
       delete carDataWithImages.newImages;

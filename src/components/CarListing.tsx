@@ -49,9 +49,9 @@ const transformCarForDisplay = (car: Car) => {
   const transformed = {
     id: car.id,
     title: car.title,
-    make: car.make,
-    model: car.model,
-    year: car.year,
+    make: car.make || '',
+    model: car.model || '',
+    year: car.year || new Date().getFullYear(),
     image: car.image_urls?.[0] || `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=400&h=300&fit=crop&crop=center&auto=format&q=80`,
     images: car.image_urls?.length > 0 ? car.image_urls : [
       `https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80`,
@@ -60,15 +60,15 @@ const transformCarForDisplay = (car: Car) => {
     pricePerDay: pricePerDay,
     pricePerHour: pricePerHour,
     location: car.location_city || 'Hyderabad',
-    fuel: car.fuel_type,
-    transmission: car.transmission,
-    seats: car.seats,
+    fuel: car.fuel_type || 'Petrol',
+    transmission: car.transmission || 'Automatic',
+    seats: car.seats || 5,
     rating: 4.5 + (Math.random() * 0.4), // Random rating between 4.5-4.9
     reviewCount: Math.floor(Math.random() * 50) + 15, // Random reviews 15-65
     isAvailable: car.status === 'published' && car.booking_status !== 'booked',
     badges: car.status === 'published' && car.booking_status !== 'booked' ? ['Available', 'Verified'] : ['Busy'],
     features: ['GPS', 'AC', 'Bluetooth', 'Insurance'],
-    description: car.description || `${car.make} ${car.model} - Perfect for city drives and long trips`
+    description: car.description || `${car.make || ''} ${car.model || ''} - Perfect for city drives and long trips`
   };
   
   return transformed;
@@ -118,8 +118,8 @@ export const CarListing = () => {
       .filter(car => {
         // Search filter
         if (searchQuery && !car.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !car.make.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !car.model.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !(car.make || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !(car.model || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
             !(car.location_city || '').toLowerCase().includes(searchQuery.toLowerCase())) {
           return false;
         }
@@ -130,7 +130,7 @@ export const CarListing = () => {
         }
         
         // Fuel filter
-        if (fuelFilter !== "all" && car.fuel_type.toLowerCase() !== fuelFilter.toLowerCase()) {
+        if (fuelFilter !== "all" && (car.fuel_type || '').toLowerCase() !== fuelFilter.toLowerCase()) {
           return false;
         }
         
@@ -185,7 +185,7 @@ export const CarListing = () => {
       y: 0,
       transition: {
         duration: 0.4,
-        ease: "easeOut"
+        ease: [0.4, 0, 0.2, 1]
       }
     }
   };
