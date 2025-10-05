@@ -10,14 +10,14 @@ export { resolveCarImageUrl, resolveCarImageUrls };
 // 2. If value is a storage path return the public URL from storage.
 // 3. If value is null return null.
 export function getPublicOrSignedUrl(value: string | null): string | null {
-  if (!value) return null;
+  if (!value) {return null;}
   return resolveCarImageUrl(value);
 }
 
 // Ensure image_urls array is populated on the JS object before render
 export function resolveCarImageUrlsLegacy(car: any): any {
-  if (!car) return car;
-  if (Array.isArray(car.image_urls) && car.image_urls.length) return car;
+  if (!car) {return car;}
+  if (Array.isArray(car.image_urls) && car.image_urls.length) {return car;}
 
   const paths = Array.isArray(car.image_paths) ? car.image_paths : [];
   car.image_urls = paths.map((p: string) => getPublicOrSignedUrl(p)).filter(Boolean) as string[];
@@ -62,7 +62,7 @@ export async function uploadMultipleFiles(carId: string, files: File[]) {
     const { error: upErr } = await supabase.storage.from('cars-photos').upload(filePath, file, {
       cacheControl: 'public, max-age=31536000, immutable'
     });
-    if (upErr) throw upErr;
+    if (upErr) {throw upErr;}
     // Use our unified resolver to get the public URL
     const publicUrl = resolveCarImageUrl(filePath);
     return { path: filePath, url: publicUrl };
@@ -78,7 +78,7 @@ export async function uploadMultipleFiles(carId: string, files: File[]) {
 export async function appendImageUrlsToCar(carId: string, newUrls: string[], newPaths: string[]) {
   // Read existing arrays
   const { data: row, error: selErr } = await supabase.from('cars').select('image_urls').eq('id', carId).single();
-  if (selErr) throw selErr;
+  if (selErr) {throw selErr;}
   const existingUrls = Array.isArray((row as any)?.image_urls) ? (row as any).image_urls : [];
   // Resolve all URLs before merging
   const resolvedNewUrls = newUrls.map(resolveCarImageUrl);

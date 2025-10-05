@@ -76,7 +76,7 @@ const UserDashboard: React.FC = () => {
   useEffect(() => {
     console.log('UserDashboard effect run:', { userId: user?.id });
     
-    if (!user?.id) return;
+    if (!user?.id) {return;}
 
     let mounted = true;
     const controller = new AbortController();
@@ -104,9 +104,9 @@ const UserDashboard: React.FC = () => {
           .order('created_at', { ascending: false })
           .abortSignal(signal);
 
-        if (error) throw error;
+        if (error) {throw error;}
         
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         // Process image URLs synchronously for better performance
         const processedBookings = data ? data.map((booking: any) => {
@@ -132,16 +132,16 @@ const UserDashboard: React.FC = () => {
           return booking;
         }) : [];
         
-        if (!mounted) return;
+        if (!mounted) {return;}
         setBookings(processedBookings || []);
       } catch (error) {
-        if (error.name === 'AbortError') return;
+        if (error.name === 'AbortError') {return;}
         errorLogger.logError(error as Error, {
           component: 'UserDashboard',
           action: 'fetchUserBookings',
           userId: userId
         });
-        if (!mounted) return;
+        if (!mounted) {return;}
         toast({
           title: "Error",
           description: "Failed to load your bookings",
@@ -160,9 +160,9 @@ const UserDashboard: React.FC = () => {
           .eq('user_id', userId)
           .abortSignal(signal);
         
-        if (error) throw error;
+        if (error) {throw error;}
         
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         if (bookingsData) {
           const totalBookings = bookingsData.length;
@@ -178,7 +178,7 @@ const UserDashboard: React.FC = () => {
           const loyaltyPoints = Math.floor(totalSpent / 10);
           const co2Saved = totalBookings * 2.3; // Estimated CO₂ saved per booking
           
-          if (!mounted) return;
+          if (!mounted) {return;}
           setUserStats({
             totalBookings,
             totalSpent,
@@ -189,7 +189,7 @@ const UserDashboard: React.FC = () => {
           });
         }
       } catch (error) {
-        if (error.name === 'AbortError') return;
+        if (error.name === 'AbortError') {return;}
         console.error('Error fetching user stats:', error);
       }
     };
@@ -212,7 +212,7 @@ const UserDashboard: React.FC = () => {
           throw licenseError;
         }
         
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         if (!license) {
           notifications.push({
@@ -278,13 +278,13 @@ const UserDashboard: React.FC = () => {
           });
         }
         
-        if (!mounted) return;
+        if (!mounted) {return;}
         setNotifications(notifications);
       } catch (error) {
-        if (error.name === 'AbortError') return;
+        if (error.name === 'AbortError') {return;}
         console.error('Error in fetchNotifications:', error);
         // Fallback notification
-        if (!mounted) return;
+        if (!mounted) {return;}
         setNotifications([{
           id: 1,
           title: 'Welcome!',
@@ -302,15 +302,15 @@ const UserDashboard: React.FC = () => {
       try {
         const savedFavorites = localStorage.getItem(`favorites_${userId}`);
         if (savedFavorites) {
-          if (!mounted) return;
+          if (!mounted) {return;}
           setFavoriteCarIds(JSON.parse(savedFavorites));
         } else {
-          if (!mounted) return;
+          if (!mounted) {return;}
           setFavoriteCarIds([]);
         }
       } catch (error) {
         console.error('Error loading favorites:', error);
-        if (!mounted) return;
+        if (!mounted) {return;}
         setFavoriteCarIds([]);
       }
     };
@@ -326,7 +326,7 @@ const UserDashboard: React.FC = () => {
           fetchFavorites(user.id)
         ]);
       } catch (err) {
-        if (err.name === 'AbortError') return;
+        if (err.name === 'AbortError') {return;}
         console.error('UserDashboard loadAll error', err);
         toast({
           title: "Dashboard Error",
@@ -334,7 +334,7 @@ const UserDashboard: React.FC = () => {
           variant: "destructive",
         });
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {setIsLoading(false);}
       }
     }
 
