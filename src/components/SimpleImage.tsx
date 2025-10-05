@@ -1,7 +1,7 @@
-import React from 'react';
+import { ImgHTMLAttributes } from 'react';
 import LazyImage from '@/components/LazyImage';
 
-interface SimpleImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+interface SimpleImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
   className?: string;

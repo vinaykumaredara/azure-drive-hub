@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import SimpleImage from '@/components/SimpleImage';
 
 export default function ImageCarousel({ images = [], className = '', debug = false }: { images?: string[], className?: string, debug?: boolean }) {
@@ -61,7 +61,7 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
       <SimpleImage 
         src={validImages[idx]} 
         alt={`Car image ${idx + 1}`} 
-        className="w-full h-40 object-cover rounded" 
+        className="w-full aspect-video object-cover rounded" 
       />
       {validImages.length > 1 && (
         <>

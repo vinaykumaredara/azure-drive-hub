@@ -1,10 +1,10 @@
+import { useState } from "react";
 import { Car, Menu, User, Phone, Shield, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
-import { useState } from "react";
 
 export const Header = () => {
   const navigate = useNavigate();
