@@ -1,7 +1,18 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent } from '@/components/ui/card';
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { CalendarIcon, Plus, Edit, Trash2, Wrench, AlertCircle, ArrowLeft } from "lucide-react";
 
 interface Maintenance {
   id: string;
@@ -25,6 +36,7 @@ interface Car {
 
 export const MaintenanceScheduler: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,14 +99,6 @@ export const MaintenanceScheduler: React.FC = () => {
     };
     loadData();
   }, []);
-
-  // Real-time subscription
-  useRealtimeSubscription<any>(
-    "maintenance",
-    () => fetchMaintenances(),
-    () => fetchMaintenances(),
-    () => fetchMaintenances()
-  );
 
   const resetForm = () => {
     setSelectedCarId("");

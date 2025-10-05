@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
-import { AuthProvider } from '@/components/AuthProvider';
+import { AuthProvider } from '@/components/AuthProvider.component';
 import AdminDashboard from '@/pages/AdminDashboard';
 
 // Enhanced mocks for integration testing

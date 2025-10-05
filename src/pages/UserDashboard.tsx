@@ -135,7 +135,7 @@ const UserDashboard: React.FC = () => {
         if (!mounted) {return;}
         setBookings(processedBookings || []);
       } catch (error) {
-        if (error.name === 'AbortError') {return;}
+        if ((error as Error).name === 'AbortError') {return;}
         errorLogger.logError(error as Error, {
           component: 'UserDashboard',
           action: 'fetchUserBookings',
@@ -189,7 +189,7 @@ const UserDashboard: React.FC = () => {
           });
         }
       } catch (error) {
-        if (error.name === 'AbortError') {return;}
+        if ((error as Error).name === 'AbortError') {return;}
         console.error('Error fetching user stats:', error);
       }
     };
@@ -205,8 +205,7 @@ const UserDashboard: React.FC = () => {
           .from('licenses')
           .select('*')
           .eq('user_id', userId)
-          .single()
-          .abortSignal(signal);
+          .maybeSingle();
       
         if (licenseError && licenseError.code !== 'PGRST116') {
           throw licenseError;
@@ -246,10 +245,9 @@ const UserDashboard: React.FC = () => {
           }
         }
       
-        // Check for recent bookings using the ref
-        const currentBookings = bookingsRef.current;
-        if (currentBookings.length > 0) {
-          const recentBooking = currentBookings[0];
+        // Check for recent bookings
+        if (bookings.length > 0) {
+          const recentBooking = bookings[0];
           const bookingDate = new Date(recentBooking.start_datetime);
           const now = new Date();
           const diffTime = bookingDate.getTime() - now.getTime();
@@ -282,7 +280,7 @@ const UserDashboard: React.FC = () => {
         if (!mounted) {return;}
         setNotifications(notifications);
       } catch (error) {
-        if (error.name === 'AbortError') {return;}
+        if ((error as Error).name === 'AbortError') {return;}
         console.error('Error in fetchNotifications:', error);
         // Fallback notification
         if (!mounted) {return;}
@@ -317,6 +315,8 @@ const UserDashboard: React.FC = () => {
     };
 
     async function loadAll() {
+      if (!user?.id) return;
+      
       try {
         setIsLoading(true);
         // example: await Promise.all([fetchBookings({ userId: user.id, signal: controller.signal }), ...])
@@ -327,7 +327,7 @@ const UserDashboard: React.FC = () => {
           fetchFavorites(user.id)
         ]);
       } catch (err) {
-        if (err.name === 'AbortError') {return;}
+        if ((err as Error).name === 'AbortError') {return;}
         console.error('UserDashboard loadAll error', err);
         toast({
           title: "Dashboard Error",
@@ -1275,8 +1275,7 @@ const UserDashboard: React.FC = () => {
                           title: "License Uploaded",
                           description: "Your license has been uploaded successfully.",
                         });
-                        // Refresh notifications to update license status
-                        fetchNotifications();
+                        // License status will be reflected on next dashboard load
                       }} />
                     </CardContent>
                   </Card>
