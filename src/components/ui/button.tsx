@@ -26,3 +26,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button"
 
 export { Button }
+/**
+ * Minimal fallback buttonVariants export.
+ * This provides a basic class string used by other UI components.
+ * Replace with full class-variance-authority (cva) implementation if required.
+ */
+export const buttonVariants = (opts = {}) => {
+  // opts.variant, opts.size not used in fallback
+  return "inline-flex items-center justify-center rounded-md text-sm font-medium px-4 py-2";
+};
