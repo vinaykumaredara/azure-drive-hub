@@ -1,3 +1,8 @@
+/**
+ * Button variants configuration
+ * This file contains the button styling configurations used by the Button component
+ */
+
 import { cva } from "class-variance-authority"
 
 export const buttonVariants = cva(
