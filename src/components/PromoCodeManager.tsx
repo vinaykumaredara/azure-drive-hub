@@ -69,7 +69,7 @@ export const PromoCodeManager: React.FC = () => {
   }, []);
 
   // Real-time subscription
-  useRealtimeSubscription(
+  useRealtimeSubscription<any>(
     "promo_codes",
     () => fetchPromoCodes(),
     () => fetchPromoCodes(),

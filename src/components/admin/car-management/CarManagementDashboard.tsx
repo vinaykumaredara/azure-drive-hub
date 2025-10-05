@@ -1,7 +1,6 @@
 // src/components/admin/car-management/CarManagementDashboard.tsx
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Car, Search, Filter, BarChart3 } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Car, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCarQueries } from '@/hooks/queries/useCarQueries';
@@ -37,7 +36,7 @@ const CarManagementDashboard = () => {
         (car.model && car.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (car.location_city && car.location_city.toLowerCase().includes(searchTerm.toLowerCase()));
       
-      if (!matchesSearch) return false;
+      if (!matchesSearch) {return false;}
     }
     
     // Status filter
@@ -69,7 +68,7 @@ const CarManagementDashboard = () => {
   };
 
   const handleDelete = async () => {
-    if (!carToDelete) return;
+    if (!carToDelete) {return;}
     
     try {
       await deleteMutation.mutateAsync(carToDelete.id);

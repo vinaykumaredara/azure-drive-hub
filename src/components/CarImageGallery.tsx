@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, X, Maximize2, Eye } from 'lucide-react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
@@ -30,7 +29,7 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
   className = '',
   showThumbnails = true,
   aspectRatio = 'video',
-  size = 'md',
+  size: _size = 'md',
   interactive = true,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -48,12 +47,6 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
     video: 'aspect-video',
     square: 'aspect-square',
     wide: 'aspect-[16/9]'
-  };
-
-  const sizeClasses = {
-    sm: 'h-32',
-    md: 'h-48',
-    lg: 'h-64'
   };
 
   const handlePrevious = () => {

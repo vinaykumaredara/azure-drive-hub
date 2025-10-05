@@ -8,19 +8,16 @@ import {
   Copy, 
   BarChart3, 
   Calendar, 
-  Filter, 
   Search,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
 
 interface PromoCode {
@@ -159,9 +156,9 @@ const PromoCodeManagement: React.FC = () => {
       const bVal = b[sortBy as keyof PromoCode];
       
       // Handle null/undefined values
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
+      if (aVal === null && bVal === null) {return 0;}
+      if (aVal === null) {return 1;}
+      if (bVal === null) {return -1;}
       
       if (sortOrder === 'asc') {
         return aVal > bVal ? 1 : -1;
@@ -253,7 +250,7 @@ const PromoCodeManagement: React.FC = () => {
   };
 
   // Handle delete
-  const handleDelete = (id: string) => {
+  const handleDelete = () => {
     if (confirm('Are you sure you want to delete this promo code?')) {
       // In a real app, this would delete from the database
       toast({
@@ -489,7 +486,7 @@ const PromoCodeManagement: React.FC = () => {
                     <Button variant="outline" size="sm" onClick={() => handleEdit(promo)}>
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(promo.id)}>
+                    <Button variant="outline" size="sm" onClick={() => handleDelete('')}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

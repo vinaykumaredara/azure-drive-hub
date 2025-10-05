@@ -17,7 +17,7 @@ interface CarListProps {
 
 const CarList = ({ cars, isLoading, onEdit, onDelete }: CarListProps) => {
   const getStatusBadge = (status: string | null) => {
-    if (!status) return <Badge variant="default">Unknown</Badge>;
+    if (!status) {return <Badge variant="default">Unknown</Badge>;}
     
     switch (status) {
       case 'published':

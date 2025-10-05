@@ -1,6 +1,6 @@
 // src/components/ui/forms/ImageDropzone.tsx
 import { useState, useRef, useCallback } from 'react';
-import { Upload, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Upload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,28 +17,7 @@ const ImageDropzone = ({ onImagesSelected, existingImages = [], maxImages = 10, 
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const files = Array.from(e.dataTransfer.files);
-      handleFiles(files);
-    }
-  }, []);
-
-  const handleFiles = (files: File[]) => {
+  const handleFiles = useCallback((files: File[]) => {
     // Filter only image files
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
@@ -59,7 +38,28 @@ const ImageDropzone = ({ onImagesSelected, existingImages = [], maxImages = 10, 
     
     // Notify parent
     onImagesSelected(imageFiles);
-  };
+  }, [existingImages, maxImages, onImagesSelected, uploadedImages]);
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const files = Array.from(e.dataTransfer.files);
+      handleFiles(files);
+    }
+  }, [handleFiles]);
 
   const removeImage = (index: number) => {
     const newPreviews = [...uploadedImages];

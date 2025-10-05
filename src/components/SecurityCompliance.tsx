@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Search, Filter, Download, Eye, User, Key, LogIn, Car, FileText, Settings } from 'lucide-react';
+import { Shield, Search, Download, Eye, User, LogIn, Car, FileText, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -136,7 +136,7 @@ const SecurityCompliance: React.FC = () => {
         .select('id, full_name, email, license_path, license_verified, created_at')
         .not('license_path', 'is', null);
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       // Transform data to match KYCStatus interface with proper type checking
       const kycData: KYCStatus[] = (data || []).map((user: User) => ({

@@ -19,7 +19,7 @@ describe('imageCrudUtils', () => {
     vi.clearAllMocks();
     
     // Setup default mock implementations
-    mockSupabase.from.mockImplementation((table) => {
+    mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'cars') {
         return {
           select: vi.fn().mockReturnThis(),
@@ -31,7 +31,7 @@ describe('imageCrudUtils', () => {
       return {};
     });
     
-    mockSupabase.storage.from.mockImplementation((bucket) => {
+    mockSupabase.storage.from.mockImplementation((bucket: string) => {
       if (bucket === 'cars-photos') {
         return {
           remove: vi.fn()

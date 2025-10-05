@@ -3,9 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { motion } from 'framer-motion';
 import { Upload, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -113,7 +112,7 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
     return () => {
       uploadedImagePreviews.forEach(url => URL.revokeObjectURL(url));
     };
-  }, [car, form]);
+  }, [car, form, uploadedImagePreviews]);
 
   const handleImageUpload = async (files: File[] | FileList) => {
     setUploadingImages(true);

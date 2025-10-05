@@ -6,17 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Clock, CreditCard, AlertCircle, User, FileText, Car, CheckCircle } from "lucide-react";
+import { CalendarIcon, Clock, CreditCard, AlertCircle, FileText, Car, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthProvider";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import SimpleImage from "@/components/SimpleImage";
 import ImageCarousel from '@/components/ImageCarousel';
 import "./modal.css";
 import { useNavigate } from "react-router-dom";
-import type { Database } from "@/integrations/supabase/types";
 
 interface Car {
   id: string;
@@ -328,7 +326,7 @@ const [bookingHold, setBookingHold] = useState<BookingHold | null>(null);
     }
   };
 
-  const handleLicenseUploaded = (id: string) => {
+  const _handleLicenseUploaded = (id: string) => {
     setLicenseId(id);
   };
 

@@ -199,6 +199,11 @@ export type Database = {
           license_expiry: string | null
           created_at: string | null
           is_admin: boolean | null
+          // Added suspension columns
+          is_suspended: boolean | null
+          suspension_reason: string | null
+          suspended_at: string | null
+          suspended_by: string | null
         }
         Insert: {
           id: string
@@ -209,6 +214,11 @@ export type Database = {
           license_expiry?: string | null
           created_at?: string | null
           is_admin?: boolean | null
+          // Added suspension columns
+          is_suspended?: boolean | null
+          suspension_reason?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
         }
         Update: {
           id?: string
@@ -219,6 +229,11 @@ export type Database = {
           license_expiry?: string | null
           created_at?: string | null
           is_admin?: boolean | null
+          // Added suspension columns
+          is_suspended?: boolean | null
+          suspension_reason?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
         }
         Relationships: []
       }

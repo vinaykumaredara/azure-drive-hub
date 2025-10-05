@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, User, CreditCard, CheckCircle, Car } from 'lucide-react';
+import { Calendar, CreditCard, CheckCircle, Car } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -84,7 +84,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ car, onClose }) => {
           holdExpiry: new Date(Date.now() + 10 * 60 * 1000).toISOString()
         }));
         setCurrentStep('extras');
-      } catch (error) {
+      } catch {
         console.error('Failed to create booking hold');
       } finally {
         setIsLoading(false);
@@ -97,7 +97,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ car, onClose }) => {
         // Simulate payment processing
         await new Promise(resolve => setTimeout(resolve, 2000));
         setCurrentStep('confirmation');
-      } catch (error) {
+      } catch {
         console.error('Payment failed');
       } finally {
         setIsLoading(false);

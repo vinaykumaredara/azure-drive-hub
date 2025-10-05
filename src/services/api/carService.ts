@@ -281,7 +281,7 @@ export class CarService {
         .eq('status', 'published')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       // Cache the results
       this.cache.set(cacheKey, { data: data || [], timestamp: Date.now() });
@@ -330,7 +330,7 @@ export class CarService {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {throw error;}
       return data || [];
     } catch (error) {
       console.error('Error fetching admin cars:', error);

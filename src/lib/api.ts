@@ -251,7 +251,7 @@ export const carApi = {
     return car;
   },
 
-  async createBookingHold(params: {
+  async createBookingHold(_params: {
     userId: string;
     carId: string;
     startDatetime: string;
@@ -270,7 +270,7 @@ export const carApi = {
     };
   },
 
-  async confirmBooking(params: {
+  async confirmBooking(_params: {
     holdId: string;
     paymentProvider: string;
     providerOrderId: string;

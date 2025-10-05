@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, Fragment } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, User, CreditCard, CheckCircle, Car, AlertCircle } from 'lucide-react';
+import { Calendar, CreditCard, CheckCircle, Car, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -164,10 +164,21 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
         return;
       }
       
+      // Validate that end date is after start date
+      const startDate = new Date(bookingData.startDate);
+      const endDate = new Date(bookingData.endDate);
+      
+      if (endDate < startDate) {
+        toast({
+          title: "Validation Error",
+          description: "Return date must be after pickup date",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Calculate total days
-      const start = new Date(bookingData.startDate);
-      const end = new Date(bookingData.endDate);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
       
       setBookingData(prev => ({
@@ -213,6 +224,7 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
             value={bookingData.startDate}
             onChange={(e) => setBookingData(prev => ({ ...prev, startDate: e.target.value }))}
             className="mt-1"
+            min={new Date().toISOString().split('T')[0]}
           />
         </div>
         <div>
@@ -223,6 +235,7 @@ export const AtomicBookingFlow: React.FC<AtomicBookingFlowProps> = ({ car, onClo
             value={bookingData.endDate}
             onChange={(e) => setBookingData(prev => ({ ...prev, endDate: e.target.value }))}
             className="mt-1"
+            min={bookingData.startDate || new Date().toISOString().split('T')[0]}
           />
         </div>
       </div>

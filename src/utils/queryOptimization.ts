@@ -1,5 +1,7 @@
-// @ts-nocheck
+
 // Query optimization utilities for better database performance
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import { supabase } from '@/integrations/supabase/client';
 import { errorLogger } from './errorLogger';
 

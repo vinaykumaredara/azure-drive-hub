@@ -34,7 +34,7 @@ const ValidationMessage = ({ message, type = 'error' }: ValidationMessageProps) 
     }
   };
 
-  if (!message) return null;
+  if (!message) {return null;}
 
   return (
     <Alert variant={getVariant()}>

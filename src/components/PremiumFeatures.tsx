@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
-  Shield, Clock, MapPin, Headphones, Star, 
-  CheckCircle, Smartphone, CreditCard, Car
+  Shield, Clock, MapPin, Star, Smartphone, CreditCard, Car
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

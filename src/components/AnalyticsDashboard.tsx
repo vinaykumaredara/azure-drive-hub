@@ -1,35 +1,13 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell
-} from "recharts";
-import { 
-  TrendingUp, 
-  Car, 
-  Users, 
-  IndianRupee, 
-  Calendar,
-  RefreshCw,
-  BarChart3,
-  ArrowLeft
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { BarChart3, Calendar, TrendingUp, IndianRupee, Car, Users, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { Badge } from '@/components/ui/badge';
 
 interface AnalyticsData {
   overview: {
@@ -64,7 +42,7 @@ export const AnalyticsDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setIsLoading(true);
     
     try {
@@ -86,11 +64,11 @@ export const AnalyticsDashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedPeriod]);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [selectedPeriod]);
+  }, [selectedPeriod, fetchAnalytics]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -374,7 +352,7 @@ export const AnalyticsDashboard: React.FC = () => {
                     ))}
                   </Pie>
                   <Tooltip 
-                    formatter={(value, name) => [value, "bookings"]}
+                    formatter={(value, _name) => [value, "bookings"]}
                   />
                 </PieChart>
               </ResponsiveContainer>

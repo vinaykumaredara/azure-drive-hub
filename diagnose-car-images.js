@@ -20,73 +20,6 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
 
-// Diagnostic script to check car image data in the database
-import { createClient } from '@supabase/supabase-js';
-
-// Configuration - you'll need to add your service role key to .env
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://rcpkhtlvfvafympulywx.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_SERVICE_ROLE_KEY) {
-  console.error('❌ SUPABASE_SERVICE_ROLE_KEY is required. Please add it to your .env file');
-  process.exit(1);
-}
-
-// Create Supabase client with service role key (full access)
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-async function diagnoseCarImages() {
-  console.log('🔍 Diagnosing car image data...\n');
-  
-  try {
-    // Get a few sample cars with their image data
-    const { data: cars, error } = await supabase
-      .from('cars')
-      .select('id, title, image_paths, image_urls')
-      .limit(5);
-
-    if (error) {
-      console.error('❌ Error fetching cars:', error.message);
-      return;
-    }
-
-    console.log('📋 Sample cars with image data:');
-    cars.forEach((car, index) => {
-      console.log(`\nCar ${index + 1}:`);
-      console.log(`  ID: ${car.id}`);
-      console.log(`  Title: ${car.title}`);
-      console.log(`  Image Paths: ${JSON.stringify(car.image_paths)}`);
-      console.log(`  Image URLs: ${JSON.stringify(car.image_urls)}`);
-      
-      // Check if image_urls are properly formed
-      if (Array.isArray(car.image_urls) && car.image_urls.length > 0) {
-        console.log(`  🔍 Image URL Analysis:`);
-        car.image_urls.forEach((url, urlIndex) => {
-          console.log(`    URL ${urlIndex + 1}: ${url}`);
-          if (url && url.startsWith('http')) {
-            console.log(`      ✅ Valid HTTP URL`);
-          } else if (url) {
-            console.log(`      ⚠️  Potential storage path: ${url}`);
-          } else {
-            console.log(`      ❌ Invalid URL`);
-          }
-        });
-      } else {
-        console.log(`  ⚠️  No image URLs found`);
-      }
-    });
-
-    console.log('\n🎉 Diagnosis completed!');
-    
-  } catch (error) {
-    console.error('❌ Diagnosis failed:', error.message);
-    process.exit(1);
-  }
-}
-
-// Run the diagnosis
-diagnoseCarImages();
-
 async function diagnoseCarImages() {
   try {
     console.log('\n=== Car Images Diagnostics ===');
@@ -196,4 +129,5 @@ async function diagnoseCarImages() {
   }
 }
 
+// Call the function only once
 diagnoseCarImages();

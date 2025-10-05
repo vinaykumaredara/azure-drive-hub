@@ -1,5 +1,5 @@
 // Enhanced caching strategy for Supabase queries
-import { supabase } from '@/integrations/supabase/client';
+
 
 interface CacheEntry<T> {
   data: T;
@@ -107,25 +107,25 @@ export const cacheManager = new SupabaseCache();
 // Use direct Supabase queries in components instead
 export const cachedQueries = {
   // Cars with caching - temporarily disabled
-  getCars: async (options: { ttl?: number; forceRefresh?: boolean } = {}) => {
+  getCars: async (_options: { ttl?: number; forceRefresh?: boolean } = {}) => {
     console.warn('cachedQueries.getCars is temporarily disabled. Use direct Supabase queries.');
     return { data: null, error: 'Cached queries temporarily disabled' };
   },
 
   // Bookings with caching - temporarily disabled
-  getBookings: async (options: { ttl?: number; forceRefresh?: boolean } = {}) => {
+  getBookings: async (_options: { ttl?: number; forceRefresh?: boolean } = {}) => {
     console.warn('cachedQueries.getBookings is temporarily disabled. Use direct Supabase queries.');
     return { data: null, error: 'Cached queries temporarily disabled' };
   },
 
   // Licenses with caching - temporarily disabled
-  getLicenses: async (options: { ttl?: number; forceRefresh?: boolean } = {}) => {
+  getLicenses: async (_options: { ttl?: number; forceRefresh?: boolean } = {}) => {
     console.warn('cachedQueries.getLicenses is temporarily disabled. Use direct Supabase queries.');
     return { data: null, error: 'Cached queries temporarily disabled' };
   },
 
   // Promo codes with caching - temporarily disabled
-  getPromoCodes: async (options: { ttl?: number; forceRefresh?: boolean } = {}) => {
+  getPromoCodes: async (_options: { ttl?: number; forceRefresh?: boolean } = {}) => {
     console.warn('cachedQueries.getPromoCodes is temporarily disabled. Use direct Supabase queries.');
     return { data: null, error: 'Cached queries temporarily disabled' };
   },

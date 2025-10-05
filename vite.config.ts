@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -30,6 +31,13 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
+    // Bundle analyzer for production builds
+    mode === 'production' && visualizer({
+      filename: 'dist/stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+    }),
   ].filter(Boolean),
   resolve: {
     alias: {
@@ -38,7 +46,29 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: 'es2020',
-    minify: 'esbuild',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production', // Remove console.logs in production
+        drop_debugger: mode === 'production', // Remove debuggers in production
+        pure_funcs: mode === 'production' ? ['console.log', 'console.info', 'console.debug'] : [], // Remove specific functions in production
+        // Optimize for smaller bundle size
+        passes: 2,
+        toplevel: true,
+        unsafe: true,
+        unsafe_comps: true,
+      },
+      mangle: {
+        properties: {
+          regex: '^_',
+        }
+      },
+      format: {
+        comments: false, // Remove comments
+      },
+      keep_classnames: false,
+      keep_fnames: false,
+    },
     sourcemap: mode === 'development',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
@@ -51,12 +81,18 @@ export default defineConfig(({ mode }) => ({
           supabase: ['@supabase/supabase-js'],
           forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
         },
+        // Optimize output for better caching
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
       },
     },
     // Enable gzip compression
     brotliSize: true,
     // Enable CSS code splitting
     cssCodeSplit: true,
+    // Enable CSS minification
+    cssMinify: true,
   },
   optimizeDeps: {
     include: [
@@ -68,5 +104,30 @@ export default defineConfig(({ mode }) => ({
       'framer-motion'
     ],
     force: mode === 'development', // Force re-optimization in dev
+    // Enable esbuild optimization
+    esbuildOptions: {
+      // Enable tree-shaking
+      treeShaking: true,
+      // Minify in development for better performance
+      minify: mode === 'development',
+      // Target modern browsers
+      target: 'es2020',
+    },
+  },
+  // Enable caching
+  cacheDir: 'node_modules/.vite',
+  // Enable worker support
+  worker: {
+    format: 'es',
+    plugins: () => [
+      react(),
+    ],
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
+      },
+    },
   },
 }));

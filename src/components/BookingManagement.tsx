@@ -2,19 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Calendar, 
-  Clock, 
   CheckCircle, 
   XCircle, 
   AlertCircle, 
   Search, 
-  Filter, 
   Eye,
   User,
   Car,
-  MapPin,
   CreditCard,
   Phone,
-  Mail,
   Bell,
   TrendingUp
 } from 'lucide-react';
@@ -24,7 +20,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
 
 interface Booking {
@@ -54,8 +49,8 @@ const BookingManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
-  const [sortBy, setSortBy] = useState<keyof Booking>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [_sortBy, _setSortBy] = useState<keyof Booking>('created_at');
+  const [_sortOrder, _setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   // Mock data for demonstration
@@ -176,31 +171,31 @@ const BookingManagement: React.FC = () => {
     
     // Apply sorting
     filtered.sort((a, b) => {
-      const aValue = a[sortBy];
-      const bValue = b[sortBy];
+      const aValue = a[_sortBy];
+      const bValue = b[_sortBy];
       
       // Handle null values
-      if (aValue === null && bValue === null) return 0;
-      if (aValue === null) return 1;
-      if (bValue === null) return -1;
+      if (aValue === null && bValue === null) {return 0;}
+      if (aValue === null) {return 1;}
+      if (bValue === null) {return -1;}
       
       // Type guard for comparison
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        return _sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       }
       
       if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortOrder === 'asc' ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
+        return _sortOrder === 'asc' ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
       }
       
       // Convert to string for other types
       const aStr = String(aValue);
       const bStr = String(bValue);
-      return sortOrder === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+      return _sortOrder === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
     });
     
     return filtered;
-  }, [bookings, searchTerm, statusFilter, paymentFilter, sortBy, sortOrder]);
+  }, [bookings, searchTerm, statusFilter, paymentFilter, _sortBy, _sortOrder]);
 
   // Get status badge variant
   const getStatusVariant = (status: string) => {

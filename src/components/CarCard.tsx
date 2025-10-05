@@ -1,13 +1,12 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Star, Users, Fuel, Settings, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
-import { AtomicBookingFlow } from "@/components/AtomicBookingFlow";
+import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
 import { RatingsSummary } from "@/components/RatingsSummary";
 import ImageCarousel from '@/components/ImageCarousel';
-import { getCarImageData } from '@/utils/imageDisplayUtils';
 
 export interface CarCardProps {
   car: {
@@ -32,6 +31,8 @@ export interface CarCardProps {
     image_urls?: string[] | null; // Make it explicitly nullable
     image_paths?: string[] | null;
     thumbnail?: string;
+    // Add status field for availability check
+    status?: string;
   };
   className?: string;
 }
@@ -39,25 +40,44 @@ export interface CarCardProps {
 export const CarCard = ({ car, className = "" }: CarCardProps) => {
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
 
-  const handleBookNow = () => {
-    if (car.isAvailable) {
+  // Compute isAvailable defensively - make the logic match backend values and handle undefined gracefully
+  const isPublished = car.status ? ['published', 'active', 'available'].includes(car.status.toLowerCase()) : true;
+  const notBooked = car.bookingStatus === undefined || car.bookingStatus === null || car.bookingStatus === '' || car.bookingStatus !== 'booked';
+  const isArchived = false; // or whatever field the backend uses
+  const computedIsAvailable = isPublished && notBooked && !isArchived;
+
+  // Log car data for debugging
+  console.log('CarCard render', { 
+    id: car.id, 
+    status: car.status, 
+    bookingStatus: car.bookingStatus, 
+    isAvailable: car.isAvailable,
+    computedIsAvailable 
+  });
+
+  const handleBookNow = useCallback(() => {
+    console.log("Book Now clicked for car:", car.id, "isAvailable", computedIsAvailable);
+    if (computedIsAvailable) {
+      console.log("Car is available, opening booking flow");
       setIsBookingFlowOpen(true);
     } else {
       // Already booked - show message
+      console.log("Car is not available");
       alert("This car is already booked. Please choose another car.");
     }
-  };
+  }, [car.id, computedIsAvailable]);
 
-  const handleWhatsAppContact = () => {
+  const handleWhatsAppContact = useCallback(() => {
     const text = encodeURIComponent(`Hello RP cars, I'm interested in ${car.model} (${car.id})`);
     const waUrl = `https://wa.me/918897072640?text=${text}`;
     window.open(waUrl, "_blank");
-  };
+  }, [car.model, car.id]);
 
-  const handleBookingSuccess = () => {
+  const handleBookingSuccess = useCallback(() => {
     // Refresh the page or update the car list to show the car is now booked
+    setIsBookingFlowOpen(false);
     window.location.reload();
-  };
+  }, []);
 
   // Generate sample ratings data for the rating summary
   // In a real app, this would come from the database
@@ -75,32 +95,6 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
     }
     
     return ratings;
-  };
-
-  // Get the primary image URL for the card display
-  const getPrimaryImageUrl = () => {
-    // Use the standardized thumbnail if available
-    if (car.thumbnail) {
-      return car.thumbnail;
-    }
-    
-    // Fallback to image_urls if available
-    if (car.image_urls && car.image_urls.length > 0) {
-      return car.image_urls[0];
-    }
-    
-    // Fallback to images array
-    if (car.images && car.images.length > 0) {
-      return car.images[0];
-    }
-    
-    // Fallback to single image
-    if (car.image) {
-      return car.image;
-    }
-    
-    // Default placeholder
-    return 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
   };
 
   // Ensure title is always a string for the booking flow
@@ -122,7 +116,6 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
       >
         <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
           <div className="relative aspect-video overflow-hidden">
-            
             {/* Use ImageCarousel with standardized images */}
             {car.images && car.images.length > 0 ? (
               <ImageCarousel images={car.images} className="h-full" />
@@ -159,7 +152,7 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
               <span className="text-xs font-medium">{car.rating.toFixed(1)}</span>
             </div>
 
-            {!car.isAvailable && (
+            {!computedIsAvailable && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
                 <Badge variant="destructive" className="bg-red-500 text-white shadow-lg">
                   Not Available
@@ -178,7 +171,9 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
                   size="sm"
                   variant="secondary"
                   onClick={handleBookNow}
-                  disabled={!car.isAvailable}
+                  disabled={!computedIsAvailable}
+                  aria-disabled={!computedIsAvailable}
+                  data-testid={`quick-book-${car.id}`}
                   className="bg-white/90 hover:bg-white text-primary border-0 backdrop-blur-sm shadow-lg"
                 >
                   Quick Book
@@ -242,8 +237,10 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
                   <Button 
                     size="sm" 
                     onClick={handleBookNow}
-                    disabled={!car.isAvailable}
-                    className={car.isAvailable ? "" : "opacity-50 cursor-not-allowed"}
+                    disabled={!computedIsAvailable}
+                    aria-disabled={!computedIsAvailable}
+                    data-testid={`book-now-${car.id}`}
+                    className={computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}
                   >
                     Book Now
                   </Button>
@@ -255,7 +252,7 @@ export const CarCard = ({ car, className = "" }: CarCardProps) => {
       </motion.div>
 
       {isBookingFlowOpen && (
-        <AtomicBookingFlow 
+        <EnhancedBookingFlow 
           car={carForBooking} 
           onClose={() => setIsBookingFlowOpen(false)}
           onBookingSuccess={handleBookingSuccess}

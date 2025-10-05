@@ -1,6 +1,8 @@
+/* stylelint-disable at-rule-no-unknown */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* stylelint-enable at-rule-no-unknown */
 
 /* RP CARS Design System - Blue & White Theme for Trust and Speed */
 
@@ -9,10 +11,8 @@
     /* Brand Colors */
     --background: 0 0% 100%;
     --foreground: 230 15% 15%;
-
     --card: 0 0% 100%;
     --card-foreground: 230 15% 15%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 230 15% 15%;
 
@@ -25,19 +25,14 @@
     /* Accent Purple - Depth & Luxury */
     --accent-purple: 262 100% 65%; /* #8B5CF6 - Violet */
     --accent-purple-foreground: 0 0% 100%;
-
     --secondary: 210 17% 96%;
     --secondary-foreground: 215 25% 27%;
-
     --muted: 210 17% 96%;
     --muted-foreground: 215 13% 55%;
-
     --accent: 210 17% 96%;
     --accent-foreground: 215 25% 27%;
-
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 217 100% 56%;
@@ -49,18 +44,18 @@
     --warning-foreground: 0 0% 100%;
 
     /* Gradients - Bluish-Purple Theme */
-    --gradient-primary: linear-gradient(135deg, hsl(250 84% 60%) 0%, hsl(262 100% 65%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(250 84% 60%) 0%, hsl(262 100% 65%) 50%, hsl(270 100% 50%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(250 20% 98%) 100%);
-    --gradient-glass: linear-gradient(145deg, hsl(250 84% 60% / 0.1) 0%, hsl(262 100% 65% / 0.05) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(250deg 84% 60%) 0%, hsl(262deg 100% 65%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(250deg 84% 60%) 0%, hsl(262deg 100% 65%) 50%, hsl(270deg 100% 50%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0deg 0% 100%) 0%, hsl(250deg 20% 98%) 100%);
+    --gradient-glass: linear-gradient(145deg, hsl(250deg 84% 60% / 10%) 0%, hsl(262deg 100% 65% / 5%) 100%);
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(217 100% 56% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(217 100% 56% / 0.1), 0 2px 4px -1px hsl(217 100% 56% / 0.06);
-    --shadow-lg: 0 10px 15px -3px hsl(217 100% 56% / 0.1), 0 4px 6px -2px hsl(217 100% 56% / 0.05);
-    --shadow-xl: 0 20px 25px -5px hsl(217 100% 56% / 0.1), 0 10px 10px -5px hsl(217 100% 56% / 0.04);
-    --shadow-card: 0 4px 20px -2px hsl(217 100% 56% / 0.08);
-    --shadow-hover: 0 8px 30px -4px hsl(217 100% 56% / 0.15);
+    --shadow-sm: 0 1px 2px 0 hsl(217deg 100% 56% / 5%);
+    --shadow-md: 0 4px 6px -1px hsl(217deg 100% 56% / 10%), 0 2px 4px -1px hsl(217deg 100% 56% / 6%);
+    --shadow-lg: 0 10px 15px -3px hsl(217deg 100% 56% / 10%), 0 4px 6px -2px hsl(217deg 100% 56% / 5%);
+    --shadow-xl: 0 20px 25px -5px hsl(217deg 100% 56% / 10%), 0 10px 10px -5px hsl(217deg 100% 56% / 4%);
+    --shadow-card: 0 4px 20px -2px hsl(217deg 100% 56% / 8%);
+    --shadow-hover: 0 8px 30px -4px hsl(217deg 100% 56% / 15%);
 
     /* Animation Timing */
     --animate-fast: 150ms;
@@ -68,51 +63,34 @@
     --animate-slow: 300ms;
     --animate-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
     --animate-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-
     --radius: 0.5rem;
-
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
-
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
-
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
-
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
@@ -135,20 +113,22 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    word-wrap: break-word;
+
     overflow-wrap: break-word;
     hyphens: auto;
+
+    /* Optimize for performance */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizelegibility;
+
+    /* Ensure proper line height for readability */
+    line-height: 1.6;
   }
 
   /* Improve text readability and wrapping */
   p, h1, h2, h3, h4, h5, h6 {
-    word-wrap: break-word;
     overflow-wrap: break-word;
-  }
-
-  /* Ensure proper line height for readability */
-  body {
-    line-height: 1.6;
   }
 
   /* Fix container width issues */
@@ -156,31 +136,58 @@
     width: 100%;
     max-width: 100%;
   }
+  
+  /* Ensure booking flow modal is always visible */
+  .booking-flow-modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
 }
 
 @layer components {
-  /* Car Card Animations */
+  /* Car Card Animations - Optimized for performance */
   .car-card {
     @apply transition-all duration-200 ease-out hover:shadow-hover hover:-translate-y-1 hover:scale-[1.02];
+
+    /* Optimize for performance */
+    will-change: transform, box-shadow;
+    transform: translateZ(0);
   }
 
   .car-card-image {
     @apply transition-transform duration-300 ease-out group-hover:scale-105;
+
+    /* Optimize for performance */
+    will-change: transform;
   }
 
   /* Button Variants */
   .btn-hero {
     @apply bg-gradient-to-r from-primary to-accent-purple text-primary-foreground font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95;
+
+    /* Optimize for performance */
+    will-change: transform, box-shadow;
   }
 
   .btn-glass {
     @apply bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all duration-200;
   }
 
-  /* Staggered Animation */
+  /* Staggered Animation - Optimized for performance */
   .stagger-item {
     @apply opacity-0 translate-y-4;
-    animation: fadeInUp 0.6s ease-out forwards;
+
+    animation: fade-in-up 0.6s ease-out forwards;
+
+    /* Optimize for performance */
+    will-change: transform, opacity;
   }
 
   .stagger-item:nth-child(1) { animation-delay: 0ms; }
@@ -195,9 +202,13 @@
     @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-xl;
   }
 
-  /* Hover Lift */
+  /* Hover Lift - Optimized for performance */
   .hover-lift {
     @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-hover;
+
+    /* Optimize for performance */
+    will-change: transform, box-shadow;
+    transform: translateZ(0);
   }
 
   /* Text Gradient */
@@ -213,6 +224,9 @@
   /* Loading Spinner Animation */
   .spinner-dash {
     animation: spinner-dash 1.5s ease-in-out infinite;
+
+    /* Optimize for performance */
+    will-change: transform;
   }
 
   @keyframes spinner-dash {
@@ -220,24 +234,77 @@
       stroke-dasharray: 1, 150;
       stroke-dashoffset: 0;
     }
+
     50% {
       stroke-dasharray: 90, 150;
       stroke-dashoffset: -35;
     }
+
     100% {
       stroke-dasharray: 90, 150;
       stroke-dashoffset: -124;
     }
   }
 
-  @keyframes fadeInUp {
+  @keyframes fade-in-up {
     from {
       opacity: 0;
       transform: translateY(1rem);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
     }
+  }
+  
+  /* Ensure modal is always on top */
+  .modal-overlay {
+    z-index: 9999 !important;
+  }
+  
+  .modal-content {
+    z-index: 10000 !important;
+  }
+  
+  /* Fix for Radix UI Dialog z-index conflicts */
+  [data-radix-dialog-content] {
+    z-index: 9998 !important;
+  }
+}
+
+/* Performance optimizations */
+
+/* Reduce animations on mobile devices */
+@media (width <= 768px) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .mobile-animate {
+    animation-duration: 0.3s !important;
+    transition-duration: 0.2s !important;
+  }
+}
+
+/* Optimize for high-density displays */
+@media (resolution >= 2dppx), (resolution >= 192dpi) {
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Optimize for low-end devices */
+@media (width <= 480px) {
+  .high-res-image {
+    image-rendering: -webkit-optimize-contrast;
+  }
+  
+  /* Reduce box-shadow complexity on low-end devices */
+  .shadow-card, .shadow-hover, .shadow-lg, .shadow-xl {
+    box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
   }
 }

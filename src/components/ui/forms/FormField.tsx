@@ -12,7 +12,7 @@ const CustomFormField = ({ name, label, description, children }: CustomFormField
   return (
     <FormField
       name={name}
-      render={({ field }) => (
+      render={() => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>

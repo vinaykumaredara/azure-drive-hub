@@ -11,7 +11,6 @@ interface PriceDisplayProps {
 
 const PriceDisplay = ({ 
   amount, 
-  currency = 'INR', 
   inPaise = false, 
   className = '',
   showCurrency = true

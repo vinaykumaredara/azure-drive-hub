@@ -107,7 +107,7 @@ export function debugCarImageData(car: any, context: string = 'Unknown') {
  * @returns Sanitized car object with valid image data
  */
 export function sanitizeCarImageData(car: any): any {
-  if (!car) return car;
+  if (!car) {return car;}
 
   // Ensure we have proper arrays
   const image_urls = Array.isArray(car.image_urls) ? car.image_urls.filter((url: any) => 

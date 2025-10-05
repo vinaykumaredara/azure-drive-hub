@@ -13,9 +13,12 @@
     "build:analyze": "vite build --config scripts/analyze-bundle.js",
     "build:dev": "vite build --mode development",
     "build:prod": "npm run lint:fix && npm run type-check && vite build",
+    "build:optimize": "node scripts/optimize-build.js && vite build",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
+    "stylelint": "stylelint '**/*.css'",
+    "stylelint:fix": "stylelint '**/*.css' --fix",
     "format": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,md}'",
     "format:check": "prettier --check 'src/**/*.{ts,tsx,js,jsx,json,css,md}'",
     "preview": "vite preview",
@@ -31,7 +34,8 @@
     "verify:final": "node scripts/final-verification.js",
     "diagnose-delete": "node scripts/diagnose-delete-issue.js",
     "audit:security": "npm audit --audit-level moderate",
-    "precommit": "npm run lint:fix && npm run type-check && npm run test:ci"
+    "precommit": "npm run lint:fix && npm run type-check && npm run test:ci",
+    "optimize": "node scripts/optimize-build.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -106,6 +110,7 @@
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.32.0",
+    "eslint-formatter-unix": "^8.40.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "esutils": "^2.0.3",
@@ -123,6 +128,8 @@
     "rimraf": "^6.0.1",
     "rollup": "^4.52.3",
     "rollup-plugin-visualizer": "^5.14.0",
+    "stylelint": "^16.24.0",
+    "stylelint-config-standard": "^39.0.0",
     "supabase": "^2.40.7",
     "tailwindcss": "^3.4.17",
     "terser": "^5.44.0",
@@ -130,7 +137,7 @@
     "ts-interface-checker": "^1.0.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.2.0",
+    "vite": "^7.1.8",
     "vitest": "^3.2.4"
   }
 }

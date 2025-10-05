@@ -1,20 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { spawn, ChildProcess } from 'child_process';
-import http from 'http';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 
 describe('Dev Server', () => {
-  const devProcess: ChildProcess | null = null;
-
   beforeAll(() => {
     // Increase timeout for dev server startup
     vi.setConfig({ testTimeout: 30000 });
-  });
-
-  afterAll(() => {
-    // Clean up dev server process
-    if (devProcess) {
-      (devProcess as ChildProcess).kill('SIGTERM');
-    }
   });
 
   it('should start dev server and serve content', async () => {

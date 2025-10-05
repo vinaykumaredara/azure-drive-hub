@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Car, FileText, MessageCircle, Settings, LogOut, User, CreditCard, Heart, MapPin, Clock, Star, Award, Bell, Download, Share2, Filter, Search, TrendingUp, Shield, Gift, ChevronRight, Eye, ThumbsUp } from 'lucide-react';
+import { Calendar, Car, FileText, Settings, LogOut, User, CreditCard, Heart, MapPin, Clock, Star, Award, Bell, Download, Share2, Search, TrendingUp, Shield, Gift, Eye, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,10 +13,11 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { LicenseUpload } from '@/components/LicenseUpload';
-import { ChatWidget } from '@/components/ChatWidget';
+
 import { errorLogger } from '@/utils/errorLogger';
 import ImageCarousel from '@/components/ImageCarousel';
-import { resolveCarImageUrls, resolveCarImageUrl } from '@/utils/carImageUtils';
+import { resolveCarImageUrl } from '@/utils/carImageUtils';
+import { formatINRFromPaise } from '@/utils/currency';
 
 interface Booking {
   id: string;
@@ -25,6 +26,10 @@ interface Booking {
   end_datetime: string;
   status: string;
   total_amount: number;
+  total_amount_in_paise: number | null;
+  payment_status: string | null;
+  hold_amount: number | null;
+  hold_until: string | null;
   created_at: string;
   cars?: {
     title: string;
@@ -34,6 +39,10 @@ interface Booking {
     image_paths: string[];
     rating?: number;
   };
+  licenses?: {
+    id: string;
+    verified: boolean | null;
+  }[];
 }
 
 interface UserStats {
@@ -53,23 +62,6 @@ interface LicenseData {
   created_at: string;
 }
 
-interface BookingData {
-  id: string;
-  car_id: string;
-  start_datetime: string;
-  end_datetime: string;
-  status: string;
-  total_amount: number;
-  created_at: string;
-  cars?: {
-    title: string;
-    make: string;
-    model: string;
-    image_urls: string[];
-    image_paths: string[];
-  };
-}
-
 const UserDashboard: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -82,238 +74,277 @@ const UserDashboard: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
-    if (user && user.id) {
-      Promise.all([
-        fetchUserBookings(),
-        fetchUserStats(),
-        fetchNotifications(),
-        fetchFavorites()
-      ]).catch(error => {
-        console.error('Dashboard data fetch error:', error);
+    console.log('UserDashboard effect run:', { userId: user?.id });
+    
+    if (!user?.id) return;
+
+    let mounted = true;
+    const controller = new AbortController();
+
+    const fetchUserBookings = async (userId: string, signal: AbortSignal) => {
+      console.log('fetchUserBookings called for userId=', userId);
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            cars (
+              title,
+              make,
+              model,
+              image_urls,
+              image_paths
+            ),
+            licenses (
+              id,
+              verified
+            )
+          `)
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .abortSignal(signal);
+
+        if (error) throw error;
+        
+        if (!mounted) return;
+
+        // Process image URLs synchronously for better performance
+        const processedBookings = data ? data.map((booking: any) => {
+          if (booking.cars) {
+            // Process image URLs synchronously
+            let imageUrls: string[] = [];
+            if (Array.isArray(booking.cars.image_urls) && booking.cars.image_urls.length > 0) {
+              // Resolve all URLs synchronously
+              imageUrls = booking.cars.image_urls.map((url: string) => resolveCarImageUrl(url));
+            } else if (Array.isArray(booking.cars.image_paths) && booking.cars.image_paths.length > 0) {
+              // Resolve paths to URLs synchronously
+              imageUrls = booking.cars.image_paths.map((path: string) => resolveCarImageUrl(path));
+            }
+            
+            return {
+              ...booking,
+              cars: {
+                ...booking.cars,
+                image_urls: imageUrls
+              }
+            };
+          }
+          return booking;
+        }) : [];
+        
+        if (!mounted) return;
+        setBookings(processedBookings || []);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        errorLogger.logError(error as Error, {
+          component: 'UserDashboard',
+          action: 'fetchUserBookings',
+          userId: userId
+        });
+        if (!mounted) return;
+        toast({
+          title: "Error",
+          description: "Failed to load your bookings",
+          variant: "destructive",
+        });
+      }
+    };
+
+    const fetchUserStats = async (userId: string, signal: AbortSignal) => {
+      console.log('fetchUserStats called for userId=', userId);
+      try {
+        // Calculate user statistics
+        const { data: bookingsData, error } = await supabase
+          .from('bookings')
+          .select('total_amount, status, cars(make)')
+          .eq('user_id', userId)
+          .abortSignal(signal);
+        
+        if (error) throw error;
+        
+        if (!mounted) return;
+
+        if (bookingsData) {
+          const totalBookings = bookingsData.length;
+          const totalSpent = bookingsData.reduce((sum, booking: any) => sum + (booking.total_amount || 0), 0);
+          const carMakes = bookingsData.map((b: any) => b.cars?.make).filter(Boolean);
+          const favoriteCarType = carMakes.length > 0 
+            ? carMakes.sort((a: string, b: string) => 
+                carMakes.filter((v: string) => v === a).length - carMakes.filter((v: string) => v === b).length
+              ).pop() || 'N/A'
+            : 'N/A';
+          
+          const membershipLevel = totalSpent > 1000 ? 'Gold' : totalSpent > 500 ? 'Silver' : 'Bronze';
+          const loyaltyPoints = Math.floor(totalSpent / 10);
+          const co2Saved = totalBookings * 2.3; // Estimated CO₂ saved per booking
+          
+          if (!mounted) return;
+          setUserStats({
+            totalBookings,
+            totalSpent,
+            favoriteCarType,
+            membershipLevel,
+            loyaltyPoints,
+            co2Saved
+          });
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('Error fetching user stats:', error);
+      }
+    };
+
+    const fetchNotifications = async (userId: string, signal: AbortSignal) => {
+      console.log('fetchNotifications called for userId=', userId);
+      try {
+        // Generate dynamic notifications based on user data
+        const notifications = [];
+        
+        // Check if user needs to upload license
+        const { data: license, error: licenseError } = await supabase
+          .from('licenses')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+          .abortSignal(signal);
+        
+        if (licenseError && licenseError.code !== 'PGRST116') {
+          throw licenseError;
+        }
+        
+        if (!mounted) return;
+
+        if (!license) {
+          notifications.push({
+            id: 1,
+            title: 'Upload Your License',
+            message: 'Upload your driving license to start booking cars',
+            type: 'warning',
+            time: 'Pending',
+            created_at: new Date().toISOString()
+          });
+        } else {
+          const licenseData = license as LicenseData;
+          if (licenseData.verified === null) {
+            notifications.push({
+              id: 2,
+              title: 'License Under Review',
+              message: 'Your license is being verified. This usually takes 1-2 hours.',
+              type: 'info',
+              time: new Date(licenseData.created_at).toLocaleDateString(),
+              created_at: licenseData.created_at
+            });
+          } else if (licenseData.verified === true) {
+            notifications.push({
+              id: 3,
+              title: 'License Verified!',
+              message: 'Your driving license has been verified. You can now book cars.',
+              type: 'success',
+              time: new Date(licenseData.created_at).toLocaleDateString(),
+              created_at: licenseData.created_at
+            });
+          }
+        }
+        
+        // Check for recent bookings
+        if (bookings.length > 0) {
+          const recentBooking = bookings[0];
+          const bookingDate = new Date(recentBooking.start_datetime);
+          const now = new Date();
+          const diffTime = bookingDate.getTime() - now.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays >= 0 && diffDays <= 1) {
+            notifications.push({
+              id: 4,
+              title: 'Upcoming Booking',
+              message: `Your booking for ${recentBooking.cars?.title} starts ${diffDays === 0 ? 'today' : 'tomorrow'}`,
+              type: 'info',
+              time: bookingDate.toLocaleDateString(),
+              created_at: recentBooking.created_at
+            });
+          }
+        }
+        
+        // Add welcome message if no other notifications
+        if (notifications.length === 0) {
+          notifications.push({
+            id: 5,
+            title: 'Welcome to Azure Drive Hub!',
+            message: 'Explore our premium fleet and start your journey',
+            type: 'success',
+            time: 'Welcome',
+            created_at: new Date().toISOString()
+          });
+        }
+        
+        if (!mounted) return;
+        setNotifications(notifications);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('Error in fetchNotifications:', error);
+        // Fallback notification
+        if (!mounted) return;
+        setNotifications([{
+          id: 1,
+          title: 'Welcome!',
+          message: 'Welcome to Azure Drive Hub',
+          type: 'info',
+          time: 'Now',
+          created_at: new Date().toISOString()
+        }]);
+      }
+    };
+
+    const fetchFavorites = async (userId: string) => {
+      console.log('fetchFavorites called for userId=', userId);
+      // For now, use local storage for favorites until user_favorites table is created
+      try {
+        const savedFavorites = localStorage.getItem(`favorites_${userId}`);
+        if (savedFavorites) {
+          if (!mounted) return;
+          setFavoriteCarIds(JSON.parse(savedFavorites));
+        } else {
+          if (!mounted) return;
+          setFavoriteCarIds([]);
+        }
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+        if (!mounted) return;
+        setFavoriteCarIds([]);
+      }
+    };
+
+    async function loadAll() {
+      try {
+        setIsLoading(true);
+        // example: await Promise.all([fetchBookings({ userId: user.id, signal: controller.signal }), ...])
+        await Promise.all([
+          fetchUserBookings(user.id, controller.signal),
+          fetchUserStats(user.id, controller.signal),
+          fetchNotifications(user.id, controller.signal),
+          fetchFavorites(user.id)
+        ]);
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error('UserDashboard loadAll error', err);
         toast({
           title: "Dashboard Error",
           description: "Failed to load dashboard data. Please try again.",
           variant: "destructive",
         });
-      });
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
     }
-  }, [user]);
 
-  const fetchUserBookings = async () => {
-    try {
-      if (!user?.id) return;
-      
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          cars (
-            title,
-            make,
-            model,
-            image_urls,
-            image_paths
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+    loadAll();
 
-      if (error) throw error;
-      
-      // Process image URLs synchronously for better performance
-      const processedBookings = data ? data.map((booking: Booking) => {
-        if (booking.cars) {
-          // Process image URLs synchronously
-          let imageUrls: string[] = [];
-          if (Array.isArray(booking.cars.image_urls) && booking.cars.image_urls.length > 0) {
-            // Resolve all URLs synchronously
-            imageUrls = booking.cars.image_urls.map(url => resolveCarImageUrl(url));
-          } else if (Array.isArray(booking.cars.image_paths) && booking.cars.image_paths.length > 0) {
-            // Resolve paths to URLs synchronously
-            imageUrls = booking.cars.image_paths.map(path => resolveCarImageUrl(path));
-          }
-          
-          return {
-            ...booking,
-            cars: {
-              ...booking.cars,
-              image_urls: imageUrls
-            }
-          };
-        }
-        return booking;
-      }) : [];
-      
-      setBookings(processedBookings || []);
-    } catch (error) {
-      errorLogger.logError(error as Error, {
-        component: 'UserDashboard',
-        action: 'fetchUserBookings',
-        userId: user?.id
-      });
-      toast({
-        title: "Error",
-        description: "Failed to load your bookings",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchUserStats = async () => {
-    try {
-      if (!user?.id) return;
-      
-      // Calculate user statistics
-      const { data: bookingsData, error } = await supabase
-        .from('bookings')
-        .select('total_amount, status, cars(make)')
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      if (bookingsData) {
-        const totalBookings = bookingsData.length;
-        const totalSpent = bookingsData.reduce((sum, booking: any) => sum + (booking.total_amount || 0), 0);
-        const carMakes = bookingsData.map((b: any) => b.cars?.make).filter(Boolean);
-        const favoriteCarType = carMakes.length > 0 
-          ? carMakes.sort((a: string, b: string) => 
-              carMakes.filter((v: string) => v === a).length - carMakes.filter((v: string) => v === b).length
-            ).pop() || 'N/A'
-          : 'N/A';
-        
-        const membershipLevel = totalSpent > 1000 ? 'Gold' : totalSpent > 500 ? 'Silver' : 'Bronze';
-        const loyaltyPoints = Math.floor(totalSpent / 10);
-        const co2Saved = totalBookings * 2.3; // Estimated CO2 saved per booking
-        
-        setUserStats({
-          totalBookings,
-          totalSpent,
-          favoriteCarType,
-          membershipLevel,
-          loyaltyPoints,
-          co2Saved
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching user stats:', error);
-    }
-  };
-
-  const fetchNotifications = async () => {
-    try {
-      if (!user?.id) return;
-      
-      // Generate dynamic notifications based on user data
-      const notifications = [];
-      
-      // Check if user needs to upload license
-      const { data: license, error: licenseError } = await supabase
-        .from('licenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (licenseError && licenseError.code !== 'PGRST116') {
-        throw licenseError;
-      }
-      
-      if (!license) {
-        notifications.push({
-          id: 1,
-          title: 'Upload Your License',
-          message: 'Upload your driving license to start booking cars',
-          type: 'warning',
-          time: 'Pending',
-          created_at: new Date().toISOString()
-        });
-      } else {
-        const licenseData = license as LicenseData;
-        if (licenseData.verified === null) {
-          notifications.push({
-            id: 2,
-            title: 'License Under Review',
-            message: 'Your license is being verified. This usually takes 1-2 hours.',
-            type: 'info',
-            time: new Date(licenseData.created_at).toLocaleDateString(),
-            created_at: licenseData.created_at
-          });
-        } else if (licenseData.verified === true) {
-          notifications.push({
-            id: 3,
-            title: 'License Verified!',
-            message: 'Your driving license has been verified. You can now book cars.',
-            type: 'success',
-            time: new Date(licenseData.created_at).toLocaleDateString(),
-            created_at: licenseData.created_at
-          });
-        }
-      }
-      
-      // Check for recent bookings
-      if (bookings.length > 0) {
-        const recentBooking = bookings[0];
-        const bookingDate = new Date(recentBooking.start_datetime);
-        const now = new Date();
-        const diffTime = bookingDate.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays >= 0 && diffDays <= 1) {
-          notifications.push({
-            id: 4,
-            title: 'Upcoming Booking',
-            message: `Your booking for ${recentBooking.cars?.title} starts ${diffDays === 0 ? 'today' : 'tomorrow'}`,
-            type: 'info',
-            time: bookingDate.toLocaleDateString(),
-            created_at: recentBooking.created_at
-          });
-        }
-      }
-      
-      // Add welcome message if no other notifications
-      if (notifications.length === 0) {
-        notifications.push({
-          id: 5,
-          title: 'Welcome to Azure Drive Hub!',
-          message: 'Explore our premium fleet and start your journey',
-          type: 'success',
-          time: 'Welcome',
-          created_at: new Date().toISOString()
-        });
-      }
-      
-      setNotifications(notifications);
-    } catch (error) {
-      console.error('Error in fetchNotifications:', error);
-      // Fallback notification
-      setNotifications([{
-        id: 1,
-        title: 'Welcome!',
-        message: 'Welcome to Azure Drive Hub',
-        type: 'info',
-        time: 'Now',
-        created_at: new Date().toISOString()
-      }]);
-    }
-  };
-
-  const fetchFavorites = async () => {
-    if (!user?.id) return;
-    
-    // For now, use local storage for favorites until user_favorites table is created
-    try {
-      const savedFavorites = localStorage.getItem(`favorites_${user.id}`);
-      if (savedFavorites) {
-        setFavoriteCarIds(JSON.parse(savedFavorites));
-      } else {
-        setFavoriteCarIds([]);
-      }
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-      setFavoriteCarIds([]);
-    }
-  };
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [user?.id]); // ONLY depend on user?.id
 
   const toggleFavorite = (carId: string) => {
     const newFavorites = favoriteCarIds.includes(carId) 
@@ -349,6 +380,32 @@ const UserDashboard: React.FC = () => {
         return 'bg-destructive text-destructive-foreground';
       default:
         return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const getPaymentStatusColor = (status: string | null) => {
+    switch (status) {
+      case 'paid':
+        return 'bg-success text-success-foreground';
+      case 'partial_hold':
+        return 'bg-warning text-warning-foreground';
+      case 'unpaid':
+        return 'bg-destructive text-destructive-foreground';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const getPaymentStatusText = (status: string | null) => {
+    switch (status) {
+      case 'paid':
+        return 'Paid';
+      case 'partial_hold':
+        return 'Advance Paid';
+      case 'unpaid':
+        return 'Unpaid';
+      default:
+        return 'Unknown';
     }
   };
 
@@ -866,14 +923,48 @@ const UserDashboard: React.FC = () => {
                                       </span>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
+                                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
                                     <span className="text-lg sm:text-xl font-bold text-primary">
-                                      ${booking.total_amount}
+                                      {booking.total_amount_in_paise 
+                                        ? formatINRFromPaise(booking.total_amount_in_paise)
+                                        : `₹${booking.total_amount?.toLocaleString()}`}
                                     </span>
                                     {booking.cars?.rating && (
                                       <div className="flex items-center gap-1 bg-yellow-100 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                                         <Star className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-600 fill-current" />
                                         <span className="text-xs font-medium">{booking.cars.rating}</span>
+                                      </div>
+                                    )}
+                                    {booking.payment_status && (
+                                      <Badge className={`${getPaymentStatusColor(booking.payment_status)} px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-sm`}>
+                                        <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                        {getPaymentStatusText(booking.payment_status)}
+                                      </Badge>
+                                    )}
+                                    {booking.licenses && booking.licenses.length > 0 && (
+                                      <Badge 
+                                        className={`${
+                                          booking.licenses.some(l => l.verified) 
+                                            ? 'bg-success text-success-foreground' 
+                                            : booking.licenses.some(l => l.verified === false)
+                                              ? 'bg-destructive text-destructive-foreground'
+                                              : 'bg-warning text-warning-foreground'
+                                        } px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-sm`}
+                                      >
+                                        <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                        {booking.licenses.some(l => l.verified) 
+                                          ? 'License Verified' 
+                                          : booking.licenses.some(l => l.verified === false)
+                                            ? 'License Rejected'
+                                            : 'License Pending'}
+                                      </Badge>
+                                    )}
+                                    {booking.hold_until && booking.payment_status === 'partial_hold' && (
+                                      <div className="flex items-center gap-1 text-warning text-xs sm:text-sm">
+                                        <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                                        <span>
+                                          Hold until {new Date(booking.hold_until).toLocaleDateString()}
+                                        </span>
                                       </div>
                                     )}
                                   </div>
@@ -892,6 +983,16 @@ const UserDashboard: React.FC = () => {
                                     <Button variant="outline" size="sm" className="border-border hover:bg-primary/5 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3">
                                       <Star className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                                       Rate
+                                    </Button>
+                                  )}
+                                  {booking.status === 'pending' && booking.payment_status !== 'paid' && (
+                                    <Button 
+                                      size="sm" 
+                                      className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
+                                      onClick={() => navigate(`/booking/${booking.car_id}`)}
+                                    >
+                                      <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                      Pay Now
                                     </Button>
                                   )}
                                 </div>

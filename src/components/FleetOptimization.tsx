@@ -4,24 +4,17 @@ import {
   MapPin, 
   Fuel, 
   TrendingUp, 
-  Calendar, 
-  Filter, 
-  BarChart3, 
   Navigation,
   Zap,
   Car,
-  Clock,
   AlertTriangle,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
 
 interface FleetVehicle {
@@ -204,9 +197,9 @@ const FleetOptimization: React.FC = () => {
       const bVal = b[sortBy as keyof FleetVehicle];
       
       // Handle null/undefined values
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
+      if (aVal === null && bVal === null) {return 0;}
+      if (aVal === null) {return 1;}
+      if (bVal === null) {return -1;}
       
       if (sortOrder === 'asc') {
         return aVal > bVal ? 1 : -1;
@@ -245,19 +238,19 @@ const FleetOptimization: React.FC = () => {
 
   // Get efficiency rating
   const getEfficiencyRating = (efficiency: number | null) => {
-    if (!efficiency) return 'N/A';
-    if (efficiency >= 20) return 'Excellent';
-    if (efficiency >= 15) return 'Good';
-    if (efficiency >= 10) return 'Average';
+    if (!efficiency) {return 'N/A';}
+    if (efficiency >= 20) {return 'Excellent';}
+    if (efficiency >= 15) {return 'Good';}
+    if (efficiency >= 10) {return 'Average';}
     return 'Poor';
   };
 
   // Get efficiency color
   const getEfficiencyColor = (efficiency: number | null) => {
-    if (!efficiency) return 'text-muted-foreground';
-    if (efficiency >= 20) return 'text-green-600';
-    if (efficiency >= 15) return 'text-blue-600';
-    if (efficiency >= 10) return 'text-yellow-600';
+    if (!efficiency) {return 'text-muted-foreground';}
+    if (efficiency >= 20) {return 'text-green-600';}
+    if (efficiency >= 15) {return 'text-blue-600';}
+    if (efficiency >= 10) {return 'text-yellow-600';}
     return 'text-red-600';
   };
 

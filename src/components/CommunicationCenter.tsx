@@ -6,16 +6,11 @@ import {
   Phone, 
   Send, 
   Search, 
-  Filter, 
   User, 
-  Clock, 
   Check, 
   CheckCheck,
   Reply,
   Forward,
-  Archive,
-  Trash2,
-  Star,
   Paperclip,
   Smile,
   AtSign
@@ -27,7 +22,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;

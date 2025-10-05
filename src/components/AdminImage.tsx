@@ -91,7 +91,7 @@ export default function AdminImage({ src, alt = '', className = '', placeholder 
         alt={alt} 
         className={className} 
         loading="lazy"
-        onError={(e) => {
+        onError={(_e) => {
           console.log("Image onError triggered for:", finalSrc);
           // Fallback to error state
           setOk(false);

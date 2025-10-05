@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Upload, Car, Search, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, Car, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,9 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtime';
 import { formatINRFromPaise, toPaise } from '@/utils/currency';
 import SimpleImage from '@/components/SimpleImage';
-import { resolveImageUrlsForCarAdmin, mapCarForUI } from '@/utils/adminImageUtils';
+import { mapCarForUI } from '@/utils/adminImageUtils';
 import ImageCarousel from '@/components/ImageCarousel';
-import { CarService } from '@/services/api/carService';
 // Import the new image CRUD utilities
 import { 
   createCarWithImages, 
@@ -121,17 +120,17 @@ const AdminCarManagement: React.FC = () => {
   }, [cars, searchTerm, statusFilter, fuelFilter, transmissionFilter]);
 
   // Real-time subscription for cars
-  useRealtimeSubscription(
+  useRealtimeSubscription<Car>(
     'cars',
-    (payload: { new: any }) => {
+    (payload: { new: Car }) => {
       setCars(prev => [...prev, payload.new]);
     },
-    (payload: { new: any }) => {
+    (payload: { new: Car }) => {
       setCars(prev => prev.map(car => 
         car.id === payload.new.id ? payload.new : car
       ));
     },
-    (payload: { old: any }) => {
+    (payload: { old: Car }) => {
       setCars(prev => prev.filter(car => car.id !== payload.old.id));
     }
   );
@@ -152,7 +151,7 @@ const AdminCarManagement: React.FC = () => {
           id: (data[0] as any).id,
           title: (data[0] as any).title,
           image_urls: (data[0] as any).image_urls,
-          envUrl: import.meta.env.VITE_SUPABASE_URL
+          envUrl: import.meta.env.VITE_SUPABASE_URL || ''
         } : null
       });
       
@@ -283,11 +282,11 @@ const AdminCarManagement: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!carToDelete) return;
+    if (!carToDelete) {return;}
 
     try {
       // First try server-side deletion endpoint
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
       let serverDeleteSuccess = false;
       
       if (supabaseUrl) {

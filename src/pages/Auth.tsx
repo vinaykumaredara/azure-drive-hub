@@ -55,7 +55,7 @@ const Auth: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    const { error } = await signUp(email.trim(), password);
+    const { error: _error } = await signUp(email.trim(), password);
     
     // Don't navigate on signup - user needs to confirm email
     setIsLoading(false);

@@ -9,16 +9,44 @@ import { AuthProvider } from "./components/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CarTravelingLoader } from "./components/LoadingAnimations";
 import { GlobalErrorBoundary } from "./components/GlobalErrorBoundary";
-import { ErrorBoundary } from "./components/ErrorBoundary";
 import OfflineBanner from "./components/OfflineBanner";
 
-// Lazy load pages for better performance
-const Index = React.lazy(() => import("./pages/Index"));
-const Auth = React.lazy(() => import("./pages/Auth"));
-const Booking = React.lazy(() => import("./pages/Booking"));
-const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
-const UserDashboard = React.lazy(() => import("./pages/UserDashboard"));
-const NotFound = React.lazy(() => import("./pages/NotFound"));
+// Lazy load pages for better performance with preload optimization
+const Index = React.lazy(() => {
+  // Preload critical modules
+  import("./pages/Index");
+  return import("./pages/Index");
+});
+
+const Auth = React.lazy(() => {
+  // Preload critical modules
+  import("./pages/Auth");
+  return import("./pages/Auth");
+});
+
+const Booking = React.lazy(() => {
+  // Preload critical modules
+  import("./pages/Booking");
+  return import("./pages/Booking");
+});
+
+const AdminDashboard = React.lazy(() => {
+  // Preload critical modules
+  import("./pages/AdminDashboard");
+  return import("./pages/AdminDashboard");
+});
+
+const UserDashboard = React.lazy(() => {
+  // Preload critical modules
+  import("./pages/UserDashboard");
+  return import("./pages/UserDashboard");
+});
+
+const NotFound = React.lazy(() => {
+  // Preload critical modules
+  import("./pages/NotFound");
+  return import("./pages/NotFound");
+});
 
 const App = () => (
   <GlobalErrorBoundary>

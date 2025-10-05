@@ -3,9 +3,32 @@
 
 // Cache for resolved URLs to improve performance
 const urlCache = new Map<string, string>();
+const imageCache = new Map<string, HTMLImageElement>();
 
 // Fallback image URL for when images fail to load
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
+
+/**
+ * Preload an image and cache it for better performance
+ * @param src - Image source URL
+ * @returns Promise that resolves when image is loaded
+ */
+export function preloadImage(src: string): Promise<HTMLImageElement> {
+  // Check if already cached
+  if (imageCache.has(src)) {
+    return Promise.resolve(imageCache.get(src)!);
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      imageCache.set(src, img);
+      resolve(img);
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 
 /**
  * Resolve a car image URL from either a storage path or a full URL
@@ -96,6 +119,24 @@ export function standardizeCarImageData(car: any) {
     : FALLBACK_IMAGE;
   
   return { ...car, image_paths, image_urls, images, thumbnail };
+}
+
+/**
+ * Validate if an image URL is accessible
+ * @param url - Image URL to validate
+ * @returns Promise that resolves to true if URL is accessible, false otherwise
+ */
+export async function validateImageUrl(url: string): Promise<boolean> {
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    return false;
+  }
+  
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**

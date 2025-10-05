@@ -2,7 +2,6 @@
 // Complete Image CRUD Reliability Utilities
 
 import { supabase } from '@/integrations/supabase/client';
-import { resolveCarImageUrl } from '@/utils/carImageUtils';
 
 // Fallback image URL
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
@@ -118,7 +117,8 @@ export async function removeImagesFromStorage(imageUrls: string[] | null | undef
         return pathParts.slice(bucketIndex + 1).join('/');
       }
       return url; // Fallback to original if we can't parse
-    } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_err) {
       return url; // Fallback to original if URL parsing fails
     }
   });
@@ -132,8 +132,8 @@ export async function removeImagesFromStorage(imageUrls: string[] | null | undef
       console.warn('Warning: Some images could not be removed from storage:', error);
       // Don't throw error as this shouldn't break the main flow
     }
-  } catch (err) {
-    console.warn('Warning: Error removing images from storage:', err);
+  } catch (_err) {
+    console.warn('Warning: Error removing images from storage:', _err);
     // Don't throw error as this shouldn't break the main flow
   }
 }

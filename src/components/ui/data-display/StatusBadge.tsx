@@ -8,7 +8,7 @@ interface StatusBadgeProps {
 
 const StatusBadge = ({ status, variant }: StatusBadgeProps) => {
   const getVariant = () => {
-    if (variant) return variant;
+    if (variant) {return variant;}
     
     switch (status.toLowerCase()) {
       case 'published':

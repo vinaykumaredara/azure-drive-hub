@@ -30,7 +30,7 @@ const DataTable = <T extends Record<string, any>>({
   const [searchTerm, setSearchTerm] = useState('');
 
   const sortedData = useMemo(() => {
-    let sortableData = [...data];
+    const sortableData = [...data];
     
     if (sortConfig !== null) {
       sortableData.sort((a, b) => {
@@ -48,7 +48,7 @@ const DataTable = <T extends Record<string, any>>({
   }, [data, sortConfig]);
 
   const filteredData = useMemo(() => {
-    if (!searchable || !searchTerm) return sortedData;
+    if (!searchable || !searchTerm) {return sortedData;}
     
     return sortedData.filter(item => 
       columns.some(column => {
@@ -68,7 +68,7 @@ const DataTable = <T extends Record<string, any>>({
   };
 
   const getSortIcon = (key: keyof T) => {
-    if (!sortConfig || sortConfig.key !== key) return null;
+    if (!sortConfig || sortConfig.key !== key) {return null;}
     return sortConfig.direction === 'asc' ? 
       <ChevronUp className="ml-1 h-4 w-4" /> : 
       <ChevronDown className="ml-1 h-4 w-4" />;

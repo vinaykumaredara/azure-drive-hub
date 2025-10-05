@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Search, Filter, Eye, Shield, AlertCircle, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { User, Search, Eye, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

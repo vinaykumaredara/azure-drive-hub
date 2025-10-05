@@ -3,9 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Car, Users, Calendar, DollarSign, Settings, Plus, 
   Edit, Trash2, Eye, BarChart3, Bell, Upload,
-  CheckCircle, XCircle, Clock, MapPin, Shield, 
-  MessageCircle, Ticket, Wrench, User, TrendingUp,
-  Phone, Mail, Navigation, Zap
+  CheckCircle, XCircle, MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,9 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -108,7 +103,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const [stats, setStats] = useState<DashboardStats>(initialStats);
   const [cars, setCars] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
 
   // Fetch real-time dashboard data
   useEffect(() => {
@@ -121,7 +116,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           .from('cars')
           .select('id, title, model, make, location_city, price_per_day, status');
         
-        if (carsError) throw carsError;
+        if (carsError) {throw carsError;}
         
         // Fetch bookings with user and car info
         const { data: bookingsData, error: bookingsError } = await supabase
@@ -137,14 +132,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             users(full_name)
           `);
         
-        if (bookingsError) throw bookingsError;
+        if (bookingsError) {throw bookingsError;}
         
         // Fetch users count
         const { count: usersCount, error: usersError } = await supabase
           .from('users')
           .select('*', { count: 'exact', head: true });
         
-        if (usersError) throw usersError;
+        if (usersError) {throw usersError;}
         
         // Calculate stats
         const totalCars = carsData?.length || 0;
@@ -392,67 +387,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       <Button variant="ghost" size="sm">
                         <Trash2 className="w-4 h-4" />
                       </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderBookingsManagement = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold">Booking Management</h3>
-
-      <div className="grid gap-4">
-        {bookings.map((booking: BookingData) => (
-          <motion.div
-            key={booking.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h4 className="font-semibold">{booking.id.substring(0, 8)}</h4>
-                      <Badge variant={
-                        booking.status === 'confirmed' ? 'default' :
-                        booking.status === 'pending' ? 'secondary' : 'outline'
-                      }>
-                        {booking.status}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {booking.users?.full_name || 'Unknown User'} • {booking.cars?.title || 'Unknown Car'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(booking.start_datetime).toLocaleDateString()} to {new Date(booking.end_datetime).toLocaleDateString()}
-                    </p>
-                    {booking.hold_expires_at && (
-                      <p className="text-xs text-warning mt-1 flex items-center space-x-1">
-                        <Clock className="w-3 h-3" />
-                        <span>Hold expires: {new Date(booking.hold_expires_at).toLocaleTimeString()}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="text-right">
-                    <p className="font-bold text-lg">₹{(booking.total_amount || 0).toLocaleString()}</p>
-                    <div className="flex space-x-2 mt-2">
-                      {booking.status === 'pending' && (
-                        <>
-                          <Button size="sm" variant="outline">Approve</Button>
-                          <Button size="sm" variant="destructive">Cancel</Button>
-                        </>
-                      )}
-                      {booking.status === 'confirmed' && (
-                        <Button size="sm" variant="outline">Manage</Button>
-                      )}
                     </div>
                   </div>
                 </div>

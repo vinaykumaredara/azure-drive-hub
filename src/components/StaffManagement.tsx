@@ -2,28 +2,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
-  Calendar, 
   DollarSign, 
   Award, 
-  Clock, 
   CheckCircle, 
-  XCircle, 
   Search, 
-  Filter, 
-  Plus, 
   Edit, 
   Trash2, 
   Eye, 
   UserPlus,
   TrendingUp
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
 
 interface StaffMember {
@@ -51,24 +45,9 @@ const StaffManagement: React.FC = () => {
   const [sortBy, setSortBy] = useState('performance_score');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Real-time subscription
+  // Fetch staff data
   useEffect(() => {
     fetchStaff();
-    
-    const channel = supabase
-      .channel('staff_management')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'users' },
-        (payload) => {
-          console.log('Staff change detected:', payload);
-          fetchStaff(); // Refresh data
-        }
-      )
-      .subscribe();
-    
-    return () => {
-      channel.unsubscribe();
-    };
   }, []);
 
   const fetchStaff = async () => {
@@ -178,15 +157,21 @@ const StaffManagement: React.FC = () => {
       const bVal = b[sortBy as keyof StaffMember];
       
       // Handle null/undefined values
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
+      if (aVal === null && bVal === null) {return 0;}
+      if (aVal === null) {return 1;}
+      if (bVal === null) {return -1;}
       
-      if (sortOrder === 'asc') {
-        return aVal > bVal ? 1 : -1;
-      } else {
-        return aVal < bVal ? 1 : -1;
+      // Type guard to ensure values are comparable
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+      }
+      
+      // Fallback for other types
+      return 0;
     });
     
     return filtered;

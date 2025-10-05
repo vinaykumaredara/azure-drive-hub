@@ -1,6 +1,6 @@
 // Custom hook for car data management with caching and error handling
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { carApi, type Car, type CarListResponse, apiCache } from '@/lib/api';
+import { carApi, type Car, apiCache } from '@/lib/api';
 
 interface UseCarFilters {
   from?: string;
@@ -122,10 +122,9 @@ export function useCars(filters: UseCarFilters = {}): UseCarsReturn {
 
   const refetch = useCallback(() => {
     // Clear cache and refetch
-    const cacheKey = JSON.stringify({ action: 'getCars', filters });
     apiCache.clear();
     fetchCars();
-  }, [fetchCars, filters]);
+  }, [fetchCars]);
 
   const clearError = useCallback(() => {
     setError(null);

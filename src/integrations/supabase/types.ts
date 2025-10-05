@@ -47,6 +47,9 @@ export interface Database {
           total_amount: number | null
           payment_id: string | null
           created_at: string
+          // Added fields from migrations
+          total_amount_in_paise: number | null
+          currency: string | null
         }
         Insert: {
           id?: string
@@ -59,6 +62,9 @@ export interface Database {
           total_amount?: number | null
           payment_id?: string | null
           created_at?: string
+          // Added fields from migrations
+          total_amount_in_paise?: number | null
+          currency?: string | null
         }
         Update: {
           id?: string
@@ -71,6 +77,9 @@ export interface Database {
           total_amount?: number | null
           payment_id?: string | null
           created_at?: string
+          // Added fields from migrations
+          total_amount_in_paise?: number | null
+          currency?: string | null
         }
       }
       cars: {
@@ -92,6 +101,12 @@ export interface Database {
           image_urls: string[] | null
           image_paths: string[] | null
           created_at: string | null
+          // Added fields from migrations
+          booking_status: string | null
+          booked_by: string | null
+          booked_at: string | null
+          price_in_paise: number | null
+          currency: string | null
         }
         Insert: {
           id?: string
@@ -111,6 +126,12 @@ export interface Database {
           image_urls?: string[] | null
           image_paths?: string[] | null
           created_at?: string | null
+          // Added fields from migrations
+          booking_status?: string | null
+          booked_by?: string | null
+          booked_at?: string | null
+          price_in_paise?: number | null
+          currency?: string | null
         }
         Update: {
           id?: string
@@ -130,6 +151,12 @@ export interface Database {
           image_urls?: string[] | null
           image_paths?: string[] | null
           created_at?: string | null
+          // Added fields from migrations
+          booking_status?: string | null
+          booked_by?: string | null
+          booked_at?: string | null
+          price_in_paise?: number | null
+          currency?: string | null
         }
       }
       complaints: {
@@ -254,6 +281,9 @@ export interface Database {
           amount: number | null
           status: string | null
           created_at: string
+          // Added fields from migrations
+          amount_in_paise: number | null
+          currency: string | null
         }
         Insert: {
           id?: string
@@ -263,6 +293,9 @@ export interface Database {
           amount?: number | null
           status?: string | null
           created_at?: string
+          // Added fields from migrations
+          amount_in_paise?: number | null
+          currency?: string | null
         }
         Update: {
           id?: string
@@ -272,6 +305,9 @@ export interface Database {
           amount?: number | null
           status?: string | null
           created_at?: string
+          // Added fields from migrations
+          amount_in_paise?: number | null
+          currency?: string | null
         }
       }
       promo_codes: {
@@ -335,6 +371,11 @@ export interface Database {
           created_at: string | null
           license_path: string | null
           license_verified: boolean | null
+          // Added suspension columns
+          is_suspended: boolean | null
+          suspension_reason: string | null
+          suspended_at: string | null
+          suspended_by: string | null
         }
         Insert: {
           id: string
@@ -344,6 +385,11 @@ export interface Database {
           created_at?: string | null
           license_path?: string | null
           license_verified?: boolean | null
+          // Added suspension columns
+          is_suspended?: boolean | null
+          suspension_reason?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
         }
         Update: {
           id?: string
@@ -353,17 +399,109 @@ export interface Database {
           created_at?: string | null
           license_path?: string | null
           license_verified?: boolean | null
+          // Added suspension columns
+          is_suspended?: boolean | null
+          suspension_reason?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
         }
       }
     }
     Views: {
-      [_ in never]: never
+      [key: string]: {
+        Row: any;
+        Insert: any;
+        Update: any;
+      };
     }
     Functions: {
-      [_ in never]: never
+      [key: string]: {
+        Args: any;
+        Returns: any;
+      };
     }
     Enums: {
-      [_ in never]: never
+      [key: string]: any;
     }
   }
 }
+
+export type Tables<
+  PublicTableNameOrOptions extends
+    | keyof (Database["public"]["Tables"] & Database["public"]["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] &
+      Database["public"]["Views"])
+  ? (Database["public"]["Tables"] &
+      Database["public"]["Views"])[PublicTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : never
+
+export type TablesInsert<
+  PublicTableNameOrOptions extends
+    | keyof Database["public"]["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
+  ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : never
+
+export type TablesUpdate<
+  PublicTableNameOrOptions extends
+    | keyof Database["public"]["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
+  ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : never
+
+export type Enums<
+  PublicEnumNameOrOptions extends
+    | keyof Database["public"]["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof Database["public"]["Enums"]
+  ? Database["public"]["Enums"][PublicEnumNameOrOptions]
+  : never

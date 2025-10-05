@@ -12,7 +12,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579a
  * @returns Car object with standardized image properties
  */
 export function standardizeCarImageData(car: any): any {
-  if (!car) return car;
+  if (!car) {return car;}
 
   // Create a copy of the car object to avoid mutating the original
   const standardizedCar = { ...car };
@@ -113,7 +113,7 @@ export function getCarImageData(car: any): { images: string[]; thumbnail: string
  * @returns Car object with validated image URLs
  */
 export async function validateCarImageUrls(car: any): Promise<any> {
-  if (!car) return car;
+  if (!car) {return car;}
 
   const standardizedCar = standardizeCarImageData(car);
   
@@ -157,7 +157,7 @@ export async function validateCarImageUrls(car: any): Promise<any> {
  * @returns Car object formatted for UI display
  */
 export function mapCarForUI(car: any): any {
-  if (!car) return car;
+  if (!car) {return car;}
 
   // Standardize image data first
   const standardizedCar = standardizeCarImageData(car);

@@ -1,0 +1,25 @@
+{
+  "short_name": "RP Cars",
+  "name": "RP Cars - Premium Car Rentals",
+  "icons": [
+    {
+      "src": "/src/assets/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/src/assets/logo-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/src/assets/logo-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#6366F1",
+  "background_color": "#ffffff"
+}

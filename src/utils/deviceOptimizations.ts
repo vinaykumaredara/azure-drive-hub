@@ -101,19 +101,22 @@ export function getDeviceRenderingOptimizations() {
     return {
       maxListItems: 10, // Limit list items on mobile
       lazyLoadOffset: 100, // Load items when 100px from viewport
-      enableHardwareAcceleration: true
+      enableHardwareAcceleration: true,
+      disableAnimations: true // Disable animations on mobile for better performance
     };
   } else if (isTabletDevice()) {
     return {
       maxListItems: 20,
       lazyLoadOffset: 200,
-      enableHardwareAcceleration: true
+      enableHardwareAcceleration: true,
+      disableAnimations: false
     };
   } else {
     return {
       maxListItems: 50,
       lazyLoadOffset: 300,
-      enableHardwareAcceleration: true
+      enableHardwareAcceleration: true,
+      disableAnimations: false
     };
   }
 }
@@ -133,6 +136,13 @@ export function applyDeviceOptimizations() {
     document.documentElement.style.setProperty('--animate-fast', '100ms');
     document.documentElement.style.setProperty('--animate-normal', '150ms');
     document.documentElement.style.setProperty('--animate-slow', '200ms');
+  }
+  
+  // Disable heavy animations if requested
+  if (getDeviceRenderingOptimizations().disableAnimations) {
+    document.documentElement.style.setProperty('--animate-fast', '0ms');
+    document.documentElement.style.setProperty('--animate-normal', '0ms');
+    document.documentElement.style.setProperty('--animate-slow', '0ms');
   }
 }
 

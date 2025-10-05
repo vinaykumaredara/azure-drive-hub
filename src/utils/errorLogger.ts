@@ -107,7 +107,7 @@ export class ErrorLogger {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...errorData, errorId })
-      }).catch(err => {
+      }).catch(_err => {
         // Fallback: store in localStorage for later retry
         if (typeof localStorage !== 'undefined') {
           const stored = localStorage.getItem('pending_errors') ?? '[]';

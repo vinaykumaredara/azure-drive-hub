@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 
 // Simple debounce implementation
 function debounce<T extends (...args: any[]) => any>(
@@ -27,9 +27,9 @@ export const useDebouncedCallback = (callback: (...args: any[]) => void, delay: 
 export const useMemoizedFilter = <T>(
   items: T[],
   filterFn: (item: T) => boolean,
-  dependencies: any[]
+  _dependencies: any[]
 ) => {
-  return useMemo(() => items.filter(filterFn), [items, ...dependencies]);
+  return useMemo(() => items.filter(filterFn), [items, filterFn]);
 };
 
 // Custom hook for intersection observer (lazy loading)

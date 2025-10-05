@@ -2,11 +2,23 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
-export function useRealtimeSubscription(
+// Define the type for Supabase realtime payload
+interface SupabaseRealtimePayload<T> {
+  commit_timestamp: string;
+  errors: string[] | null;
+  eventType: string;
+  id: number;
+  new: T;
+  old: T;
+  schema: string;
+  table: string;
+}
+
+export function useRealtimeSubscription<T = any>(
   table: string,
-  onInsert?: (payload: any) => void,
-  onUpdate?: (payload: any) => void,
-  onDelete?: (payload: any) => void,
+  onInsert?: (payload: SupabaseRealtimePayload<T>) => void,
+  onUpdate?: (payload: SupabaseRealtimePayload<T>) => void,
+  onDelete?: (payload: SupabaseRealtimePayload<T>) => void,
   filter?: string
 ) {
   useEffect(() => {
@@ -22,9 +34,10 @@ export function useRealtimeSubscription(
             event: 'INSERT',
             schema: 'public',
             table,
-            filter,
           },
-          onInsert
+          (payload) => {
+            onInsert(payload as unknown as SupabaseRealtimePayload<T>);
+          }
         );
       }
 
@@ -35,9 +48,10 @@ export function useRealtimeSubscription(
             event: 'UPDATE',
             schema: 'public',
             table,
-            filter,
           },
-          onUpdate
+          (payload) => {
+            onUpdate(payload as unknown as SupabaseRealtimePayload<T>);
+          }
         );
       }
 
@@ -48,9 +62,10 @@ export function useRealtimeSubscription(
             event: 'DELETE',
             schema: 'public',
             table,
-            filter,
           },
-          onDelete
+          (payload) => {
+            onDelete(payload as unknown as SupabaseRealtimePayload<T>);
+          }
         );
       }
 

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CarCardModern } from "@/components/CarCardModern";
+import { VirtualCarList } from "@/components/VirtualCarList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
 import { toast } from "@/hooks/use-toast";
 import { mapCarForUI } from '@/utils/carImageUtils';
+import { performanceMonitor } from '@/utils/performanceMonitor';
+import { isMobileDevice } from '@/utils/deviceOptimizations';
 
 // Interface for the data we receive from Supabase (allows null values)
 interface SupabaseCar {
@@ -69,6 +72,8 @@ interface DisplayCar {
   image_paths: string[] | null;
   // Added for CarCard compatibility
   thumbnail?: string;
+  // Add status field
+  status?: string | null;
 }
 
 // Transform Supabase car to display format
@@ -111,7 +116,9 @@ const transformCarForDisplay = (car: SupabaseCar): DisplayCar => {
     image_urls: car.image_urls,
     image_paths: car.image_paths || null, // Ensure it's null and not undefined
     // Added for CarCard compatibility
-    thumbnail: mappedCar.thumbnail || ''
+    thumbnail: mappedCar.thumbnail || '',
+    // Add status field
+    status: car.status
   };
   
   return transformed;
@@ -149,7 +156,8 @@ export const UserCarListing = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
+  const [_totalCount, setTotalCount] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const ITEMS_PER_PAGE = 12;
 
@@ -159,7 +167,10 @@ export const UserCarListing = () => {
       setLoading(true);
       setError(null);
       
-      // Build base query
+      // Measure query performance
+      const queryStartTime = performance.now();
+      
+      // Build base query with optimized selection
       const query = supabase
         .from('cars')
         .select(`
@@ -192,9 +203,14 @@ export const UserCarListing = () => {
       // Execute query
       const { data, error: fetchError, count } = await query;
 
+      const queryEndTime = performance.now();
+      console.log(`Database query took ${queryEndTime - queryStartTime} milliseconds`);
+
       if (fetchError && fetchError.message.includes('column "booking_status" does not exist')) {
         // Retry without booking_status column
         console.log('Schema error detected, retrying without booking_status column');
+        const retryStartTime = performance.now();
+        
         const { data: retryData, error: retryError, count: retryCount } = await supabase
           .from('cars')
           .select(`
@@ -221,11 +237,14 @@ export const UserCarListing = () => {
           .range(pageNum * ITEMS_PER_PAGE, (pageNum + 1) * ITEMS_PER_PAGE - 1)
           .order('created_at', { ascending: false });
 
-        if (retryError) throw retryError;
+        const retryEndTime = performance.now();
+        console.log(`Retry query took ${retryEndTime - retryStartTime} milliseconds`);
+
+        if (retryError) {throw retryError;}
         
         // Transform and set data
         const transformedData = retryData.map(transformCarForDisplay);
-        setCars(transformedData);
+        setCars(prev => pageNum === 0 ? transformedData : [...prev, ...transformedData]);
         setTotalCount(retryCount || 0);
         setHasMore((pageNum + 1) * ITEMS_PER_PAGE < (retryCount || 0));
       } else if (fetchError) {
@@ -233,7 +252,7 @@ export const UserCarListing = () => {
       } else {
         // Transform and set data
         const transformedData = data.map(transformCarForDisplay);
-        setCars(transformedData);
+        setCars(prev => pageNum === 0 ? transformedData : [...prev, ...transformedData]);
         setTotalCount(count || 0);
         setHasMore((pageNum + 1) * ITEMS_PER_PAGE < (count || 0));
       }
@@ -253,11 +272,14 @@ export const UserCarListing = () => {
 
   // Fetch initial data
   useEffect(() => {
-    fetchCars(0);
+    // Measure initial load performance
+    performanceMonitor.measureFunctionTime('Initial Car Load', () => {
+      fetchCars(0);
+    });
   }, []);
 
-  // Real-time subscription
-  useRealtimeSubscription(
+  // Real-time subscription with performance monitoring
+  useRealtimeSubscription<any>(
     'cars',
     (payload) => {
       // New car added
@@ -276,54 +298,78 @@ export const UserCarListing = () => {
   );
 
   const loadMore = () => {
-    if (!hasMore || loading) return;
+    if (!hasMore || loading) {return;}
     const nextPage = page + 1;
     setPage(nextPage);
     fetchCars(nextPage);
   };
 
-  // Filter and sort cars
+  // Filter and sort cars with memoization
   const processedCars = useMemo(() => {
-    let filtered = [...cars];
+    return performanceMonitor.measureFunctionTime('Filter and Sort Cars', () => {
+      let filtered = [...cars];
 
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(car => 
-        car.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        car.make?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        car.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        car.location.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+      // Apply search filter
+      if (searchQuery) {
+        filtered = filtered.filter(car => 
+          car.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          car.make?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          car.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          car.location.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
 
-    // Apply seat filter
-    if (seatFilter !== "all") {
-      filtered = filtered.filter(car => car.seats?.toString() === seatFilter);
-    }
+      // Apply seat filter
+      if (seatFilter !== "all") {
+        filtered = filtered.filter(car => car.seats?.toString() === seatFilter);
+      }
 
-    // Apply fuel filter
-    if (fuelFilter !== "all") {
-      filtered = filtered.filter(car => car.fuel?.toLowerCase() === fuelFilter);
-    }
+      // Apply fuel filter
+      if (fuelFilter !== "all") {
+        filtered = filtered.filter(car => car.fuel?.toLowerCase() === fuelFilter);
+      }
 
-    // Apply sorting
-    switch (sortBy) {
-      case "price-asc":
-        filtered.sort((a, b) => a.pricePerDay - b.pricePerDay);
-        break;
-      case "price-desc":
-        filtered.sort((a, b) => b.pricePerDay - a.pricePerDay);
-        break;
-      case "rating-desc":
-        filtered.sort((a, b) => b.rating - a.rating);
-        break;
-      default:
-        // "popular" - default order (newest first)
-        break;
-    }
+      // Apply sorting
+      switch (sortBy) {
+        case "price-asc":
+          filtered.sort((a, b) => a.pricePerDay - b.pricePerDay);
+          break;
+        case "price-desc":
+          filtered.sort((a, b) => b.pricePerDay - a.pricePerDay);
+          break;
+        case "rating-desc":
+          filtered.sort((a, b) => b.rating - a.rating);
+          break;
+        default:
+          // "popular" - default order (newest first)
+          break;
+      }
 
-    return filtered;
+      return filtered;
+    });
   }, [cars, searchQuery, seatFilter, fuelFilter, sortBy]);
+
+  // Intersection Observer for infinite scroll
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || loading) {return;}
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    observer.observe(sentinelRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, loading]);
 
   if (!isInitialized) {
     return <CarTravelingLoader />;
@@ -423,47 +469,60 @@ export const UserCarListing = () => {
           </Button>
         </div>
 
-        {/* Car Grid */}
+        {/* Car Grid or Virtual List */}
         {processedCars.length === 0 ? (
           <EmptyCarState />
+        ) : isMobileDevice() ? (
+          // Use virtual scrolling on mobile for better performance
+          <VirtualCarList cars={processedCars} itemHeight={300} />
         ) : (
+          // Use regular grid on desktop
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {processedCars.map((car, index) => (
-                <motion.div
-                  key={car.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                >
-                  <CarCardModern car={{
-                    id: car.id,
-                    title: car.title,
-                    model: car.model || 'Unknown Model',
-                    make: car.make || undefined,
-                    year: car.year || undefined,
-                    image: car.image,
-                    images: car.images,
-                    pricePerDay: car.pricePerDay,
-                    location: car.location,
-                    fuel: car.fuel || 'Unknown',
-                    transmission: car.transmission || 'Unknown',
-                    seats: car.seats || 0,
-                    rating: car.rating,
-                    reviewCount: car.reviewCount,
-                    isAvailable: car.isAvailable,
-                    badges: car.badges,
-                    thumbnail: car.thumbnail,
-                    bookingStatus: car.bookingStatus || undefined,
-                    price_in_paise: car.pricePerDay * 100,
-                    image_urls: car.image_urls,
-                    image_paths: car.image_paths
-                  }} />
-                </motion.div>
-              ))}
+            <div 
+              ref={containerRef}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
+              <AnimatePresence>
+                {processedCars.map((car, index) => (
+                  <motion.div
+                    key={car.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                  >
+                    <CarCardModern car={{
+                      id: car.id,
+                      title: car.title,
+                      model: car.model || 'Unknown Model',
+                      make: car.make || undefined,
+                      year: car.year || undefined,
+                      image: car.image,
+                      images: car.images,
+                      pricePerDay: car.pricePerDay,
+                      location: car.location,
+                      fuel: car.fuel || 'Unknown',
+                      transmission: car.transmission || 'Unknown',
+                      seats: car.seats || 0,
+                      rating: car.rating,
+                      reviewCount: car.reviewCount,
+                      isAvailable: car.isAvailable,
+                      badges: car.badges,
+                      thumbnail: car.thumbnail,
+                      bookingStatus: car.bookingStatus || undefined,
+                      price_in_paise: car.pricePerDay * 100,
+                      image_urls: car.image_urls,
+                      image_paths: car.image_paths
+                    }} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
 
-            {/* Load More Button */}
+            {/* Infinite Scroll Sentinel */}
+            <div ref={sentinelRef} className="h-10" />
+
+            {/* Load More Button (fallback for non-intersection observer) */}
             {hasMore && (
               <div className="text-center mt-12">
                 <Button

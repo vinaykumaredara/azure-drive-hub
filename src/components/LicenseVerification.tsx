@@ -7,7 +7,6 @@ import {
   XCircle, 
   Clock, 
   Search, 
-  Filter, 
   Eye,
   Download,
   AlertCircle,
@@ -20,7 +19,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface License {
   id: string;
@@ -148,9 +146,9 @@ const LicenseVerification: React.FC = () => {
       const bVal = b[sortBy as keyof License];
       
       // Handle null/undefined values
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
+      if (aVal === null && bVal === null) {return 0;}
+      if (aVal === null) {return 1;}
+      if (bVal === null) {return -1;}
       
       if (sortOrder === 'asc') {
         return aVal > bVal ? 1 : -1;
@@ -184,14 +182,14 @@ const LicenseVerification: React.FC = () => {
 
   // Get confidence color
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 90) return 'text-green-600';
-    if (confidence >= 80) return 'text-blue-600';
-    if (confidence >= 70) return 'text-yellow-600';
+    if (confidence >= 90) {return 'text-green-600';}
+    if (confidence >= 80) {return 'text-blue-600';}
+    if (confidence >= 70) {return 'text-yellow-600';}
     return 'text-red-600';
   };
 
   // Handle verification action
-  const handleVerify = async (licenseId: string, status: 'verified' | 'rejected', notes: string) => {
+  const handleVerify = async (licenseId: string, status: 'verified' | 'rejected', _notes: string) => {
     // In a real app, this would update the database
     toast({
       title: `License ${status}`,
@@ -548,13 +546,13 @@ const LicenseVerification: React.FC = () => {
                 <div className="flex justify-end gap-3">
                   <Button 
                     variant="destructive"
-                    onClick={() => handleVerify(selectedLicense.id, 'rejected', 'License rejected')}
+                    onClick={() => handleVerify(selectedLicense.id, 'rejected', '')}
                   >
                     <XCircle className="w-4 h-4 mr-2" />
                     Reject License
                   </Button>
                   <Button 
-                    onClick={() => handleVerify(selectedLicense.id, 'verified', 'License verified successfully')}
+                    onClick={() => handleVerify(selectedLicense.id, 'verified', '')}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Verify License

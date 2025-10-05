@@ -61,7 +61,7 @@ const BookingPage: React.FC = () => {
   const [payMode, setPayMode] = useState<"full" | "hold">("full");
   const [licenseUploaded, setLicenseUploaded] = useState(false);
   const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
-  const [holdId, setHoldId] = useState<string | null>(null);
+  const [_holdId, setHoldId] = useState<string | null>(null);
 
   // Fetch car details from Supabase
   const fetchCar = async () => {
@@ -171,7 +171,7 @@ const BookingPage: React.FC = () => {
   };
 
   const duration = calculateDuration();
-  const days = duration.isValid ? duration.days : 0;
+  const days = calculateDays();
   const actualHours = duration.hours || 0;
   const billingHours = duration.billingHours || 0;
   const subtotal = car ? car.price_per_day * days : 0;
@@ -215,7 +215,7 @@ const BookingPage: React.FC = () => {
     }
   };
 
-  const handleLicenseUpload = (licenseId: string) => {
+  const handleLicenseUpload = (_licenseId: string) => {
     setLicenseUploaded(true);
     toast({
       title: "License Uploaded",
@@ -245,7 +245,7 @@ const BookingPage: React.FC = () => {
     }
   };
 
-  const handlePaymentSuccess = (bookingId: string) => {
+  const handlePaymentSuccess = (_bookingId: string) => {
     toast({
       title: "Booking Confirmed!",
       description: "Your car has been successfully booked. Check your dashboard for details.",

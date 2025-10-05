@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface ErrorBoundaryState {
   hasError: boolean;

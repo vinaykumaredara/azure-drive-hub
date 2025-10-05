@@ -9,7 +9,7 @@ interface ErrorFallbackProps {
   resetErrorBoundary: () => void;
 }
 
-const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetErrorBoundary }) => {
+const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error: _error, resetErrorBoundary }) => {
   const navigate = useNavigate();
   
   const handleGoHome = () => {
@@ -60,9 +60,9 @@ export class GlobalErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
-  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error caught by boundary:', error);
-    console.error('Error info:', errorInfo);
+  override componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', _error);
+    console.error('Error info:', _errorInfo);
   }
 
   override render() {
