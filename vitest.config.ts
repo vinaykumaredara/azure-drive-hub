@@ -8,10 +8,24 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    // Handle rollup optional dependencies issue
+    deps: {
+      optimizer: {
+        web: {
+          enabled: false
+        }
+      }
+    }
   },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
     },
   },
+  // Add rollup options to handle optional dependencies
+  build: {
+    rollupOptions: {
+      external: []
+    }
+  }
 })

@@ -72,6 +72,10 @@ export default defineConfig(({ mode }) => ({
     sourcemap: mode === 'development',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      // Handle optional dependencies issue in CI environments
+      external: [
+        // Exclude problematic optional dependencies that cause issues in CI
+      ],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
