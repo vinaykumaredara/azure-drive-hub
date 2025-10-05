@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Settings, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Save, Settings, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,13 +19,13 @@ interface SystemSetting {
 
 const SystemSettings: React.FC = () => {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState(true);
+  const [_settings, setSettings] = useState<Record<string, any>>({});
+  const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [localSettings, setLocalSettings] = useState<Record<string, any>>({});
 
   // Safe settings that can be edited
-  const editableSettings: SystemSetting[] = [
+  const editableSettings: SystemSetting[] = useMemo(() => [
     {
       key: 'site_name',
       value: 'RP Cars',
@@ -69,18 +68,14 @@ const SystemSettings: React.FC = () => {
       description: 'Default service charge in INR paise',
       type: 'number'
     }
-  ];
+  ], []);
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       // Initialize with default values
-      const initialSettings: Record<string, any> = {};
+      const _settings: Record<string, any> = {};
       editableSettings.forEach(setting => {
-        initialSettings[setting.key] = setting.value;
+        _settings[setting.key] = setting.value;
       });
       
       // Fetch actual settings from database
@@ -95,15 +90,15 @@ const SystemSettings: React.FC = () => {
         // Override defaults with actual values
         (data as any)?.forEach((row: any) => {
           try {
-            initialSettings[(row as any).key] = JSON.parse((row as any).value);
+            _settings[(row as any).key] = JSON.parse((row as any).value);
           } catch {
-            initialSettings[(row as any).key] = (row as any).value;
+            _settings[(row as any).key] = (row as any).value;
           }
         });
       }
       
-      setSettings(initialSettings);
-      setLocalSettings(initialSettings);
+      setSettings(_settings);
+      setLocalSettings(_settings);
     } catch (error) {
       console.error('Error fetching settings:', error);
       toast({
@@ -114,7 +109,11 @@ const SystemSettings: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [editableSettings]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const handleSaveSettings = async () => {
     setSaving(true);
@@ -205,7 +204,7 @@ const SystemSettings: React.FC = () => {
     }));
   };
 
-  if (loading) {
+  if (_loading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>

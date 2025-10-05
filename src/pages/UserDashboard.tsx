@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Car, FileText, Settings, LogOut, User, CreditCard, Heart, MapPin, Clock, Star, Award, Bell, Download, Share2, Search, TrendingUp, Shield, Gift, Eye, DollarSign } from 'lucide-react';
@@ -207,11 +207,11 @@ const UserDashboard: React.FC = () => {
           .eq('user_id', userId)
           .single()
           .abortSignal(signal);
-        
+      
         if (licenseError && licenseError.code !== 'PGRST116') {
           throw licenseError;
         }
-        
+      
         if (!mounted) {return;}
 
         if (!license) {
@@ -245,15 +245,16 @@ const UserDashboard: React.FC = () => {
             });
           }
         }
-        
-        // Check for recent bookings
-        if (bookings.length > 0) {
-          const recentBooking = bookings[0];
+      
+        // Check for recent bookings using the ref
+        const currentBookings = bookingsRef.current;
+        if (currentBookings.length > 0) {
+          const recentBooking = currentBookings[0];
           const bookingDate = new Date(recentBooking.start_datetime);
           const now = new Date();
           const diffTime = bookingDate.getTime() - now.getTime();
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
+        
           if (diffDays >= 0 && diffDays <= 1) {
             notifications.push({
               id: 4,
@@ -265,7 +266,7 @@ const UserDashboard: React.FC = () => {
             });
           }
         }
-        
+      
         // Add welcome message if no other notifications
         if (notifications.length === 0) {
           notifications.push({
@@ -277,7 +278,7 @@ const UserDashboard: React.FC = () => {
             created_at: new Date().toISOString()
           });
         }
-        
+      
         if (!mounted) {return;}
         setNotifications(notifications);
       } catch (error) {

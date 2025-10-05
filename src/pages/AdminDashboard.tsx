@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Car, Users, Calendar, BarChart3, FileText, MessageCircle, Wrench, LogOut, ArrowLeft, CheckCircle, XCircle, AlertCircle, Search, RefreshCw, Eye, RotateCcw, Shield, Activity, Settings } from 'lucide-react';
@@ -460,7 +460,7 @@ const AdminDashboard: React.FC = () => {
     pendingLicenses: 0,
     activePromos: 0
   });
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [_isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
     fetchDashboardStats();

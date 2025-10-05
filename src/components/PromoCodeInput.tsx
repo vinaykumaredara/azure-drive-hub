@@ -43,7 +43,7 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
   totalAmount,
   className = "",
 }) => {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<{code: string, discount: number, type: 'percent' | 'flat'} | null>(null);
@@ -75,8 +75,8 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
       });
 
       setAvailablePromos(validPromos);
-    } catch (error) {
-      console.error('Error fetching promo codes:', error);
+    } catch (_error) {
+      console.error('Error fetching promo codes:', _error);
     } finally {
       setIsLoadingPromos(false);
     }
@@ -86,7 +86,7 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
     if (isExpanded && !availablePromos.length) {
       fetchAvailablePromos();
     }
-  }, [isExpanded]);
+  }, [isExpanded, availablePromos.length]);
 
   const validatePromoCode = async (code: string): Promise<PromoValidation> => {
     try {
@@ -113,8 +113,8 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
       }
       
       return { valid: false, message: 'Invalid promo code' };
-    } catch (error) {
-      console.error('Error validating promo code:', error);
+    } catch (_error) {
+      console.error('Error validating promo code:', _error);
       return { valid: false, message: 'Failed to validate promo code' };
     }
   };
@@ -158,7 +158,8 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (_error) {
+      console.error('Error applying promo code:', _error);
       setValidationError('Failed to apply promo code');
     } finally {
       setIsValidating(false);

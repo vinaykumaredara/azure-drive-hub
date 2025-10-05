@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Shield, Check, X, AlertCircle, Loader2 } from 'lucide-react';
+import { CreditCard, Shield, Check, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -56,7 +54,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
   const [selectedGateway, setSelectedGateway] = useState<'razorpay' | 'stripe'>('razorpay');
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'details' | 'processing' | 'success' | 'failed'>('details');
-  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [_bookingId, setBookingId] = useState<string | null>(null);
 
   const createBooking = async () => {
     try {
@@ -78,9 +76,9 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
 
       if (error) {throw error;}
       return (data as any).id;
-    } catch (error) {
-      console.error('Booking creation error:', error);
-      throw error;
+    } catch (_error) {
+      console.error('Booking creation error:', _error);
+      throw _error;
     }
   };
 

@@ -37,8 +37,8 @@ export const usePerformanceMonitor = (): void => {
       try {
         observer.observe({ type: 'largest-contentful-paint', buffered: true });
         observer.observe({ type: 'first-input', buffered: true });
-      } catch (e) {
-        console.warn('Performance observer not supported');
+      } catch (error) {
+        console.warn('Performance observer not supported:', error);
       }
       
       return () => observer.disconnect();

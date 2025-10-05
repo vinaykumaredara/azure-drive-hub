@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./components/AuthProvider";
+import { AuthProvider } from "./components/AuthProvider.component";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CarTravelingLoader } from "./components/LoadingAnimations";
 import { GlobalErrorBoundary } from "./components/GlobalErrorBoundary";

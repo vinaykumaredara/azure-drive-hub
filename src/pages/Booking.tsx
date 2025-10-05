@@ -1,5 +1,5 @@
 // src/pages/Booking.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,7 @@ const BookingPage: React.FC = () => {
   const [_holdId, setHoldId] = useState<string | null>(null);
 
   // Fetch car details from Supabase
-  const fetchCar = async () => {
+  const fetchCar = useCallback(async () => {
     if (!carId) {
       setError('No car ID provided');
       setLoading(false);
@@ -101,7 +101,7 @@ const BookingPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [carId]);
 
   // Check for pending booking from session storage
   useEffect(() => {
@@ -117,15 +117,15 @@ const BookingPage: React.FC = () => {
 
   useEffect(() => {
     fetchCar();
-  }, [carId]);
+  }, [carId, fetchCar]);
 
   // Update validation when dates/times change
   useEffect(() => {
     const duration = calculateDuration();
     setDurationError(duration.error);
-  }, [pickupDate, returnDate, pickupTime, returnTime]);
+  }, [calculateDuration]);
 
-  const calculateDuration = () => {
+  const calculateDuration = useCallback(() => {
     if (!pickupDate || !returnDate || !pickupTime || !returnTime) {return { hours: 0, days: 0, isValid: false, error: null };}
     
     const pickupDateTime = new Date(`${pickupDate}T${pickupTime}:00`);
@@ -163,7 +163,7 @@ const BookingPage: React.FC = () => {
       isValid: true, 
       error: null 
     };
-  };
+  }, [pickupDate, returnDate, pickupTime, returnTime]);
 
   const calculateDays = () => {
     const duration = calculateDuration();

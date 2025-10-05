@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, X, MinusCircle, FileText, User, Bot } from "lucide-react";
+import { MessageCircle, Send, X, MinusCircle, User, Bot } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthProvider";
 import { toast } from "@/hooks/use-toast";
@@ -42,7 +42,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   const currentRoomId = roomId || (isSupport ? `support:${user?.id}` : `general:${user?.id}`);
 
   // Fetch messages
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!user || !currentRoomId) {return;}
 
     try {
@@ -62,7 +62,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
         variant: "destructive",
       });
     }
-  };
+  }, [user, currentRoomId]);
 
   // Set up realtime subscription
   useRealtimeSubscription(
@@ -86,7 +86,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     if (user && currentRoomId) {
       fetchMessages();
     }
-  }, [user, currentRoomId]);
+  }, [user, currentRoomId, fetchMessages]);
 
   // Auto-scroll to bottom
   useEffect(() => {

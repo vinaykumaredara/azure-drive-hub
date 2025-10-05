@@ -5,7 +5,7 @@ import type { Database } from './src/integrations/supabase/types';
 type TestCar = Database['public']['Tables']['cars']['Row'];
 
 // This will cause a compile error if service_charge is not available
-const car: TestCar = {
+const _car: TestCar = {
   id: 'test',
   title: 'Test Car',
   price_per_day: 1000,

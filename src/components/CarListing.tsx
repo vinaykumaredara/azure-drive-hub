@@ -1,23 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CarCard } from "@/components/CarCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, SlidersHorizontal, Loader2 } from "lucide-react";
-import { CarListSkeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ErrorBoundary";
+import { Search, SlidersHorizontal, Loader2 } from "lucide-react";
 import { EmptyCarState } from "@/components/EmptyCarState";
 import { CarTravelingLoader } from "@/components/LoadingAnimations";
 import { CarListingErrorState } from "@/components/CarListingErrorState";
-import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
-import { toast } from "@/hooks/use-toast";
-import useCars, { Car } from "@/hooks/useCars";
+import useCars from "@/hooks/useCars";
 
 // Transform Supabase car to display format
-const transformCarForDisplay = (car: Car) => {
+const transformCarForDisplay = (car: any) => {
   const pricePerDay = car.price_in_paise ? car.price_in_paise / 100 : car.price_per_day;
   const pricePerHour = car.price_per_hour || Math.round(pricePerDay / 8);
         
@@ -76,13 +72,13 @@ export const CarListing = () => {
   const [fuelFilter, setFuelFilter] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
   const [displayedCars, setDisplayedCars] = useState<any[]>([]);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [_loadingMore, _setLoadingMore] = useState(false);
+  const [_isInitialized, _setIsInitialized] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
+  const [_page, _setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   
-  const ITEMS_PER_PAGE = 12;
+  const _ITEMS_PER_PAGE = 12;
   
   // Use the new robust hook
   const { cars, loading, error, refetch } = useCars();
@@ -128,15 +124,15 @@ export const CarListing = () => {
   // Re-enable real-time subscription now that loading is fixed
   useRealtimeSubscription(
     'cars',
-    (payload) => {
+    (_payload) => {
       // For real-time updates, we'll refresh the current page
       refetch();
     },
-    (payload) => {
+    (_payload) => {
       // For updates, we'll refresh the current page
       refetch();
     },
-    (payload) => {
+    (_payload) => {
       // For deletions, we'll refresh the current page
       refetch();
     }
@@ -285,7 +281,7 @@ export const CarListing = () => {
 
         {/* Content */}
         <AnimatePresence mode="wait">
-          {loading && !isInitialized ? (
+          {loading && !_isInitialized ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
@@ -326,7 +322,7 @@ export const CarListing = () => {
               initial="hidden"
               animate="visible"
             >
-              {displayedCars.map((car, index) => (
+              {displayedCars.map((car, _index) => (
                 <motion.div key={car.id} variants={itemVariants}>
                   <CarCard car={car} />
                 </motion.div>
@@ -347,12 +343,12 @@ export const CarListing = () => {
             {hasMore ? (
               <Button 
                 onClick={() => {}} 
-                disabled={loadingMore}
+                disabled={_loadingMore}
                 variant="outline" 
                 size="lg" 
                 className="px-8"
               >
-                {loadingMore ? (
+                {_loadingMore ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Loading...

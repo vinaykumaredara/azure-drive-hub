@@ -276,7 +276,7 @@ export const UserCarListing = () => {
     performanceMonitor.measureFunctionTime('Initial Car Load', () => {
       fetchCars(0);
     });
-  }, []);
+  }, [fetchCars]);
 
   // Real-time subscription with performance monitoring
   useRealtimeSubscription<any>(
@@ -297,12 +297,12 @@ export const UserCarListing = () => {
     }
   );
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!hasMore || loading) {return;}
     const nextPage = page + 1;
     setPage(nextPage);
     fetchCars(nextPage);
-  };
+  }, [hasMore, loading, page, fetchCars]);
 
   // Filter and sort cars with memoization
   const processedCars = useMemo(() => {
@@ -369,7 +369,7 @@ export const UserCarListing = () => {
     return () => {
       observer.disconnect();
     };
-  }, [hasMore, loading]);
+  }, [hasMore, loading, loadMore]);
 
   if (!isInitialized) {
     return <CarTravelingLoader />;
