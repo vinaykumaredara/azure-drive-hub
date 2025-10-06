@@ -23,26 +23,49 @@ interface ExtrasStepProps {
 }
 
 const defaultExtras = {
-  driver: { name: 'Professional Driver', price: 500, desc: 'Experienced driver for your trip', recommended: false },
-  gps: { name: 'GPS Navigation', price: 200, desc: 'Built-in GPS with latest maps', recommended: false },
-  childSeat: { name: 'Child Safety Seat', price: 150, desc: 'Safety seat for children', recommended: false },
-  insurance: { name: 'Premium Insurance', price: 300, desc: 'Comprehensive coverage', recommended: true }
+  driver: {
+    name: 'Professional Driver',
+    price: 500,
+    desc: 'Experienced driver for your trip',
+    recommended: false,
+  },
+  gps: {
+    name: 'GPS Navigation',
+    price: 200,
+    desc: 'Built-in GPS with latest maps',
+    recommended: false,
+  },
+  childSeat: {
+    name: 'Child Safety Seat',
+    price: 150,
+    desc: 'Safety seat for children',
+    recommended: false,
+  },
+  insurance: {
+    name: 'Premium Insurance',
+    price: 300,
+    desc: 'Comprehensive coverage',
+    recommended: true,
+  },
 };
 
 export const ExtrasStep: React.FC<ExtrasStepProps> = ({
   extras,
-  advanceBooking,
-  advanceAmount,
+  _advanceBooking, // Unused parameter
+  _advanceAmount, // Unused parameter
   totalDays,
   pricePerDay,
   price_in_paise,
   onExtraToggle,
-  onAdvanceBookingToggle
+  onAdvanceBookingToggle,
 }) => {
   const calculateTotal = () => {
-    const basePrice = (price_in_paise ? price_in_paise / 100 : pricePerDay) * totalDays;
+    const basePrice =
+      (price_in_paise ? price_in_paise / 100 : pricePerDay) * totalDays;
     const extrasPrice = Object.entries(extras).reduce((acc, [key, enabled]) => {
-      if (!enabled) {return acc;}
+      if (!enabled) {
+        return acc;
+      }
       const prices = { driver: 500, gps: 200, childSeat: 150, insurance: 300 };
       return acc + (prices[key as keyof typeof prices] || 0);
     }, 0);
@@ -73,19 +96,23 @@ export const ExtrasStep: React.FC<ExtrasStepProps> = ({
         </Badge>
       </div>
 
-      <div className="space-y-3 max-h-64 overflow-y-auto pr-2" role="group" aria-label="Extra options">
+      <div
+        className="space-y-3 max-h-64 overflow-y-auto pr-2"
+        role="group"
+        aria-label="Extra options"
+      >
         {Object.entries(defaultExtras).map(([key, extra]) => (
-          <Card 
-            key={key} 
+          <Card
+            key={key}
             className={`cursor-pointer transition-all hover:shadow-md ${
-              extras[key as keyof typeof extras] 
-                ? 'ring-2 ring-primary bg-primary-light/20' 
+              extras[key as keyof typeof extras]
+                ? 'ring-2 ring-primary bg-primary-light/20'
                 : ''
             }`}
             role="checkbox"
             aria-checked={extras[key as keyof typeof extras]}
             tabIndex={0}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 onExtraToggle(key as keyof typeof defaultExtras);
@@ -98,19 +125,31 @@ export const ExtrasStep: React.FC<ExtrasStepProps> = ({
                   <div className="flex items-center space-x-2">
                     <h4 className="font-medium">{extra.name}</h4>
                     {extra.recommended && (
-                      <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        Recommended
+                      </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{extra.desc}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {extra.desc}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold">₹{extra.price}/day</p>
                   <Button
-                    variant={extras[key as keyof typeof extras] ? "default" : "outline"}
+                    variant={
+                      extras[key as keyof typeof extras] ? 'default' : 'outline'
+                    }
                     size="sm"
                     className="mt-2"
-                    onClick={() => onExtraToggle(key as keyof typeof defaultExtras)}
-                    aria-label={extras[key as keyof typeof extras] ? `Remove ${extra.name}` : `Add ${extra.name}`}
+                    onClick={() =>
+                      onExtraToggle(key as keyof typeof defaultExtras)
+                    }
+                    aria-label={
+                      extras[key as keyof typeof extras]
+                        ? `Remove ${extra.name}`
+                        : `Add ${extra.name}`
+                    }
                   >
                     {extras[key as keyof typeof extras] ? 'Added' : 'Add'}
                   </Button>
@@ -128,7 +167,9 @@ export const ExtrasStep: React.FC<ExtrasStepProps> = ({
               <Percent className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h4 className="font-medium text-primary mb-1">Advance Booking Option</h4>
+              <h4 className="font-medium text-primary mb-1">
+                Advance Booking Option
+              </h4>
               <p className="text-sm text-muted-foreground">
                 Pay 10% upfront to reserve your car for later dates
               </p>
@@ -140,7 +181,7 @@ export const ExtrasStep: React.FC<ExtrasStepProps> = ({
                   const advanceAmount = calculateAdvanceAmount();
                   onAdvanceBookingToggle(true, advanceAmount);
                   toast({
-                    title: "Advance Booking",
+                    title: 'Advance Booking',
                     description: `Pay ₹${advanceAmount} now to reserve this car`,
                   });
                 }}

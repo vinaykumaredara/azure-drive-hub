@@ -1,18 +1,36 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { CalendarIcon, Plus, Edit, Trash2, Wrench, AlertCircle, ArrowLeft } from "lucide-react";
+
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import {
+  CalendarIcon,
+  Plus,
+  Edit,
+  Trash2,
+  Wrench,
+  AlertCircle,
+  ArrowLeft,
+} from 'lucide-react';
 
 interface Maintenance {
   id: string;
@@ -41,55 +59,62 @@ export const MaintenanceScheduler: React.FC = () => {
   const [cars, setCars] = useState<Car[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingMaintenance, setEditingMaintenance] = useState<Maintenance | null>(null);
-  
+  const [editingMaintenance, setEditingMaintenance] =
+    useState<Maintenance | null>(null);
+
   // Form state
-  const [selectedCarId, setSelectedCarId] = useState("");
+  const [selectedCarId, setSelectedCarId] = useState('');
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState('');
 
   // Fetch data
-  const fetchMaintenances = async () => {
+  const fetchMaintenances = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from("maintenance")
-        .select(`
+        .from('maintenance')
+        .select(
+          `
           *,
           cars (
             title,
             make,
             model
           )
-        `)
-        .order("start_date", { ascending: true });
+        `
+        )
+        .order('start_date', { ascending: true });
 
-      if (error) {throw error;}
-      setMaintenances(data as Maintenance[] || []);
+      if (error) {
+        throw error;
+      }
+      setMaintenances((data as Maintenance[]) || []);
     } catch (error: any) {
-      console.error("Error fetching maintenances:", error);
+      console.error('Error fetching maintenances:', error);
       toast({
-        title: "Error",
-        description: "Failed to load maintenance schedules",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to load maintenance schedules',
+        variant: 'destructive',
       });
     }
-  };
+  }, [toast]);
 
-  const fetchCars = async () => {
+  const fetchCars = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from("cars")
-        .select("id, title, make, model")
-        .eq("status", "active")
-        .order("title");
+        .from('cars')
+        .select('id, title, make, model')
+        .eq('status', 'active')
+        .order('title');
 
-      if (error) {throw error;}
-      setCars(data as Car[] || []);
+      if (error) {
+        throw error;
+      }
+      setCars((data as Car[]) || []);
     } catch (error: any) {
-      console.error("Error fetching cars:", error);
+      console.error('Error fetching cars:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -98,33 +123,33 @@ export const MaintenanceScheduler: React.FC = () => {
       setIsLoading(false);
     };
     loadData();
-  }, []);
+  }, [fetchMaintenances, fetchCars]);
 
   const resetForm = () => {
-    setSelectedCarId("");
+    setSelectedCarId('');
     setStartDate(undefined);
     setEndDate(undefined);
-    setNotes("");
+    setNotes('');
     setEditingMaintenance(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedCarId || !startDate || !endDate) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
-        variant: "destructive",
+        title: 'Missing Information',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
       });
       return;
     }
 
     if (endDate < startDate) {
       toast({
-        title: "Invalid Dates",
-        description: "End date must be after start date",
-        variant: "destructive",
+        title: 'Invalid Dates',
+        description: 'End date must be after start date',
+        variant: 'destructive',
       });
       return;
     }
@@ -139,75 +164,82 @@ export const MaintenanceScheduler: React.FC = () => {
 
       if (editingMaintenance) {
         // Update existing maintenance
-        const { error } = await (supabase
-          .from("maintenance") as any)
+        const { error } = await (supabase.from('maintenance') as any)
           .update(maintenanceData)
-          .eq("id", editingMaintenance.id);
+          .eq('id', editingMaintenance.id);
 
-        if (error) {throw error;}
-        
+        if (error) {
+          throw error;
+        }
+
         toast({
-          title: "Maintenance Updated",
-          description: "Maintenance schedule has been updated successfully",
+          title: 'Maintenance Updated',
+          description: 'Maintenance schedule has been updated successfully',
         });
       } else {
         // Create new maintenance
-        const { error } = await (supabase
-          .from("maintenance") as any)
-          .insert(maintenanceData);
+        const { error } = await (supabase.from('maintenance') as any).insert(
+          maintenanceData
+        );
 
-        if (error) {throw error;}
-        
+        if (error) {
+          throw error;
+        }
+
         toast({
-          title: "Maintenance Scheduled",
-          description: "New maintenance has been scheduled successfully",
+          title: 'Maintenance Scheduled',
+          description: 'New maintenance has been scheduled successfully',
         });
       }
 
       setIsDialogOpen(false);
       resetForm();
     } catch (error: any) {
-      console.error("Error saving maintenance:", error);
+      console.error('Error saving maintenance:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to save maintenance schedule",
-        variant: "destructive",
+        title: 'Error',
+        description: error.message || 'Failed to save maintenance schedule',
+        variant: 'destructive',
       });
     }
   };
 
   const handleEdit = (maintenance: Maintenance) => {
     setEditingMaintenance(maintenance);
-    setSelectedCarId(maintenance.car_id || "");
+    setSelectedCarId(maintenance.car_id || '');
     setStartDate(new Date(maintenance.start_date));
     setEndDate(new Date(maintenance.end_date));
-    setNotes(maintenance.notes || "");
+    setNotes(maintenance.notes || '');
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (maintenanceId: string) => {
-    if (!confirm("Are you sure you want to delete this maintenance schedule?")) {
+    if (
+      !confirm('Are you sure you want to delete this maintenance schedule?')
+    ) {
       return;
     }
 
     try {
       const { error } = await supabase
-        .from("maintenance")
+        .from('maintenance')
         .delete()
-        .eq("id", maintenanceId);
+        .eq('id', maintenanceId);
 
-      if (error) {throw error;}
-      
+      if (error) {
+        throw error;
+      }
+
       toast({
-        title: "Maintenance Deleted",
-        description: "Maintenance schedule has been deleted successfully",
+        title: 'Maintenance Deleted',
+        description: 'Maintenance schedule has been deleted successfully',
       });
     } catch (error) {
-      console.error("Error deleting maintenance:", error);
+      console.error('Error deleting maintenance:', error);
       toast({
-        title: "Error",
-        description: "Failed to delete maintenance schedule",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to delete maintenance schedule',
+        variant: 'destructive',
       });
     }
   };
@@ -220,9 +252,15 @@ export const MaintenanceScheduler: React.FC = () => {
     if (now < startDate) {
       return <Badge variant="outline">Scheduled</Badge>;
     } else if (now >= startDate && now <= endDate) {
-      return <Badge className="bg-warning text-warning-foreground">In Progress</Badge>;
+      return (
+        <Badge className="bg-warning text-warning-foreground">
+          In Progress
+        </Badge>
+      );
     } else {
-      return <Badge className="bg-success text-success-foreground">Completed</Badge>;
+      return (
+        <Badge className="bg-success text-success-foreground">Completed</Badge>
+      );
     }
   };
 
@@ -248,9 +286,9 @@ export const MaintenanceScheduler: React.FC = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              size="icon" 
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => navigate('/admin')}
               className="hover:bg-primary hover:text-primary-foreground transition-colors"
             >
@@ -271,22 +309,24 @@ export const MaintenanceScheduler: React.FC = () => {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>
-                  {editingMaintenance ? "Edit Maintenance" : "Schedule Maintenance"}
+                  {editingMaintenance
+                    ? 'Edit Maintenance'
+                    : 'Schedule Maintenance'}
                 </DialogTitle>
               </DialogHeader>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="car">Car *</Label>
                   <select
                     id="car"
                     value={selectedCarId}
-                    onChange={(e) => setSelectedCarId(e.target.value)}
+                    onChange={e => setSelectedCarId(e.target.value)}
                     className="w-full p-2 border rounded-md"
                     required
                   >
                     <option value="">Select a car</option>
-                    {cars.map((car) => (
+                    {cars.map(car => (
                       <option key={car.id} value={car.id}>
                         {car.title} - {car.make} {car.model}
                       </option>
@@ -299,9 +339,12 @@ export const MaintenanceScheduler: React.FC = () => {
                     <Label>Start Date *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                        >
                           <CalendarIcon className="w-4 h-4 mr-2" />
-                          {startDate ? format(startDate, "PPP") : "Select date"}
+                          {startDate ? format(startDate, 'PPP') : 'Select date'}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -309,7 +352,7 @@ export const MaintenanceScheduler: React.FC = () => {
                           mode="single"
                           selected={startDate}
                           onSelect={setStartDate}
-                          disabled={(date) => date < new Date()}
+                          disabled={date => date < new Date()}
                         />
                       </PopoverContent>
                     </Popover>
@@ -319,9 +362,12 @@ export const MaintenanceScheduler: React.FC = () => {
                     <Label>End Date *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                        >
                           <CalendarIcon className="w-4 h-4 mr-2" />
-                          {endDate ? format(endDate, "PPP") : "Select date"}
+                          {endDate ? format(endDate, 'PPP') : 'Select date'}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -329,7 +375,7 @@ export const MaintenanceScheduler: React.FC = () => {
                           mode="single"
                           selected={endDate}
                           onSelect={setEndDate}
-                          disabled={(date) => date < (startDate || new Date())}
+                          disabled={date => date < (startDate || new Date())}
                         />
                       </PopoverContent>
                     </Popover>
@@ -341,18 +387,23 @@ export const MaintenanceScheduler: React.FC = () => {
                   <Textarea
                     id="notes"
                     value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    onChange={e => setNotes(e.target.value)}
                     placeholder="Maintenance details, parts needed, etc."
                     rows={3}
                   />
                 </div>
 
                 <div className="flex gap-3">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                    className="flex-1"
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" className="flex-1">
-                    {editingMaintenance ? "Update" : "Schedule"}
+                    {editingMaintenance ? 'Update' : 'Schedule'}
                   </Button>
                 </div>
               </form>
@@ -360,45 +411,50 @@ export const MaintenanceScheduler: React.FC = () => {
           </Dialog>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {maintenances.length === 0 ? (
           <div className="text-center py-8">
             <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Maintenance Scheduled</h3>
+            <h3 className="text-lg font-medium mb-2">
+              No Maintenance Scheduled
+            </h3>
             <p className="text-muted-foreground mb-4">
               Schedule maintenance to keep your fleet in top condition
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {maintenances.map((maintenance) => (
+            {maintenances.map(maintenance => (
               <Card key={maintenance.id} className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-medium">
-                        {maintenance.cars?.title || "Unknown Car"}
+                        {maintenance.cars?.title || 'Unknown Car'}
                       </h3>
                       {getStatusBadge(maintenance)}
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                       <div>
-                        <span className="font-medium">Start:</span> {format(new Date(maintenance.start_date), "PPP")}
+                        <span className="font-medium">Start:</span>{' '}
+                        {format(new Date(maintenance.start_date), 'PPP')}
                       </div>
                       <div>
-                        <span className="font-medium">End:</span> {format(new Date(maintenance.end_date), "PPP")}
+                        <span className="font-medium">End:</span>{' '}
+                        {format(new Date(maintenance.end_date), 'PPP')}
                       </div>
                     </div>
-                    
+
                     {maintenance.notes && (
                       <div className="mt-2 text-sm">
-                        <span className="font-medium">Notes:</span> {maintenance.notes}
+                        <span className="font-medium">Notes:</span>{' '}
+                        {maintenance.notes}
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
