@@ -7,14 +7,14 @@ import { visualizer } from "rollup-plugin-visualizer";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "localhost", // Use localhost for better WebSocket stability
-    port: 5173,
-    strictPort: true, // Force port 5173 to avoid confusion
+    host: "localhost",
+    port: 8080,
+    strictPort: true,
     cors: true,
     hmr: {
-      port: 5173,
+      port: 8080,
       overlay: true,
-      clientPort: 5173
+      clientPort: 8080
     },
     open: false,
     watch: {

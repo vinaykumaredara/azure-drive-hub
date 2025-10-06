@@ -61,6 +61,7 @@ self.addEventListener('activate', (event: any) => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
             return caches.delete(cacheName);
           }
+          return undefined;
         })
       );
     })

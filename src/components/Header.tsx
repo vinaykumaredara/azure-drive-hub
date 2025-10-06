@@ -1,10 +1,15 @@
+import { useState } from "react";
 import { Car, Menu, User, Phone, Shield, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
+<<<<<<< HEAD
 import { useAuth } from "@/components/AuthProvider";
 import { useState } from "react";
+=======
+import { useAuth } from "./AuthProvider";
+>>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
 
 export const Header = () => {
   const navigate = useNavigate();

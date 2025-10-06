@@ -1,5 +1,4 @@
-import React from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Shield, Clock, MapPin, Star, Smartphone, CreditCard, Car
 } from 'lucide-react';
@@ -71,9 +70,6 @@ const testimonials = [
 ];
 
 export const PremiumFeatures = () => {
-  const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 1], [0, -50]);
-
   return (
     <section className="py-20 bg-gradient-to-br from-primary/5 via-accent-purple/5 to-primary/10 overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -101,10 +97,7 @@ export const PremiumFeatures = () => {
         </motion.div>
 
         {/* Features Grid */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20"
-          style={{ y }}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
@@ -130,7 +123,7 @@ export const PremiumFeatures = () => {
               </Card>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
 
         {/* Stats Section */}
         <motion.div

@@ -119,12 +119,6 @@ const BookingPage: React.FC = () => {
     fetchCar();
   }, [carId, fetchCar]);
 
-  // Update validation when dates/times change
-  useEffect(() => {
-    const duration = calculateDuration();
-    setDurationError(duration.error);
-  }, [calculateDuration]);
-
   const calculateDuration = useCallback(() => {
     if (!pickupDate || !returnDate || !pickupTime || !returnTime) {return { hours: 0, days: 0, isValid: false, error: null };}
     
@@ -164,6 +158,12 @@ const BookingPage: React.FC = () => {
       error: null 
     };
   }, [pickupDate, returnDate, pickupTime, returnTime]);
+
+  // Update validation when dates/times change
+  useEffect(() => {
+    const duration = calculateDuration();
+    setDurationError(duration.error);
+  }, [calculateDuration]);
 
   const calculateDays = () => {
     const duration = calculateDuration();

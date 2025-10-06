@@ -250,12 +250,12 @@ const PromoCodeManagement: React.FC = () => {
   };
 
   // Handle delete
-  const handleDelete = () => {
+  const handleDelete = (id: string) => {
     if (confirm('Are you sure you want to delete this promo code?')) {
       // In a real app, this would delete from the database
       toast({
         title: "Promo Code Deleted",
-        description: "Promo code has been deleted successfully",
+        description: `Promo code ${id} has been deleted successfully`,
       });
     }
   };
@@ -486,7 +486,7 @@ const PromoCodeManagement: React.FC = () => {
                     <Button variant="outline" size="sm" onClick={() => handleEdit(promo)}>
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete('')}>
+                    <Button variant="outline" size="sm" onClick={() => handleDelete(promo.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

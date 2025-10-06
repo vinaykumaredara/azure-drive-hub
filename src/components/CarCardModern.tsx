@@ -170,7 +170,7 @@ const CarCardModernComponent = ({
         aria-label={`${car.make} ${car.model}`}
       >
         {/* Image Section */}
-        <div className="relative w-full overflow-hidden rounded-xl">
+        <div className="relative w-full aspect-video overflow-hidden rounded-xl">
           <SimpleImage 
             src={car.thumbnail || car.image} 
             alt={`${car.make} ${car.model}`} 
