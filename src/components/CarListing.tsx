@@ -83,6 +83,25 @@ export const CarListing = () => {
   // Use the new robust hook
   const { cars, loading, error, refetch } = useCars();
 
+  // Handle booking success by updating the car's availability status
+  const handleBookingSuccess = (carId: string) => {
+    console.log("Booking successful for car:", carId);
+    // Update the car's status in the local state to reflect it's now booked
+    setDisplayedCars(prevCars => 
+      prevCars.map(car => 
+        car.id === carId 
+          ? { 
+              ...car, 
+              isAvailable: false,
+              badges: car.badges.includes('Available') 
+                ? car.badges.filter((badge: string) => badge !== 'Available').concat(['Busy'])
+                : car.badges.concat(['Busy'])
+            } 
+          : car
+      )
+    );
+  };
+
   // Fetch displayed cars (transformed)
   useEffect(() => {
     const filtered = cars
@@ -324,7 +343,7 @@ export const CarListing = () => {
             >
               {displayedCars.map((car, _index) => (
                 <motion.div key={car.id} variants={itemVariants}>
-                  <CarCard car={car} />
+                  <CarCard car={car} onBookingSuccess={handleBookingSuccess} />
                 </motion.div>
               ))}
             </motion.div>

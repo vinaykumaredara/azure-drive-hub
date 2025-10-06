@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/components/AuthProvider';
+import { toast } from '@/hooks/use-toast';
 
 const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -18,25 +19,75 @@ const Auth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, signUp, signInWithGoogle, user, isAdmin } = useAuth();
+  const { signIn, signUp, signInWithGoogle, user, isAdmin, profile, profileLoading } = useAuth();
 
-  // Redirect if already authenticated
+  // Handle post-login redirect logic
   useEffect(() => {
     if (user && !isLoading) {
+      // Add debug logging
+      console.log('Auth useEffect triggered:', { user, profile, profileLoading });
+      
       // Check for redirect URL in query parameters
       const searchParams = new URLSearchParams(location.search);
       const nextUrl = searchParams.get('next');
       
-      if (nextUrl) {
-        // Redirect to the original page
-        navigate(nextUrl, { replace: true });
-      } else if (isAdmin) {
-        navigate('/admin', { replace: true });
+      // Check if we need to redirect to profile after login
+      const redirectToProfileAfterLogin = sessionStorage.getItem('redirectToProfileAfterLogin');
+      
+      if (redirectToProfileAfterLogin === 'true') {
+        // Remove the flag
+        sessionStorage.removeItem('redirectToProfileAfterLogin');
+        
+        // Wait for profile to load
+        const checkProfile = async () => {
+          // Wait for profile to load (max 5 seconds)
+          let attempts = 0;
+          while (profileLoading && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+          
+          // Check if profile has phone number
+          if (!profile?.phone) {
+            // Redirect to user dashboard profile section
+            console.log('Redirecting to profile section to collect phone number');
+            navigate('/dashboard?tab=profile', { replace: true });
+            return;
+          }
+          
+          // If phone exists, restore booking
+          const pendingBooking = sessionStorage.getItem('pendingBooking');
+          if (pendingBooking) {
+            console.log('Restoring booking after login');
+            // We'll handle this in the UserDashboard or a dedicated restore component
+            navigate('/dashboard', { replace: true });
+            return;
+          }
+          
+          // Default redirect
+          if (nextUrl) {
+            navigate(nextUrl, { replace: true });
+          } else if (isAdmin) {
+            navigate('/admin', { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        };
+        
+        checkProfile();
       } else {
-        navigate('/dashboard', { replace: true });
+        // Normal redirect logic - use client-side navigation only
+        if (nextUrl && nextUrl.startsWith('/')) {
+          // Only navigate to relative paths to avoid 404s
+          navigate(nextUrl, { replace: true });
+        } else if (isAdmin) {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       }
     }
-  }, [user, isAdmin, navigate, isLoading, location.search]);
+  }, [user, isAdmin, navigate, isLoading, location.search, profile, profileLoading]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,8 +95,12 @@ const Auth: React.FC = () => {
     
     const { error } = await signIn(email.trim(), password);
     
-    if (!error) {
-      // Navigation handled by useEffect
+    if (error) {
+      toast({
+        title: "Sign In Failed",
+        description: error.message || "Invalid email or password",
+        variant: "destructive",
+      });
     }
     
     setIsLoading(false);
@@ -57,13 +112,35 @@ const Auth: React.FC = () => {
     
     const { error: _error } = await signUp(email.trim(), password);
     
+    if (_error) {
+      toast({
+        title: "Sign Up Failed",
+        description: _error.message || "Failed to create account",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Account Created",
+        description: "Please check your email to confirm your account",
+      });
+    }
+    
     // Don't navigate on signup - user needs to confirm email
     setIsLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    await signInWithGoogle();
+    const { error } = await signInWithGoogle();
+    
+    if (error) {
+      toast({
+        title: "Google Sign In Failed",
+        description: error.message || "Failed to sign in with Google",
+        variant: "destructive",
+      });
+    }
+    
     setIsLoading(false);
   };
 

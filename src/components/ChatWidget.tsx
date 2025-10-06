@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Send, X, MinusCircle, User, Bot } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "./AuthProvider";
+import { useAuth } from "@/components/AuthProvider";
 import { toast } from "@/hooks/use-toast";
 import { useRealtimeSubscription } from "@/hooks/useRealtime";
 

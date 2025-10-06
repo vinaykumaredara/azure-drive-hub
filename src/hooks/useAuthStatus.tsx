@@ -78,6 +78,7 @@ export const useAuthStatus = (): AuthStatus => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) {return;}
       
+      // Only update state if there's a meaningful change
       if (session?.user) {
         // Fetch user profile to check admin status
         supabase
@@ -91,20 +92,37 @@ export const useAuthStatus = (): AuthStatus => {
             }
             
             if (mounted) {
-              setStatus({
-                user: session.user,
-                isAdmin: (profile as any)?.is_admin || false,
-                isLoading: false,
-                error: null
+              // Only update if there's a real change
+              setStatus(prev => {
+                const newIsAdmin = (profile as any)?.is_admin || false;
+                if (prev.user?.id === session.user.id && 
+                    prev.isAdmin === newIsAdmin && 
+                    !prev.error) {
+                  // No meaningful change, don't trigger re-render
+                  return prev;
+                }
+                return {
+                  user: session.user,
+                  isAdmin: newIsAdmin,
+                  isLoading: false,
+                  error: null
+                };
               });
             }
           });
       } else if (mounted) {
-        setStatus({
-          user: null,
-          isAdmin: false,
-          isLoading: false,
-          error: null
+        // Only update if there's a real change
+        setStatus(prev => {
+          if (!prev.user && !prev.error) {
+            // Already in the correct state
+            return prev;
+          }
+          return {
+            user: null,
+            isAdmin: false,
+            isLoading: false,
+            error: null
+          };
         });
       }
     });
@@ -113,7 +131,7 @@ export const useAuthStatus = (): AuthStatus => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array is correct here
 
   return status;
 };

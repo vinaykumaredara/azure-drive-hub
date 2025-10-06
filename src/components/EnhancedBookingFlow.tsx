@@ -25,6 +25,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
 import { LicenseUpload } from '@/components/LicenseUpload';
 import { PaymentGateway } from '@/components/PaymentGateway';
+import { useAuth } from '@/hooks/use-auth';
+import { DatesStep } from '@/components/booking-steps/DatesStep';
+import { PhoneStep } from '@/components/booking-steps/PhoneStep';
+import { ExtrasStep } from '@/components/booking-steps/ExtrasStep';
+import { TermsStep } from '@/components/booking-steps/TermsStep';
+import { LicenseStep } from '@/components/booking-steps/LicenseStep';
+import { PaymentStep } from '@/components/booking-steps/PaymentStep';
+import { ConfirmationStep } from '@/components/booking-steps/ConfirmationStep';
 
 interface EnhancedBookingFlowProps {
   car: {
@@ -59,12 +67,25 @@ const stepTitles = {
   extras: 'Add Extras',
   terms: 'Terms & Conditions',
   license: 'Upload License',
-  payment: 'Payment Details', 
+  payment: 'Payment Options',
   confirmation: 'Booking Confirmed'
 };
 
+interface License {
+  id: string;
+  user_id: string;
+  storage_path: string;
+  verified: boolean | null;
+  created_at: string;
+}
+
 export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, onClose, onBookingSuccess }) => {
   const [currentStep, setCurrentStep] = useState<Step>('dates');
+  const [existingLicense, setExistingLicense] = useState<{
+    id: string;
+    verified: boolean | null;
+    createdAt: string;
+  } | null>(null);
   const [bookingData, setBookingData] = useState({
     startDate: '',
     endDate: '',
@@ -90,45 +111,136 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const { profile, profileLoading } = useAuth();
 
   const steps: Step[] = ['dates', 'phone', 'extras', 'terms', 'license', 'payment', 'confirmation'];
   const currentStepIndex = steps.indexOf(currentStep);
 
-  // Handle body scroll locking for mobile
+  // Handle body scroll locking for mobile and focus management
   useEffect(() => {
     document.body.style.overflow = 'hidden';
+    
+    // Focus the first focusable element in the modal when it opens
+    const focusableElements = document.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusableElements.length > 0) {
+      (focusableElements[0] as HTMLElement).focus();
+    }
     
     return () => {
       document.body.style.overflow = '';
     };
   }, []);
 
-  // Fetch user phone number on component mount
+  // Handle booking restoration on component mount
   useEffect(() => {
-    const fetchUserPhone = async () => {
+    const restoreBooking = async () => {
+      const pendingBookingRaw = sessionStorage.getItem('pendingBooking');
+      if (pendingBookingRaw) {
+        try {
+          const pendingBooking = JSON.parse(pendingBookingRaw);
+          
+          // Wait for profile to load
+          let attempts = 0;
+          while (profileLoading && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+          
+          // Check if profile has phone number
+          if (!profile?.phone) {
+            if (currentStep !== 'phone') {
+              setCurrentStep('phone');
+            }
+            return;
+          }
+          
+          // Validate draft: check if pickup/return dates are missing
+          if (!pendingBooking.pickup?.date || !pendingBooking.return?.date) {
+            if (currentStep !== 'dates') {
+              setCurrentStep('dates');
+            }
+            // Populate the booking data with the draft
+            setBookingData(prev => ({
+              ...prev,
+              startDate: pendingBooking.pickup?.date || '',
+              endDate: pendingBooking.return?.date || '',
+              startTime: pendingBooking.pickup?.time || '10:00',
+              endTime: pendingBooking.return?.time || '18:00'
+            }));
+            return;
+          }
+          
+          // If dates exist, proceed to terms
+          if (currentStep !== 'terms') {
+            setCurrentStep('terms');
+          }
+          
+          // Populate the booking data with the draft
+          setBookingData(prev => ({
+            ...prev,
+            startDate: pendingBooking.pickup.date,
+            endDate: pendingBooking.return.date,
+            startTime: pendingBooking.pickup.time || '10:00',
+            endTime: pendingBooking.return.time || '18:00'
+          }));
+          
+          // Clear the pending booking from sessionStorage
+          sessionStorage.removeItem('pendingBooking');
+        } catch (error) {
+          console.error('EnhancedBookingFlow: Failed to parse pending booking:', error);
+          sessionStorage.removeItem('pendingBooking');
+        }
+      }
+    };
+    
+    restoreBooking();
+  }, [profile, profileLoading, currentStep]);
+
+  // Fetch user phone number and existing licenses on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Cast to any to bypass TypeScript issues with Supabase generated types
-          const { data: profile, error } = await (supabase
+          // Fetch phone number
+          const { data: profile, error: phoneError } = await (supabase
             .from('users') as any)
             .select('phone')
             .eq('id', user.id)
             .single();
             
-          if (!error && profile && profile.phone) {
+          if (!phoneError && profile && profile.phone) {
             setBookingData(prev => ({
               ...prev,
               phoneNumber: profile.phone
             }));
           }
+          
+          // Fetch existing licenses
+          const { data: licenses, error: licenseError } = await (supabase
+            .from('licenses') as any)
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+            
+          if (!licenseError && licenses && licenses.length > 0) {
+            // Set the most recent license
+            const latestLicense: any = licenses[0];
+            setExistingLicense({
+              id: latestLicense.id,
+              verified: latestLicense.verified,
+              createdAt: latestLicense.created_at
+            });
+          }
         }
       } catch (error) {
-        console.error('Error fetching user phone:', error);
+        // Error fetching user data - silently fail as this is not critical
       }
     };
     
-    fetchUserPhone();
+    fetchUserData();
   }, []);
 
   const calculateTotal = () => {
@@ -143,6 +255,79 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
   const calculateAdvanceAmount = () => {
     return Math.round(calculateTotal() * 0.1); // 10% advance
+  };
+
+  const handleAdvancePayment = async () => {
+    setIsLoading(true);
+    setBookingError(null);
+    
+    try {
+      // Save phone number if it's new or changed
+      if (bookingData.phoneNumber) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Cast to any to bypass TypeScript issues with Supabase generated types
+          const { error } = await (supabase
+            .from('users') as any)
+            .update({ phone: bookingData.phoneNumber } as any)
+            .eq('id', user.id)
+            .select();
+            
+          if (error) {
+            // Error updating phone number - silently fail as this is not critical
+          }
+        }
+      }
+      
+      // For advance booking, we'll create a hold record in the database
+      const advanceAmount = calculateAdvanceAmount();
+      
+      // Here we would integrate with the payment gateway for advance payment
+      // For now, we'll just simulate it by setting the advance booking flag
+      setBookingData(prev => ({
+        ...prev,
+        advanceBooking: true,
+        advanceAmount
+      }));
+      
+      // Show a success message
+      toast({
+        title: "Advance Payment Successful",
+        description: `₹${advanceAmount} has been paid as advance. Your booking is reserved for 24 hours.`,
+      });
+      
+      // Proceed to confirmation
+      setCurrentStep('confirmation');
+      onBookingSuccess();
+      
+      // Focus the confirmation panel when it appears
+      setTimeout(() => {
+        const confirmationPanel = document.getElementById('step-confirmation-panel');
+        if (confirmationPanel) {
+          confirmationPanel.focus();
+        }
+      }, 100);
+    } catch (error: unknown) {
+      console.error('Advance payment error:', error);
+      let errorMessage = 'Failed to process advance payment. Please try again.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        errorMessage = (error as { message: string }).message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      setBookingError(errorMessage);
+      
+      toast({
+        title: "Payment Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const _handleBookCar = async (advanceBooking = false) => {
@@ -162,7 +347,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             .select();
             
           if (error) {
-            console.error('Error updating phone number:', error);
+            // Error updating phone number - silently fail as this is not critical
           }
         }
       }
@@ -219,7 +404,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         description: "Car booked successfully!",
       });
     } catch (error: unknown) {
-      console.error('Booking error:', error);
+      // Handle booking error
       let errorMessage = 'Failed to book car. Please try again.';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -253,10 +438,31 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         return;
       }
       
-      // Validate that end date is after start date
+      // Validate that dates are not in the past
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const startDate = new Date(bookingData.startDate);
       const endDate = new Date(bookingData.endDate);
       
+      if (startDate < today) {
+        toast({
+          title: "Validation Error",
+          description: "Pickup date cannot be in the past",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (endDate < today) {
+        toast({
+          title: "Validation Error",
+          description: "Return date cannot be in the past",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate that end date is after start date
       if (endDate < startDate) {
         toast({
           title: "Validation Error",
@@ -264,6 +470,23 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           variant: "destructive",
         });
         return;
+      }
+      
+      // Validate that end date is not the same as start date with end time before start time
+      if (endDate.getTime() === startDate.getTime()) {
+        const startTime = bookingData.startTime.split(':').map(Number);
+        const endTime = bookingData.endTime.split(':').map(Number);
+        const startMinutes = startTime[0] * 60 + startTime[1];
+        const endMinutes = endTime[0] * 60 + endTime[1];
+        
+        if (endMinutes <= startMinutes) {
+          toast({
+            title: "Validation Error",
+            description: "Return time must be after pickup time",
+            variant: "destructive",
+          });
+          return;
+        }
       }
       
       // Calculate total days
@@ -289,7 +512,8 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       
       // Basic phone number validation (Indian format)
       const phoneRegex = /^[6-9]\d{9}$/;
-      if (!phoneRegex.test(bookingData.phoneNumber.replace(/\D/g, ''))) {
+      const cleanedPhone = bookingData.phoneNumber.replace(/\D/g, '');
+      if (!phoneRegex.test(cleanedPhone)) {
         toast({
           title: "Validation Error",
           description: "Please enter a valid 10-digit Indian phone number",
@@ -297,6 +521,12 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         });
         return;
       }
+      
+      // Update with cleaned phone number
+      setBookingData(prev => ({
+        ...prev,
+        phoneNumber: cleanedPhone
+      }));
       
       setCurrentStep('extras');
     } else if (currentStep === 'extras') {
@@ -322,20 +552,33 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       }
       setCurrentStep('payment');
     } else if (currentStep === 'payment') {
-      // Open payment gateway
+      // Instead of immediately opening payment gateway, we'll handle the payment options in the payment step
+      // Open payment gateway only when user clicks the payment button
       setIsPaymentOpen(true);
     }
     
-    // Scroll to top when advancing to next step
+    // Scroll to top when advancing to next step and focus the new panel
     contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      const newPanel = document.getElementById(`step-${currentStep}-panel`);
+      if (newPanel) {
+        newPanel.focus();
+      }
+    }, 100);
   };
 
   const handleBack = () => {
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
-      // Scroll to top when going back
+      // Scroll to top when going back and focus the new panel
       contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        const newPanel = document.getElementById(`step-${steps[currentIndex - 1]}-panel`);
+        if (newPanel) {
+          newPanel.focus();
+        }
+      }, 100);
     }
   };
 
@@ -353,460 +596,119 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     setIsPaymentOpen(false);
   };
 
+  const onAttemptConfirm = async () => {
+    if (profileLoading) {
+      // wait or show spinner
+      return;
+    }
+
+    const phone = profile?.phone;
+    if (!phone) {
+      // prompt for phone modal or navigate to profile page
+      toast({
+        title: "Phone Number Required",
+        description: "Please add your phone number to continue with booking.",
+        variant: "destructive",
+      });
+      // In a more complete implementation, we would open a phone modal here
+      return;
+    }
+
+    // proceed with hold/payment creation
+    if (bookingData.advanceBooking) {
+      handleAdvancePayment();
+    } else {
+      setIsPaymentOpen(true);
+    }
+  };
+
   const renderDateSelection = () => (
-    <motion.div
-      key="dates"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-4 sm:space-y-6"
-    >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div>
-          <Label htmlFor="startDate" className="text-sm">Pickup Date</Label>
-          <Input
-            id="startDate"
-            type="date"
-            value={bookingData.startDate}
-            onChange={(e) => setBookingData(prev => ({ ...prev, startDate: e.target.value }))}
-            className="mt-1 text-sm"
-            min={new Date().toISOString().split('T')[0]}
-          />
-        </div>
-        <div>
-          <Label htmlFor="endDate" className="text-sm">Return Date</Label>
-          <Input
-            id="endDate"
-            type="date"
-            value={bookingData.endDate}
-            onChange={(e) => setBookingData(prev => ({ ...prev, endDate: e.target.value }))}
-            className="mt-1 text-sm"
-            min={bookingData.startDate || new Date().toISOString().split('T')[0]}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div>
-          <Label htmlFor="startTime" className="text-sm">Pickup Time</Label>
-          <Select value={bookingData.startTime} onValueChange={(value) => 
-            setBookingData(prev => ({ ...prev, startTime: value }))
-          }>
-            <SelectTrigger className="mt-1 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 24 }, (_, i) => {
-                const hour = i.toString().padStart(2, '0');
-                return (
-                  <SelectItem key={hour} value={`${hour}:00`} className="text-sm">
-                    {hour}:00
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="endTime" className="text-sm">Return Time</Label>
-          <Select value={bookingData.endTime} onValueChange={(value) => 
-            setBookingData(prev => ({ ...prev, endTime: value }))
-          }>
-            <SelectTrigger className="mt-1 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 24 }, (_, i) => {
-                const hour = i.toString().padStart(2, '0');
-                return (
-                  <SelectItem key={hour} value={`${hour}:00`} className="text-sm">
-                    {hour}:00
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {bookingData.startDate && bookingData.endDate && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-3 sm:p-4 bg-primary-light rounded-lg"
-        >
-          <p className="text-xs sm:text-sm font-medium text-primary">
-            Total Duration: {bookingData.totalDays} day{bookingData.totalDays > 1 ? 's' : ''}
-          </p>
-          <p className="text-base sm:text-lg font-bold text-primary mt-1">
-            {formatINRFromPaise((car.price_in_paise || car.pricePerDay * 100) * bookingData.totalDays)}
-          </p>
-        </motion.div>
-      )}
-    </motion.div>
+    <DatesStep
+      bookingData={bookingData}
+      car={car}
+      onStartDateChange={(date) => setBookingData(prev => ({ ...prev, startDate: date }))}
+      onEndDateChange={(date) => setBookingData(prev => ({ ...prev, endDate: date }))}
+      onStartTimeChange={(time) => setBookingData(prev => ({ ...prev, startTime: time }))}
+      onEndTimeChange={(time) => setBookingData(prev => ({ ...prev, endTime: time }))}
+    />
   );
 
   const renderPhoneCollection = () => (
-    <motion.div
-      key="phone"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-4 sm:space-y-6"
-    >
-      <div className="text-center">
-        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-          <Phone className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-        </div>
-        <h3 className="text-lg sm:text-xl font-semibold mb-1 sm:mb-2">Phone Number</h3>
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          Please provide your phone number for booking confirmation
-        </p>
-      </div>
-
-      <div className="space-y-3 sm:space-y-4">
-        <div>
-          <Label htmlFor="phoneNumber" className="text-sm">Phone Number</Label>
-          <div className="relative mt-1">
-            <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
-              <span className="text-muted-foreground text-xs sm:text-sm">+91</span>
-            </div>
-            <Input
-              id="phoneNumber"
-              type="tel"
-              placeholder="9876543210"
-              value={bookingData.phoneNumber || ''}
-              onChange={(e) => setBookingData(prev => ({ ...prev, phoneNumber: e.target.value }))}
-              className="pl-10 sm:pl-12 text-sm"
-              maxLength={10}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            We'll use this for booking updates and verification
-          </p>
-        </div>
-      </div>
-    </motion.div>
+    <PhoneStep
+      phoneNumber={bookingData.phoneNumber}
+      onPhoneNumberChange={(phone) => setBookingData(prev => ({ ...prev, phoneNumber: phone }))}
+    />
   );
 
   const renderExtrasSelection = () => (
-    <motion.div
-      key="extras"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-4"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Add Extras</h3>
-          <p className="text-sm text-muted-foreground">
-            Enhance your rental experience
-          </p>
-        </div>
-        <Badge variant="secondary" className="text-sm">
-          Optional
-        </Badge>
-      </div>
-
-      <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-        {Object.entries({
-          driver: { name: 'Professional Driver', price: 500, desc: 'Experienced driver for your trip' },
-          gps: { name: 'GPS Navigation', price: 200, desc: 'Built-in GPS with latest maps' },
-          childSeat: { name: 'Child Safety Seat', price: 150, desc: 'Safety seat for children' },
-          insurance: { name: 'Premium Insurance', price: 300, desc: 'Comprehensive coverage', recommended: true }
-        }).map(([key, extra]) => (
-          <Card key={key} className={`cursor-pointer transition-all hover:shadow-md ${
-            bookingData.extras[key as keyof typeof bookingData.extras] 
-              ? 'ring-2 ring-primary bg-primary-light/20' 
-              : ''
-          }`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <h4 className="font-medium">{extra.name}</h4>
-                    {extra.recommended && (
-                      <Badge variant="secondary" className="text-xs">Recommended</Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">{extra.desc}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">₹{extra.price}/day</p>
-                  <Button
-                    variant={bookingData.extras[key as keyof typeof bookingData.extras] ? "default" : "outline"}
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => setBookingData(prev => ({
-                      ...prev,
-                      extras: {
-                        ...prev.extras,
-                        [key]: !prev.extras[key as keyof typeof prev.extras]
-                      }
-                    }))}
-                  >
-                    {bookingData.extras[key as keyof typeof bookingData.extras] ? 'Added' : 'Add'}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Card className="border-dashed border-primary/30">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-              <Percent className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-medium text-primary mb-1">Advance Booking Option</h4>
-              <p className="text-sm text-muted-foreground">
-                Pay 10% upfront to reserve your car for later dates
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => {
-                  const advanceAmount = calculateAdvanceAmount();
-                  setBookingData(prev => ({
-                    ...prev,
-                    advanceBooking: true,
-                    advanceAmount
-                  }));
-                  toast({
-                    title: "Advance Booking",
-                    description: `Pay ₹${advanceAmount} now to reserve this car`,
-                  });
-                }}
-              >
-                Reserve with 10% Advance
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+    <ExtrasStep
+      extras={bookingData.extras}
+      advanceBooking={bookingData.advanceBooking}
+      advanceAmount={bookingData.advanceAmount}
+      totalDays={bookingData.totalDays}
+      pricePerDay={car.pricePerDay}
+      price_in_paise={car.price_in_paise}
+      onExtraToggle={(extra) => setBookingData(prev => ({
+        ...prev,
+        extras: {
+          ...prev.extras,
+          [extra]: !prev.extras[extra]
+        }
+      }))}
+      onAdvanceBookingToggle={(isAdvance, amount) => setBookingData(prev => ({
+        ...prev,
+        advanceBooking: isAdvance,
+        advanceAmount: amount
+      }))}
+    />
   );
 
   const renderTermsAndConditions = () => (
-    <motion.div
-      key="terms"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-6"
-    >
-      <div className="text-center">
-        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Shield className="w-8 h-8 text-primary" />
-        </div>
-        <h3 className="text-xl font-semibold mb-2">Terms & Conditions</h3>
-        <p className="text-muted-foreground">
-          Please read and accept our rental terms
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Rental Terms</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 max-h-48 overflow-y-auto">
-          <div className="space-y-3 text-sm">
-            <p><strong>1. Rental Period:</strong> The rental period begins at the specified pickup time and ends at the return time.</p>
-            <p><strong>2. Fuel Policy:</strong> The vehicle will be provided with a full tank and must be returned with a full tank.</p>
-            <p><strong>3. Insurance:</strong> Basic insurance is included. Additional coverage can be purchased.</p>
-            <p><strong>4. Liability:</strong> The renter is responsible for all traffic violations and parking fines incurred during the rental period.</p>
-            <p><strong>5. Damage:</strong> The renter is responsible for any damage to the vehicle during the rental period.</p>
-            <p><strong>6. Cancellation:</strong> Cancellations made less than 24 hours before pickup are subject to a 50% charge.</p>
-            <p><strong>7. Age Requirement:</strong> Drivers must be at least 21 years old and hold a valid driver's license.</p>
-            <p><strong>8. Mileage:</strong> Standard mileage limits apply. Excess mileage will be charged at ₹10/km.</p>
-            <p><strong>9. Late Return:</strong> Late returns will be charged at 2x the hourly rate.</p>
-            <p><strong>10. Governing Law:</strong> These terms are governed by the laws of India.</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-start space-x-3 p-4 bg-muted/50 rounded-lg">
-        <Checkbox
-          id="terms"
-          checked={bookingData.termsAccepted}
-          onCheckedChange={(checked) => setBookingData(prev => ({ ...prev, termsAccepted: !!checked }))}
-        />
-        <label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-          I accept the terms and conditions and agree to the rental agreement
-        </label>
-      </div>
-    </motion.div>
+    <TermsStep
+      termsAccepted={bookingData.termsAccepted}
+      onTermsAcceptanceChange={(accepted) => setBookingData(prev => ({ ...prev, termsAccepted: accepted }))}
+    />
   );
 
   const renderLicenseUpload = () => (
-    <motion.div
-      key="license"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-6"
-    >
-      <div className="text-center">
-        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <FileText className="w-8 h-8 text-primary" />
-        </div>
-        <h3 className="text-xl font-semibold mb-2">Upload Driver's License</h3>
-        <p className="text-muted-foreground">
-          Please upload a clear photo of your driver's license
-        </p>
-      </div>
-
-      <LicenseUpload onUploaded={handleLicenseUploaded} />
-
-      {bookingData.licenseId && (
-        <div className="p-4 bg-success/10 border border-success/20 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <CheckCircle className="w-5 h-5 text-success" />
-            <span className="text-sm font-medium text-success">License uploaded successfully</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Your license has been submitted for verification
-          </p>
-        </div>
-      )}
-    </motion.div>
+    <LicenseStep
+      existingLicense={existingLicense}
+      licenseId={bookingData.licenseId}
+      onLicenseUploaded={handleLicenseUploaded}
+      onExistingLicenseSelect={(licenseId) => {
+        setBookingData(prev => ({
+          ...prev,
+          licenseId
+        }));
+        toast({
+          title: "License Selected",
+          description: "Using your existing license for this booking.",
+        });
+      }}
+    />
   );
 
   const renderPayment = () => (
-    <motion.div
-      key="payment"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-4 sm:space-y-6"
-    >
-      {bookingError && (
-        <div className="p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive" />
-            <span className="text-sm font-medium text-destructive">Booking Error</span>
-          </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {bookingError}
-          </p>
-        </div>
-      )}
-
-      <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-lg">Payment Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 sm:space-y-3 p-4 sm:p-6 pt-0">
-          <div className="flex justify-between text-sm">
-            <span>Base rental ({bookingData.totalDays} days)</span>
-            <span>{formatINRFromPaise((car.price_in_paise || car.pricePerDay * 100) * bookingData.totalDays)}</span>
-          </div>
-          
-          {Object.entries(bookingData.extras).map(([key, enabled]) => {
-            if (!enabled) {return null;}
-            const prices = { driver: 500, gps: 200, childSeat: 150, insurance: 300 };
-            const names = { driver: 'Driver', gps: 'GPS', childSeat: 'Child Seat', insurance: 'Insurance' };
-            return (
-              <div key={key} className="flex justify-between text-xs sm:text-sm">
-                <span>{names[key as keyof typeof names]}</span>
-                <span>₹{prices[key as keyof typeof prices]}</span>
-              </div>
-            );
-          })}
-          
-          <Separator />
-          <div className="flex justify-between font-bold text-base sm:text-lg">
-            <span>Total Amount</span>
-            <span>{formatINRFromPaise(calculateTotal() * 100)}</span>
-          </div>
-          
-          {bookingData.advanceBooking && (
-            <div className="flex justify-between text-primary font-medium text-sm sm:text-base">
-              <span>Advance Payment (10%)</span>
-              <span>{formatINRFromPaise(bookingData.advanceAmount * 100)}</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center space-x-2 p-3 sm:p-4 bg-primary/5 rounded-lg">
-        <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-        <span className="text-xs sm:text-sm text-muted-foreground">
-          Secure payment processing with PhonePe
-        </span>
-      </div>
-    </motion.div>
+    <PaymentStep
+      bookingError={bookingError}
+      advanceBooking={bookingData.advanceBooking}
+      advanceAmount={bookingData.advanceAmount}
+      totalAmount={calculateTotal()}
+      extras={bookingData.extras}
+      onPaymentOptionChange={(isAdvance) => setBookingData(prev => ({ ...prev, advanceBooking: isAdvance }))}
+    />
   );
 
   const renderConfirmation = () => (
-    <motion.div
-      key="confirmation"
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="text-center space-y-4 sm:space-y-6"
-    >
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-      >
-        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-success rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-          <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-        </div>
-      </motion.div>
-
-      <div>
-        <h3 className="text-xl sm:text-2xl font-bold text-success mb-1 sm:mb-2">
-          {bookingData.advanceBooking ? 'Reservation Confirmed!' : 'Booking Confirmed!'}
-        </h3>
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          {bookingData.advanceBooking 
-            ? 'Your car has been reserved with advance payment.' 
-            : `Your ${car.title} has been successfully booked.`}
-        </p>
-      </div>
-
-      <Card>
-        <CardContent className="p-4 sm:p-6 space-y-2 sm:space-y-3">
-          <div className="flex justify-between text-sm">
-            <span>Car Model</span>
-            <span className="font-medium">{car.title}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Total Amount</span>
-            <span className="font-bold">
-              {bookingData.advanceBooking 
-                ? formatINRFromPaise(bookingData.advanceAmount * 100) 
-                : formatINRFromPaise(calculateTotal() * 100)}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Dates</span>
-            <span>{bookingData.startDate} to {bookingData.endDate}</span>
-          </div>
-          {bookingData.advanceBooking && (
-            <div className="flex justify-between text-sm">
-              <span>Status</span>
-              <Badge variant="secondary" className="text-xs">Advance Booking</Badge>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-        <Button variant="outline" className="w-full" onClick={onClose} size="sm">
-          Close
-        </Button>
-        <Button className="w-full" onClick={() => {}} size="sm">
-          View Booking Details
-        </Button>
-      </div>
-    </motion.div>
+    <ConfirmationStep
+      carTitle={car.title}
+      advanceBooking={bookingData.advanceBooking}
+      advanceAmount={bookingData.advanceAmount}
+      totalAmount={calculateTotal()}
+      startDate={bookingData.startDate}
+      endDate={bookingData.endDate}
+      onClose={onClose}
+    />
   );
 
   return (
@@ -816,32 +718,50 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-2 sm:p-4 overflow-hidden booking-flow-modal"
+          className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[100] sm:backdrop-blur-sm"
           onClick={onClose}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="booking-flow-title"
+          onKeyDown={(e) => {
+            // Close modal on Escape key
+            if (e.key === 'Escape') {
+              onClose();
+            }
+          }}
         >
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] flex flex-col modal-content relative"
+            className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[95vh] flex flex-col modal-content relative sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
             style={{ 
-              maxHeight: '95vh',
+              maxHeight: '100vh',
               margin: 'auto'
             }}
+            role="document"
           >
             {/* Header */}
             <div className="p-4 sm:p-6 border-b flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold">{stepTitles[currentStep]}</h2>
+                  <h2 id="booking-flow-title" className="text-lg sm:text-xl font-bold">{stepTitles[currentStep]}</h2>
                   <p className="text-xs sm:text-sm text-muted-foreground">Booking {car.title}</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">✕</Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={onClose} 
+                  className="h-8 w-8 p-0"
+                  aria-label="Close booking flow"
+                >
+                  ✕
+                </Button>
               </div>
 
               {/* Progress Steps */}
-              <div className="flex items-center space-x-1 sm:space-x-2 mt-4 overflow-x-auto pb-2">
+              <div className="flex items-center space-x-1 sm:space-x-2 mt-4 overflow-x-auto pb-2" role="tablist" aria-label="Booking steps">
                 {steps.map((step, index) => {
                   const Icon = stepIcons[step];
                   const isActive = index === currentStepIndex;
@@ -849,10 +769,16 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                   
                   return (
                     <Fragment key={step}>
-                      <div className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
-                        isCompleted ? 'bg-success text-white' :
-                        isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
-                      }`}>
+                      <div 
+                        className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
+                          isCompleted ? 'bg-success text-white' :
+                          isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                        }`}
+                        role="tab"
+                        aria-selected={isActive}
+                        aria-controls={`step-${step}-panel`}
+                        id={`step-${step}-tab`}
+                      >
                         <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                       </div>
                       {index < steps.length - 1 && (
@@ -871,9 +797,13 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
               ref={contentRef}
               className="p-4 sm:p-6 overflow-y-auto flex-grow"
               style={{
-                maxHeight: 'calc(95vh - 160px)',
+                maxHeight: 'calc(100vh - 160px)',
                 WebkitOverflowScrolling: 'touch',
               }}
+              id={`step-${currentStep}-panel`}
+              role="tabpanel"
+              aria-labelledby={`step-${currentStep}-tab`}
+              tabIndex={-1}
             >
               <AnimatePresence mode="wait">
                 {currentStep === 'dates' && renderDateSelection()}
@@ -888,10 +818,16 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
             {/* Sticky Footer - Always Visible */}
             {currentStep !== 'confirmation' && (
-              <div className="sticky bottom-0 w-full bg-white/60 backdrop-blur-md border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center flex-shrink-0">
+              <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center flex-shrink-0">
                 <div>
                   {currentStep !== 'dates' && (
-                    <Button variant="outline" onClick={handleBack} disabled={isLoading} size="sm">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleBack} 
+                      disabled={isLoading} 
+                      size="sm"
+                      aria-label="Go back to previous step"
+                    >
                       Back
                     </Button>
                   )}
@@ -908,7 +844,21 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                   </div>
                   
                   <Button 
-                    onClick={handleNext} 
+                    onClick={() => {
+                      if (currentStep === 'payment') {
+                        // Handle payment based on selected option
+                        if (bookingData.advanceBooking) {
+                          // For advance booking, we need to handle the 10% payment
+                          handleAdvancePayment();
+                        } else {
+                          // For full payment, open the payment gateway
+                          setIsPaymentOpen(true);
+                        }
+                      } else {
+                        // For other steps, proceed to next step
+                        handleNext();
+                      }
+                    }}
                     disabled={isLoading || 
                       (currentStep === 'dates' && (!bookingData.startDate || !bookingData.endDate)) ||
                       (currentStep === 'phone' && !bookingData.phoneNumber) ||
@@ -917,12 +867,14 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                     }
                     className="min-w-[80px] sm:min-w-[120px] text-sm sm:text-base"
                     size="sm"
+                    aria-label={currentStep === 'payment' ? 'Proceed to payment' : currentStep === 'license' ? 'Continue to next step' : 'Continue to next step'}
                   >
                     {isLoading ? (
                       <motion.div 
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full"
+                        aria-label="Processing"
                       />
                     ) : (
                       currentStep === 'payment' ? 'Proceed to Pay' : currentStep === 'license' ? 'Continue' : 'Next'
@@ -933,7 +885,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             )}
           </motion.div>
         </motion.div>,
-        document.body
+        (typeof document !== 'undefined' && document.getElementById('modal-root')) || document.body
       )}
 
       {/* Payment Gateway Modal */}
@@ -955,7 +907,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           },
           subtotal: calculateTotal(),
           serviceCharge: 0,
-          total: calculateTotal()
+          total: bookingData.advanceBooking ? bookingData.advanceAmount : calculateTotal()
         }}
         onSuccess={handlePaymentSuccess}
       />

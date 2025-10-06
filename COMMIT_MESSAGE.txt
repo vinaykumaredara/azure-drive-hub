@@ -1,41 +1,29 @@
-feat: Implement atomic booking functionality
+fix: booking flow issues and performance improvements
 
-This commit implements the complete atomic booking system with the following features:
+This commit fixes several critical issues in the booking flow:
 
-Database Changes:
-- Added booking_status, booked_by, booked_at columns to cars table
-- Added is_admin column to users table
-- Added price_in_paise and currency columns for proper currency handling
-- Created indexes for better performance
-- Implemented RLS policies for public and admin access
-- Created book_car_atomic(uuid) SECURITY DEFINER function with row locking
+1. Fixed stale closure issues in CarCard and CarCardModern components
+2. Fixed PhoneModal race condition by ensuring profile refresh before proceeding
+3. Improved draft restore logic in EnhancedBookingFlow to validate required fields
+4. Fixed import path mismatches and ensured consistent @ alias usage
+5. Added proper error handling and user messaging for server errors
+6. Fixed React.memo custom compare function in CarCardModern
+7. Refactored EnhancedBookingFlow into smaller components (DatesStep, PhoneStep, ExtrasStep, TermsStep, LicenseStep, PaymentStep, ConfirmationStep)
+8. Added comprehensive unit and integration tests for booking flows
+9. Removed debug logs and temporary debug snippets
 
-Frontend Changes:
-- Created AtomicBookingFlow component for the booking process
-- Updated AdminCarManagement to use image-first upload pattern
-- Created UserCarListing for user-facing car display with booking status
-- Updated CarCard to integrate with atomic booking flow
-- Updated Index page to use UserCarListing
-- Updated Supabase types with new fields and RPC function
+The changes ensure:
+- Book Now button works correctly pre-login and post-login
+- Phone collection flow works properly with profile refresh
+- All auth/profile/draft restore race conditions are removed
+- Server errors are surfaced with detailed messages
+- Code quality improvements with smaller, more maintainable components
+- Lazy loading potential for performance improvements
 
-Key Features:
-- Thread-safe atomic booking using FOR UPDATE locking
-- Proper currency handling with paise storage
-- Admin upload flow with image-first pattern
-- User dashboard showing booking status
-- Comprehensive audit logging
-- Proper error handling and user feedback
-
-Tests:
-- Created atomic-booking.test.ts with comprehensive test suite
-- Verified TypeScript compilation with no errors
-- Created verification scripts
-
-The implementation follows all requirements:
-1. DB migrations with required fields
-2. RLS policies for public/admin access
-3. Atomic booking RPC function
-4. Admin upload flow changes
-5. User dashboard updates
-6. Booking action implementation
-7. Tests and verification
+Acceptance criteria:
+- Book Now works pre-login (redirects and saves draft)
+- Book Now works post-login (with phone -> open, without phone -> open phone step, resumes after save)
+- No silent failures: errors surfaced with server message, not generic "failed to load"
+- No console errors on booking flow
+- Unit & integration tests added and passing
+- No secrets (.env with service key) committed

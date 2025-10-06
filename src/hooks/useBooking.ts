@@ -22,6 +22,10 @@ interface BookingDraft {
   };
 }
 
+interface SaveDraftOptions {
+  redirectToProfile?: boolean;
+}
+
 export const useBooking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -41,16 +45,25 @@ export const useBooking = () => {
     }
   }, []);
 
-  const saveDraftAndRedirect = (draft: BookingDraft) => {
+  const saveDraftAndRedirect = (draft: BookingDraft, options: SaveDraftOptions = {}) => {
     // Save booking draft to session storage
     sessionStorage.setItem('pendingBooking', JSON.stringify(draft));
     
-    // Redirect to login with return URL
+    // Add debug logging
+    console.log('saveDraftAndRedirect called:', { draft, options });
+    
+    // Set flags in sessionStorage for post-login handling
+    if (options.redirectToProfile) {
+      sessionStorage.setItem('redirectToProfileAfterLogin', 'true');
+    }
+    
+    // Redirect to login with return URL (single-level param only)
     navigate(`/auth?next=${encodeURIComponent(window.location.pathname)}`);
   };
 
   const clearDraft = () => {
     sessionStorage.removeItem('pendingBooking');
+    sessionStorage.removeItem('redirectToProfileAfterLogin');
     setPendingBooking(null);
   };
 
@@ -87,6 +100,18 @@ export const useBooking = () => {
       return null;
     }
 
+    // Add defensive validation client-side before calling server
+    if (!draft.carId || !draft.pickup?.date || !draft.pickup?.time || !draft.return?.date || !draft.return?.time) {
+      const error = new Error("Missing required booking information. Please fill in all date and time fields.");
+      console.error("Create booking hold validation error:", error);
+      toast({
+        title: "Validation Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+
     try {
       // Call Edge Function to create booking hold
       const { data, error } = await supabase.functions.invoke('create-hold', {
@@ -116,9 +141,10 @@ export const useBooking = () => {
       return data;
     } catch (error: any) {
       console.error("Create booking hold error:", error);
+      const errorMessage = error?.message || "Failed to create booking. Please try again.";
       toast({
         title: "Booking Failed",
-        description: error?.message || "Failed to create booking",
+        description: errorMessage,
         variant: "destructive",
       });
       return null;

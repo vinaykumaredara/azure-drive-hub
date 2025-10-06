@@ -8,7 +8,8 @@ import { applyDeviceOptimizations } from './utils/deviceOptimizations';
 applyDeviceOptimizations();
 
 // Register service worker for caching and offline support
-if ('serviceWorker' in navigator) {
+// Only register in production to avoid conflicts with HMR in development
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
@@ -23,7 +24,7 @@ if ('serviceWorker' in navigator) {
 // Enhanced error handling for app mounting
 function initializeApp() {
   try {
-    // Clean up any existing service workers in development
+    // Skip service worker cleanup in production
     if (import.meta.env.DEV && 'serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(registrations => {
         registrations.forEach(registration => {
@@ -45,11 +46,16 @@ function initializeApp() {
     rootElement.innerHTML = '';
 
     const root = createRoot(rootElement);
-    root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
+    // Disable React Strict Mode in development to prevent double rendering issues
+    if (import.meta.env.DEV) {
+      root.render(<App />);
+    } else {
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    }
 
     console.log('✅ RP Cars app initialized successfully');
   } catch (error) {

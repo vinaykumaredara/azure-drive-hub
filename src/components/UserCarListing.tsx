@@ -349,6 +349,32 @@ export const UserCarListing = () => {
     });
   }, [cars, searchQuery, seatFilter, fuelFilter, sortBy]);
 
+  // Handle booking success by updating the car's availability status
+  const handleBookingSuccess = useCallback((carId: string) => {
+    console.log("Booking successful for car:", carId);
+    // Update the car's status in the local state to reflect it's now booked
+    setCars(prevCars => 
+      prevCars.map(car => 
+        car.id === carId 
+          ? { 
+              ...car, 
+              isAvailable: false,
+              bookingStatus: 'booked',
+              badges: car.badges.includes('Available') 
+                ? car.badges.filter(badge => badge !== 'Available').concat(['Booked'])
+                : car.badges.concat(['Booked'])
+            } 
+          : car
+      )
+    );
+    
+    // Show a success toast
+    toast({
+      title: "Booking Confirmed!",
+      description: "Your car has been successfully booked.",
+    });
+  }, []);
+
   // Intersection Observer for infinite scroll
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -491,29 +517,32 @@ export const UserCarListing = () => {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
                   >
-                    <CarCardModern car={{
-                      id: car.id,
-                      title: car.title,
-                      model: car.model || 'Unknown Model',
-                      make: car.make || undefined,
-                      year: car.year || undefined,
-                      image: car.image,
-                      images: car.images,
-                      pricePerDay: car.pricePerDay,
-                      location: car.location,
-                      fuel: car.fuel || 'Unknown',
-                      transmission: car.transmission || 'Unknown',
-                      seats: car.seats || 0,
-                      rating: car.rating,
-                      reviewCount: car.reviewCount,
-                      isAvailable: car.isAvailable,
-                      badges: car.badges,
-                      thumbnail: car.thumbnail,
-                      bookingStatus: car.bookingStatus || undefined,
-                      price_in_paise: car.pricePerDay * 100,
-                      image_urls: car.image_urls,
-                      image_paths: car.image_paths
-                    }} />
+                    <CarCardModern 
+                      car={{
+                        id: car.id,
+                        title: car.title,
+                        model: car.model || 'Unknown Model',
+                        make: car.make || undefined,
+                        year: car.year || undefined,
+                        image: car.image,
+                        images: car.images,
+                        pricePerDay: car.pricePerDay,
+                        location: car.location,
+                        fuel: car.fuel || 'Unknown',
+                        transmission: car.transmission || 'Unknown',
+                        seats: car.seats || 0,
+                        rating: car.rating,
+                        reviewCount: car.reviewCount,
+                        isAvailable: car.isAvailable,
+                        badges: car.badges,
+                        thumbnail: car.thumbnail,
+                        bookingStatus: car.bookingStatus || undefined,
+                        price_in_paise: car.pricePerDay * 100,
+                        image_urls: car.image_urls,
+                        image_paths: car.image_paths
+                      }} 
+                      onBookingSuccess={handleBookingSuccess} // Pass the callback
+                    />
                   </motion.div>
                 ))}
               </AnimatePresence>

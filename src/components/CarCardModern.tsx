@@ -1,10 +1,13 @@
-import { useState, memo, useCallback } from "react";
+import React, { useState, memo, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Heart } from "lucide-react";
 import SimpleImage from "@/components/SimpleImage";
-import { AtomicBookingFlow } from "@/components/AtomicBookingFlow";
+import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow"; // Changed from AtomicBookingFlow to EnhancedBookingFlow
+import { useAuth } from "@/components/AuthProvider";
+import { useBooking } from "@/hooks/useBooking";
+import { toast } from "@/hooks/use-toast";
 
 // Define the car interface
 interface Car {
@@ -32,6 +35,7 @@ interface Car {
   image_paths?: string[] | null;
   // Add status field for availability check
   status?: string;
+  isArchived?: boolean;
 }
 
 interface CarCardProps {
@@ -40,6 +44,7 @@ interface CarCardProps {
   isAdminView?: boolean;
   onEdit?: (car: Car) => void;
   onDelete?: (carId: string) => void;
+  onBookingSuccess?: (carId: string) => void; // Add this new prop
 }
 
 const CarCardModernComponent = ({ 
@@ -47,35 +52,88 @@ const CarCardModernComponent = ({
   className = "", 
   isAdminView: _isAdminView = false,
   onEdit: _onEdit,
-  onDelete: _onDelete
+  onDelete: _onDelete,
+  onBookingSuccess // Add this new prop
 }: CarCardProps) => {
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const { user, profile, profileLoading } = useAuth();
+  const { saveDraftAndRedirect } = useBooking();
 
   // Compute isAvailable defensively - make the logic match backend values and handle undefined gracefully
-  const isPublished = car.status ? ['published', 'active', 'available'].includes(car.status.toLowerCase()) : true;
-  const notBooked = car.bookingStatus === undefined || car.bookingStatus === null || car.bookingStatus === '' || car.bookingStatus !== 'booked';
-  const isArchived = false; // or whatever field the backend uses
+  const bookingStatus = (car.bookingStatus || '').toString().toLowerCase();
+  const isPublished = car.status ? ['published', 'active', 'available'].includes(String(car.status).toLowerCase()) : true;
+  const isArchived = !!(car.isArchived || false);
+  const notBooked = !(bookingStatus === 'booked' || bookingStatus === 'reserved' || bookingStatus === 'held');
   const computedIsAvailable = isPublished && notBooked && !isArchived;
 
-  // Log car data for debugging
-  console.log('CarCardModern render', { 
-    id: car.id, 
-    status: car.status, 
-    bookingStatus: car.bookingStatus, 
-    isAvailable: car.isAvailable,
-    computedIsAvailable 
-  });
+  // Replace the memoized handler with a fresh function that reads current values at click time
+  function handleBookNow(e?: React.MouseEvent) {
+    try {
+      e?.preventDefault();
 
-  const handleBookNow = useCallback(() => {
-    console.log("Book Now clicked for car:", car.id, "isAvailable", computedIsAvailable);
-    if (computedIsAvailable) {
-      console.log("Car is available, opening booking flow");
+
+      if (!computedIsAvailable) {
+        // Use toast instead of alert for better UX
+        toast({
+          title: "Car Not Available",
+          description: "This car is not available for booking.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // If user is not logged in -> save draft & redirect to auth
+      if (!user) {
+        const draft = {
+          carId: car.id,
+          pickup: { date: '', time: '' },
+          return: { date: '', time: '' },
+          addons: {},
+          totals: { subtotal: 0, serviceCharge: 0, total: 0 }
+        };
+        saveDraftAndRedirect(draft);
+        return;
+      }
+
+      // If profile still loading, show toast and do nothing
+      if (profileLoading) {
+        toast({
+          title: "Finishing Sign-in",
+          description: "Please wait a second while we finish loading your profile...",
+        });
+        return;
+      }
+
+      // canonical phone check: profile.phone is primary; fallback to user metadata
+      const phone =
+        (profile && profile.phone) ||
+        (user && (user.phone || user.user_metadata?.phone || user.user_metadata?.mobile));
+
+      if (!phone) {
+        // Navigate to profile page to collect phone (preserve a draft)
+        const draft = {
+          carId: car.id,
+          pickup: { date: '', time: '' },
+          return: { date: '', time: '' },
+          addons: {},
+          totals: { subtotal: 0, serviceCharge: 0, total: 0 }
+        };
+        saveDraftAndRedirect(draft, { redirectToProfile: true }); // add optional param to go to profile page
+        return;
+      }
+
+      // All checks passed -> open booking flow
       setIsBookingFlowOpen(true);
-    } else {
-      console.log("Car is not available for booking");
+    } catch (err) {
+      console.error('[BookNow] unexpected error', err);
+      toast({
+        title: "Unexpected Error",
+        description: "An unexpected error occurred. Please check the console or contact support.",
+        variant: "destructive",
+      });
     }
-  }, [car.id, computedIsAvailable]);
+  }
 
   const handleWhatsAppContact = useCallback(() => {
     const text = encodeURIComponent(`Hello RP cars, I'm interested in ${car.make} ${car.model} (${car.id})`);
@@ -84,8 +142,16 @@ const CarCardModernComponent = ({
   }, [car.make, car.model, car.id]);
 
   const handleBookingSuccess = useCallback(() => {
-    window.location.reload();
-  }, []);
+    // Update the car's availability state locally to reflect that it's now booked
+    
+    // Close the booking flow
+    setIsBookingFlowOpen(false);
+    
+    // Call the parent component's callback if provided
+    if (onBookingSuccess) {
+      onBookingSuccess(car.id);
+    }
+  }, [car.id, onBookingSuccess]);
 
   // Ensure title is always a string for the booking flow
   const carForBooking = {
@@ -173,6 +239,7 @@ const CarCardModernComponent = ({
                 disabled={!computedIsAvailable}
                 aria-disabled={!computedIsAvailable}
                 data-testid={`book-now-${car.id}`}
+                id={`book-now-btn-${car.id}`}
                 className={`text-[0.6rem] sm:text-xs px-2 py-1 sm:px-3 sm:py-2 ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
               >
                 Book Now
@@ -183,7 +250,7 @@ const CarCardModernComponent = ({
       </motion.article>
 
       {isBookingFlowOpen && (
-        <AtomicBookingFlow 
+        <EnhancedBookingFlow // Changed from AtomicBookingFlow to EnhancedBookingFlow
           car={carForBooking} 
           onClose={() => setIsBookingFlowOpen(false)}
           onBookingSuccess={handleBookingSuccess}
@@ -194,12 +261,4 @@ const CarCardModernComponent = ({
 };
 
 // Memoize the component to prevent unnecessary re-renders
-export const CarCardModern = memo(CarCardModernComponent, (prevProps, nextProps) => {
-  // Custom comparison function to optimize re-renders
-  return (
-    prevProps.car.id === nextProps.car.id &&
-    prevProps.car.isAvailable === nextProps.car.isAvailable &&
-    prevProps.car.pricePerDay === nextProps.car.pricePerDay &&
-    prevProps.car.thumbnail === nextProps.car.thumbnail
-  );
-});
+export const CarCardModern = memo(CarCardModernComponent);
