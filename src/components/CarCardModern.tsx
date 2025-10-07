@@ -60,11 +60,11 @@ const CarCardModernComponent = ({
   const { user, profile, profileLoading } = useAuth();
   const { saveDraftAndRedirect } = useBooking();
 
-  // Compute isAvailable defensively - make the logic match backend values and handle undefined gracefully
-  const bookingStatus = (car.bookingStatus || '').toString().toLowerCase();
+  // Compute availability based on status and booking_status
+  const bookingStatus = car.bookingStatus?.toString().toLowerCase() || '';
   const isPublished = car.status ? ['published', 'active', 'available'].includes(String(car.status).toLowerCase()) : true;
-  const isArchived = !!(car.isArchived || false);
-  const notBooked = !(bookingStatus === 'booked' || bookingStatus === 'reserved' || bookingStatus === 'held');
+  const isArchived = !!(car.isArchived);
+  const notBooked = !bookingStatus || !['booked', 'reserved', 'held'].includes(bookingStatus);
   const computedIsAvailable = isPublished && notBooked && !isArchived;
 
   // Replace the memoized handler with a fresh function that reads current values at click time
@@ -170,7 +170,7 @@ const CarCardModernComponent = ({
         aria-label={`${car.make} ${car.model}`}
       >
         {/* Image Section */}
-        <div className="relative w-full aspect-video overflow-hidden rounded-xl">
+        <div className="relative w-full aspect-video overflow-hidden rounded-xl bg-muted">
           <SimpleImage 
             src={car.thumbnail || car.image} 
             alt={`${car.make} ${car.model}`} 

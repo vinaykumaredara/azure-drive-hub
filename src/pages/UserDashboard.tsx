@@ -285,13 +285,8 @@ const UserDashboard: React.FC = () => {
         
         if (!mounted) {return;}
         setBookings(processedBookings || []);
-<<<<<<< HEAD
       } catch (error: any) {
         if (error?.name === 'AbortError') {return;}
-=======
-      } catch (error) {
-        if ((error as Error).name === 'AbortError') {return;}
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
         errorLogger.logError(error as Error, {
           component: 'UserDashboard',
           action: 'fetchUserBookings',
@@ -343,19 +338,12 @@ const UserDashboard: React.FC = () => {
             co2Saved
           });
         }
-<<<<<<< HEAD
       } catch (error: any) {
         if (error?.name === 'AbortError') {return;}
-=======
-      } catch (error) {
-        if ((error as Error).name === 'AbortError') {return;}
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
         console.error('Error fetching user stats:', error);
       }
     };
 
-<<<<<<< HEAD
-=======
     const fetchNotifications = async (userId: string, signal: AbortSignal) => {
       console.log('fetchNotifications called for userId=', userId);
       try {
@@ -457,7 +445,6 @@ const UserDashboard: React.FC = () => {
       }
     };
 
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
     const fetchFavorites = async (userId: string) => {
       console.log('fetchFavorites called for userId=', userId);
       // For now, use local storage for favorites until user_favorites table is created
@@ -492,13 +479,8 @@ const UserDashboard: React.FC = () => {
           fetchNotifications(user.id, controller.signal),
           fetchFavorites(user.id)
         ]);
-<<<<<<< HEAD
       } catch (err: any) {
         if (err?.name === 'AbortError') {return;}
-=======
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') {return;}
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
         console.error('UserDashboard loadAll error', err);
         toast({
           title: "Dashboard Error",
@@ -1446,13 +1428,7 @@ const UserDashboard: React.FC = () => {
                           title: "License Uploaded",
                           description: "Your license has been uploaded successfully.",
                         });
-<<<<<<< HEAD
-                        // Refresh notifications to update license status
-                        // Note: fetchNotifications is not accessible here due to scope issues
-                        // We'll need to implement a different approach for refreshing notifications
-=======
                         // License status will be reflected on next dashboard load
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
                       }} />
                     </CardContent>
                   </Card>
