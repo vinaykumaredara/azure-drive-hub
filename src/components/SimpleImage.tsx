@@ -8,22 +8,24 @@ interface SimpleImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   lazy?: boolean;
 }
 
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
 
-export default function SimpleImage({ 
-  src, 
-  alt, 
+export default function SimpleImage({
+  src,
+  alt,
   className = '',
   lazy = true,
-  ...rest 
+  ...rest
 }: SimpleImageProps) {
   return (
     <LazyImage
       src={src}
       alt={alt}
-      className={className}
+      className={`aspect-video object-cover ${className}`}
       lazy={lazy}
       fallback={FALLBACK_IMAGE}
+      aspectRatio="16/9"
       {...rest}
     />
   );

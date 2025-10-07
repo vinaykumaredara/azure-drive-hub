@@ -38,7 +38,8 @@ export default function useCars() {
     try {
       const { data, error } = await supabase
         .from('cars')
-        .select(`
+        .select(
+          `
           id,
           title,
           make,
@@ -59,52 +60,32 @@ export default function useCars() {
           booking_status,
           booked_by,
           booked_at
-        `)
+        `
+        )
         .eq('status', 'published')
         .order('created_at', { ascending: false });
-      
-      if (error) {throw error;}
 
-      // CRITICAL: Validate and resolve ALL image URLs before setting state
-      const carsWithValidImages = await Promise.all(
-        (data ?? []).map(async (car: any) => {
-          if (car.image_urls && car.image_urls.length > 0) {
-            const validUrls = [];
-            for (const url of car.image_urls) {
-              // Use existing getPublicOrSignedUrl function
-              const resolvedUrl = getPublicOrSignedUrl(url);
-              if (resolvedUrl) {
-                try {
-                  // Quick HEAD check to verify URL accessibility with timeout
-                  const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 5000);
-                  
-                  const response = await fetch(resolvedUrl, { 
-                    method: 'HEAD', 
-                    signal: controller.signal
-                  });
-                  
-                  clearTimeout(timeoutId);
-                  
-                  if (response.ok && response.headers.get('content-type')?.startsWith('image')) {
-                    validUrls.push(resolvedUrl);
-                  } else {
-                    // Use fallback for invalid responses
-                    validUrls.push('https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80');
-                  }
-                } catch {
-                  // Use fallback for network errors
-                  validUrls.push('https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80');
-                }
-              }
-            }
-            car.image_urls = validUrls.length > 0 ? validUrls : ['https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80'];
-          }
-          return car;
-        })
-      );
+      if (error) {
+        throw error;
+      }
 
-      setCars(carsWithValidImages);
+      // Simply resolve image URLs without validation loop
+      const carsWithResolvedImages = (data ?? []).map((car: any) => {
+        if (car.image_urls && car.image_urls.length > 0) {
+          const resolvedUrls = car.image_urls.map((url: string) =>
+            getPublicOrSignedUrl(url)
+          );
+          car.image_urls =
+            resolvedUrls.length > 0
+              ? resolvedUrls
+              : [
+                  'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80',
+                ];
+        }
+        return car;
+      });
+
+      setCars(carsWithResolvedImages);
     } catch (err) {
       console.error('Failed to fetch cars', err);
       setError(err as Error);
