@@ -1,81 +1,59 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
-import { visualizer } from "rollup-plugin-visualizer";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+import path from 'path';
+import { componentTagger } from 'lovable-tagger';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "localhost",
+    host: 'localhost',
     port: 8080,
     strictPort: true,
     cors: true,
     hmr: {
       port: 8080,
       overlay: true,
-      clientPort: 8080
+      clientPort: 8080,
     },
     open: false,
     watch: {
       usePolling: true, // Use polling for better file watching on Windows
       interval: 300,
-      ignored: ['**/node_modules/**', '**/.git/**']
+      ignored: ['**/node_modules/**', '**/.git/**'],
     },
     fs: {
-      strict: false
+      strict: false,
     },
     // Disable service worker in development
-    middlewareMode: false
+    middlewareMode: false,
   },
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
     // Bundle analyzer for production builds
-    mode === 'production' && visualizer({
-      filename: 'dist/stats.html',
-      open: false,
-      gzipSize: true,
-      brotliSize: true,
-    }),
+    mode === 'production' &&
+      visualizer({
+        filename: 'dist/stats.html',
+        open: false,
+        gzipSize: true,
+        brotliSize: true,
+      }),
   ].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
   build: {
     target: 'es2020',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production', // Remove console.logs in production
-        drop_debugger: mode === 'production', // Remove debuggers in production
-        pure_funcs: mode === 'production' ? ['console.log', 'console.info', 'console.debug'] : [], // Remove specific functions in production
-        // Optimize for smaller bundle size
-        passes: 2,
-        toplevel: true,
-        unsafe: true,
-        unsafe_comps: true,
-      },
-      mangle: {
-        properties: {
-          regex: '^_',
-        }
-      },
-      format: {
-        comments: false, // Remove comments
-      },
-      keep_classnames: false,
-      keep_fnames: false,
-    },
+    minify: true,
+    // Using default minification settings to avoid build issues
     sourcemap: mode === 'development',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       // Handle optional dependencies issue in CI environments
-      external: [
-        // Exclude problematic optional dependencies that cause issues in CI
-      ],
+      external: [],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
@@ -100,12 +78,12 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     include: [
-      'react', 
-      'react-dom', 
-      'react-router-dom', 
+      'react',
+      'react-dom',
+      'react-router-dom',
       '@tanstack/react-query',
       'lucide-react',
-      'framer-motion'
+      'framer-motion',
     ],
     force: mode === 'development', // Force re-optimization in dev
     // Enable esbuild optimization
@@ -123,9 +101,7 @@ export default defineConfig(({ mode }) => ({
   // Enable worker support
   worker: {
     format: 'es',
-    plugins: () => [
-      react(),
-    ],
+    plugins: () => [react()],
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name].[hash].js',
