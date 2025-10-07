@@ -711,182 +711,179 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     />
   );
 
-  return (
-    <>
-      {createPortal(
+  return createPortal(
+    <div className="booking-flow-portal">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[9999] sm:backdrop-blur-sm"
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="booking-flow-title"
+        onKeyDown={(e) => {
+          // Close modal on Escape key
+          if (e.key === 'Escape') {
+            onClose();
+          }
+        }}
+      >
         <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[100] sm:backdrop-blur-sm"
-          onClick={onClose}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="booking-flow-title"
-          onKeyDown={(e) => {
-            // Close modal on Escape key
-            if (e.key === 'Escape') {
-              onClose();
-            }
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[95vh] flex flex-col modal-content relative sm:rounded-2xl shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+          style={{ 
+            maxHeight: '100vh',
+            margin: 'auto'
           }}
+          role="document"
         >
-          <motion.div 
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[95vh] flex flex-col modal-content relative sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-            style={{ 
-              maxHeight: '100vh',
-              margin: 'auto'
-            }}
-            role="document"
-          >
-            {/* Header */}
-            <div className="p-4 sm:p-6 border-b flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 id="booking-flow-title" className="text-lg sm:text-xl font-bold">{stepTitles[currentStep]}</h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Booking {car.title}</p>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={onClose} 
-                  className="h-8 w-8 p-0"
-                  aria-label="Close booking flow"
-                >
-                  ✕
-                </Button>
+          {/* Header */}
+          <div className="p-4 sm:p-6 border-b flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 id="booking-flow-title" className="text-lg sm:text-xl font-bold">{stepTitles[currentStep]}</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">Booking {car.title}</p>
               </div>
-
-              {/* Progress Steps */}
-              <div className="flex items-center space-x-1 sm:space-x-2 mt-4 overflow-x-auto pb-2" role="tablist" aria-label="Booking steps">
-                {steps.map((step, index) => {
-                  const Icon = stepIcons[step];
-                  const isActive = index === currentStepIndex;
-                  const isCompleted = index < currentStepIndex;
-                  
-                  return (
-                    <Fragment key={step}>
-                      <div 
-                        className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
-                          isCompleted ? 'bg-success text-white' :
-                          isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
-                        }`}
-                        role="tab"
-                        aria-selected={isActive}
-                        aria-controls={`step-${step}-panel`}
-                        id={`step-${step}-tab`}
-                      >
-                        <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </div>
-                      {index < steps.length - 1 && (
-                        <div className={`h-0.5 w-4 sm:w-8 transition-all flex-shrink-0 ${
-                          isCompleted ? 'bg-success' : 'bg-muted'
-                        }`} />
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onClose} 
+                className="h-8 w-8 p-0"
+                aria-label="Close booking flow"
+              >
+                ✕
+              </Button>
             </div>
 
-            {/* Scrollable Content Area */}
-            <div 
-              ref={contentRef}
-              className="p-4 sm:p-6 overflow-y-auto flex-grow"
-              style={{
-                maxHeight: 'calc(100vh - 160px)',
-                WebkitOverflowScrolling: 'touch',
-              }}
-              id={`step-${currentStep}-panel`}
-              role="tabpanel"
-              aria-labelledby={`step-${currentStep}-tab`}
-              tabIndex={-1}
-            >
-              <AnimatePresence mode="wait">
-                {currentStep === 'dates' && renderDateSelection()}
-                {currentStep === 'phone' && renderPhoneCollection()}
-                {currentStep === 'extras' && renderExtrasSelection()}
-                {currentStep === 'terms' && renderTermsAndConditions()}
-                {currentStep === 'license' && renderLicenseUpload()}
-                {currentStep === 'payment' && renderPayment()}
-                {currentStep === 'confirmation' && renderConfirmation()}
-              </AnimatePresence>
-            </div>
-
-            {/* Sticky Footer - Always Visible */}
-            {currentStep !== 'confirmation' && (
-              <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center flex-shrink-0">
-                <div>
-                  {currentStep !== 'dates' && (
-                    <Button 
-                      variant="outline" 
-                      onClick={handleBack} 
-                      disabled={isLoading} 
-                      size="sm"
-                      aria-label="Go back to previous step"
+            {/* Progress Steps */}
+            <div className="flex items-center space-x-1 sm:space-x-2 mt-4 overflow-x-auto pb-2" role="tablist" aria-label="Booking steps">
+              {steps.map((step, index) => {
+                const Icon = stepIcons[step];
+                const isActive = index === currentStepIndex;
+                const isCompleted = index < currentStepIndex;
+                
+                return (
+                  <Fragment key={step}>
+                    <div 
+                      className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
+                        isCompleted ? 'bg-success text-white' :
+                        isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                      }`}
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-controls={`step-${step}-panel`}
+                      id={`step-${step}-tab`}
                     >
-                      Back
-                    </Button>
-                  )}
+                      <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div className={`h-0.5 w-4 sm:w-8 transition-all flex-shrink-0 ${
+                        isCompleted ? 'bg-success' : 'bg-muted'
+                      }`} />
+                    )}
+                  </Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Scrollable Content Area */}
+          <div 
+            ref={contentRef}
+            className="p-4 sm:p-6 overflow-y-auto flex-grow"
+            style={{
+              maxHeight: 'calc(100vh - 160px)',
+              WebkitOverflowScrolling: 'touch',
+            }}
+            id={`step-${currentStep}-panel`}
+            role="tabpanel"
+            aria-labelledby={`step-${currentStep}-tab`}
+            tabIndex={-1}
+          >
+            <AnimatePresence mode="wait">
+              {currentStep === 'dates' && renderDateSelection()}
+              {currentStep === 'phone' && renderPhoneCollection()}
+              {currentStep === 'extras' && renderExtrasSelection()}
+              {currentStep === 'terms' && renderTermsAndConditions()}
+              {currentStep === 'license' && renderLicenseUpload()}
+              {currentStep === 'payment' && renderPayment()}
+              {currentStep === 'confirmation' && renderConfirmation()}
+            </AnimatePresence>
+          </div>
+
+          {/* Sticky Footer - Always Visible */}
+          {currentStep !== 'confirmation' && (
+            <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center flex-shrink-0">
+              <div>
+                {currentStep !== 'dates' && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleBack} 
+                    disabled={isLoading} 
+                    size="sm"
+                    aria-label="Go back to previous step"
+                  >
+                    Back
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="font-bold text-lg">
+                    {bookingData.advanceBooking 
+                      ? formatINRFromPaise(bookingData.advanceAmount * 100)
+                      : formatINRFromPaise(calculateTotal() * 100)}
+                  </p>
                 </div>
                 
-                <div className="flex items-center space-x-4">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="font-bold text-lg">
-                      {bookingData.advanceBooking 
-                        ? formatINRFromPaise(bookingData.advanceAmount * 100)
-                        : formatINRFromPaise(calculateTotal() * 100)}
-                    </p>
-                  </div>
-                  
-                  <Button 
-                    onClick={() => {
-                      if (currentStep === 'payment') {
-                        // Handle payment based on selected option
-                        if (bookingData.advanceBooking) {
-                          // For advance booking, we need to handle the 10% payment
-                          handleAdvancePayment();
-                        } else {
-                          // For full payment, open the payment gateway
-                          setIsPaymentOpen(true);
-                        }
+                <Button 
+                  onClick={() => {
+                    if (currentStep === 'payment') {
+                      // Handle payment based on selected option
+                      if (bookingData.advanceBooking) {
+                        // For advance booking, we need to handle the 10% payment
+                        handleAdvancePayment();
                       } else {
-                        // For other steps, proceed to next step
-                        handleNext();
+                        // For full payment, open the payment gateway
+                        setIsPaymentOpen(true);
                       }
-                    }}
-                    disabled={isLoading || 
-                      (currentStep === 'dates' && (!bookingData.startDate || !bookingData.endDate)) ||
-                      (currentStep === 'phone' && !bookingData.phoneNumber) ||
-                      (currentStep === 'terms' && !bookingData.termsAccepted) ||
-                      (currentStep === 'license' && !bookingData.licenseId)
+                    } else {
+                      // For other steps, proceed to next step
+                      handleNext();
                     }
-                    className="min-w-[80px] sm:min-w-[120px] text-sm sm:text-base"
-                    size="sm"
-                    aria-label={currentStep === 'payment' ? 'Proceed to payment' : currentStep === 'license' ? 'Continue to next step' : 'Continue to next step'}
-                  >
-                    {isLoading ? (
-                      <motion.div 
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full"
-                        aria-label="Processing"
-                      />
-                    ) : (
-                      currentStep === 'payment' ? 'Proceed to Pay' : currentStep === 'license' ? 'Continue' : 'Next'
-                    )}
-                  </Button>
-                </div>
+                  }}
+                  disabled={isLoading || 
+                    (currentStep === 'dates' && (!bookingData.startDate || !bookingData.endDate)) ||
+                    (currentStep === 'phone' && !bookingData.phoneNumber) ||
+                    (currentStep === 'terms' && !bookingData.termsAccepted) ||
+                    (currentStep === 'license' && !bookingData.licenseId)
+                  }
+                  className="min-w-[80px] sm:min-w-[120px] text-sm sm:text-base"
+                  size="sm"
+                  aria-label={currentStep === 'payment' ? 'Proceed to payment' : currentStep === 'license' ? 'Continue to next step' : 'Continue to next step'}
+                >
+                  {isLoading ? (
+                    <motion.div 
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full"
+                      aria-label="Processing"
+                    />
+                  ) : (
+                    currentStep === 'payment' ? 'Proceed to Pay' : currentStep === 'license' ? 'Continue' : 'Next'
+                  )}
+                </Button>
               </div>
-            )}
-          </motion.div>
-        </motion.div>,
-        (typeof document !== 'undefined' && document.getElementById('modal-root')) || document.body
-      )}
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
 
       {/* Payment Gateway Modal */}
       <PaymentGateway
@@ -911,6 +908,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         }}
         onSuccess={handlePaymentSuccess}
       />
-    </>
+    </div>,
+    document.body
   );
 };
