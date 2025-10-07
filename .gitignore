@@ -18,3 +18,8 @@ bun.lockb
 DEV-SERVER-FIXES.md
 DEV_CHECKLIST.md
 SITE_OPTIMIZATION_COMPLETE.md
+# Temporary build directories
+dist-simple/
+dist-test/
+# Verification scripts
+final-verification.js

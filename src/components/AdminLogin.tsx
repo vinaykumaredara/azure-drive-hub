@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from '@/hooks/use-toast';
 
 interface AdminLoginProps {
   onLogin: () => void;
@@ -12,24 +13,34 @@ interface AdminLoginProps {
 }
 
 export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose }) => {
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [credentials, setCredentials] = useState({
+    username: '',
+    password: '',
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulate authentication
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // Demo credentials
-    if (credentials.username === 'admin' && credentials.password === 'admin123') {
+    if (
+      credentials.username === 'admin' &&
+      credentials.password === 'admin123'
+    ) {
       onLogin();
     } else {
-      alert('Invalid credentials. Use: admin / admin123');
+      toast({
+        title: 'Invalid Credentials',
+        description: 'Use: admin / admin123',
+        variant: 'destructive',
+      });
     }
-    
+
     setIsLoading(false);
   };
 
@@ -58,12 +69,17 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose }) => {
                 <Input
                   id="username"
                   value={credentials.username}
-                  onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
+                  onChange={e =>
+                    setCredentials(prev => ({
+                      ...prev,
+                      username: e.target.value,
+                    }))
+                  }
                   placeholder="Enter admin username"
                   className="mt-1"
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -71,7 +87,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose }) => {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={credentials.password}
-                    onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
+                    onChange={e =>
+                      setCredentials(prev => ({
+                        ...prev,
+                        password: e.target.value,
+                      }))
+                    }
                     placeholder="Enter password"
                     className="mt-1 pr-10"
                   />
@@ -82,7 +103,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose }) => {
                     className="absolute right-0 top-1 h-9 w-9"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -91,10 +116,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose }) => {
                 <Button variant="outline" className="flex-1" onClick={onClose}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="flex-1 bg-gradient-primary"
-                  disabled={isLoading || !credentials.username || !credentials.password}
+                  disabled={
+                    isLoading || !credentials.username || !credentials.password
+                  }
                 >
                   {isLoading ? 'Signing in...' : 'Sign In'}
                 </Button>

@@ -1,9 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FileText, CheckCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { LicenseUpload } from '@/components/LicenseUpload';
 
 interface LicenseStepProps {
@@ -21,7 +20,7 @@ export const LicenseStep: React.FC<LicenseStepProps> = ({
   existingLicense,
   licenseId,
   onLicenseUploaded,
-  onExistingLicenseSelect
+  onExistingLicenseSelect,
 }) => {
   return (
     <motion.div
@@ -54,7 +53,9 @@ export const LicenseStep: React.FC<LicenseStepProps> = ({
                   ) : existingLicense.verified === false ? (
                     <span className="text-red-600">Rejected</span>
                   ) : (
-                    <span className="text-yellow-600">Pending Verification</span>
+                    <span className="text-yellow-600">
+                      Pending Verification
+                    </span>
                   )}
                 </p>
               </div>
@@ -63,9 +64,15 @@ export const LicenseStep: React.FC<LicenseStepProps> = ({
                 size="sm"
                 onClick={() => onExistingLicenseSelect(existingLicense.id)}
                 disabled={licenseId === existingLicense.id}
-                aria-label={licenseId === existingLicense.id ? "License already selected" : "Use this existing license"}
+                aria-label={
+                  licenseId === existingLicense.id
+                    ? 'License already selected'
+                    : 'Use this existing license'
+                }
               >
-                {licenseId === existingLicense.id ? 'Selected' : 'Use This License'}
+                {licenseId === existingLicense.id
+                  ? 'Selected'
+                  : 'Use This License'}
               </Button>
             </div>
           </CardContent>
@@ -75,10 +82,16 @@ export const LicenseStep: React.FC<LicenseStepProps> = ({
       <LicenseUpload onUploaded={onLicenseUploaded} />
 
       {licenseId && (
-        <div className="p-4 bg-success/10 border border-success/20 rounded-lg" role="status" aria-live="polite">
+        <div
+          className="p-4 bg-success/10 border border-success/20 rounded-lg"
+          role="status"
+          aria-live="polite"
+        >
           <div className="flex items-center space-x-2">
             <CheckCircle className="w-5 h-5 text-success" />
-            <span className="text-sm font-medium text-success">License uploaded successfully</span>
+            <span className="text-sm font-medium text-success">
+              License uploaded successfully
+            </span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Your license has been submitted for verification

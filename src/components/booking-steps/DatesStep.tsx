@@ -1,10 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CalendarIcon } from 'lucide-react';
+// import { CalendarIcon } from 'lucide-react'; // Unused import
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+// import { Card, CardContent } from '@/components/ui/card'; // Unused import
 import { formatINRFromPaise } from '@/utils/currency';
 
 interface DatesStepProps {
@@ -31,11 +37,11 @@ export const DatesStep: React.FC<DatesStepProps> = ({
   onStartDateChange,
   onEndDateChange,
   onStartTimeChange,
-  onEndTimeChange
+  onEndTimeChange,
 }) => {
-  const calculateTotal = () => {
-    return (car.price_in_paise ? car.price_in_paise / 100 : car.pricePerDay) * bookingData.totalDays;
-  };
+  // const _calculateTotal = () => { // Unused function
+  //   return (car.price_in_paise ? car.price_in_paise / 100 : car.pricePerDay) * bookingData.totalDays;
+  // };
 
   return (
     <motion.div
@@ -47,12 +53,14 @@ export const DatesStep: React.FC<DatesStepProps> = ({
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <Label htmlFor="startDate" className="text-sm">Pickup Date</Label>
+          <Label htmlFor="startDate" className="text-sm">
+            Pickup Date
+          </Label>
           <Input
             id="startDate"
             type="date"
             value={bookingData.startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
+            onChange={e => onStartDateChange(e.target.value)}
             className="mt-1 text-sm"
             min={new Date().toISOString().split('T')[0]}
             aria-describedby="startDate-help"
@@ -62,14 +70,18 @@ export const DatesStep: React.FC<DatesStepProps> = ({
           </p>
         </div>
         <div>
-          <Label htmlFor="endDate" className="text-sm">Return Date</Label>
+          <Label htmlFor="endDate" className="text-sm">
+            Return Date
+          </Label>
           <Input
             id="endDate"
             type="date"
             value={bookingData.endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
+            onChange={e => onEndDateChange(e.target.value)}
             className="mt-1 text-sm"
-            min={bookingData.startDate || new Date().toISOString().split('T')[0]}
+            min={
+              bookingData.startDate || new Date().toISOString().split('T')[0]
+            }
             aria-describedby="endDate-help"
           />
           <p id="endDate-help" className="text-xs text-muted-foreground mt-1">
@@ -80,19 +92,28 @@ export const DatesStep: React.FC<DatesStepProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <Label htmlFor="startTime" className="text-sm">Pickup Time</Label>
-          <Select 
-            value={bookingData.startTime} 
+          <Label htmlFor="startTime" className="text-sm">
+            Pickup Time
+          </Label>
+          <Select
+            value={bookingData.startTime}
             onValueChange={onStartTimeChange}
           >
-            <SelectTrigger className="mt-1 text-sm" aria-describedby="startTime-help">
+            <SelectTrigger
+              className="mt-1 text-sm"
+              aria-describedby="startTime-help"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {Array.from({ length: 24 }, (_, i) => {
                 const hour = i.toString().padStart(2, '0');
                 return (
-                  <SelectItem key={hour} value={`${hour}:00`} className="text-sm">
+                  <SelectItem
+                    key={hour}
+                    value={`${hour}:00`}
+                    className="text-sm"
+                  >
                     {hour}:00
                   </SelectItem>
                 );
@@ -104,19 +125,25 @@ export const DatesStep: React.FC<DatesStepProps> = ({
           </p>
         </div>
         <div>
-          <Label htmlFor="endTime" className="text-sm">Return Time</Label>
-          <Select 
-            value={bookingData.endTime} 
-            onValueChange={onEndTimeChange}
-          >
-            <SelectTrigger className="mt-1 text-sm" aria-describedby="endTime-help">
+          <Label htmlFor="endTime" className="text-sm">
+            Return Time
+          </Label>
+          <Select value={bookingData.endTime} onValueChange={onEndTimeChange}>
+            <SelectTrigger
+              className="mt-1 text-sm"
+              aria-describedby="endTime-help"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {Array.from({ length: 24 }, (_, i) => {
                 const hour = i.toString().padStart(2, '0');
                 return (
-                  <SelectItem key={hour} value={`${hour}:00`} className="text-sm">
+                  <SelectItem
+                    key={hour}
+                    value={`${hour}:00`}
+                    className="text-sm"
+                  >
                     {hour}:00
                   </SelectItem>
                 );
@@ -130,7 +157,7 @@ export const DatesStep: React.FC<DatesStepProps> = ({
       </div>
 
       {bookingData.startDate && bookingData.endDate && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="p-3 sm:p-4 bg-primary-light rounded-lg"
@@ -138,10 +165,14 @@ export const DatesStep: React.FC<DatesStepProps> = ({
           aria-live="polite"
         >
           <p className="text-xs sm:text-sm font-medium text-primary">
-            Total Duration: {bookingData.totalDays} day{bookingData.totalDays > 1 ? 's' : ''}
+            Total Duration: {bookingData.totalDays} day
+            {bookingData.totalDays > 1 ? 's' : ''}
           </p>
           <p className="text-base sm:text-lg font-bold text-primary mt-1">
-            {formatINRFromPaise((car.price_in_paise || car.pricePerDay * 100) * bookingData.totalDays)}
+            {formatINRFromPaise(
+              (car.price_in_paise || car.pricePerDay * 100) *
+                bookingData.totalDays
+            )}
           </p>
         </motion.div>
       )}
