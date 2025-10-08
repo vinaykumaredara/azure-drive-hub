@@ -10,18 +10,19 @@ type Props = React.ImgHTMLAttributes<HTMLImageElement> & {
 };
 
 // Default fallback image
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
 
-export default function LazyImage({ 
-  src, 
-  alt, 
+export default function LazyImage({
+  src,
+  alt,
   placeholder: _placeholder,
-  aspectRatio, 
+  aspectRatio,
   fallback,
   className = '',
   debug = false,
   lazy = true,
-  ...rest 
+  ...rest
 }: Props) {
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -31,17 +32,19 @@ export default function LazyImage({
 
   // Resolve URL synchronously
   const resolvedSrc = resolveCarImageUrl(src);
-  
+
   // Log for debugging
   useEffect(() => {
     if (debug) {
-      console.log("LazyImage - Props:", { src, alt, resolvedSrc });
+      console.log('LazyImage - Props:', { src, alt, resolvedSrc });
     }
   }, [src, alt, resolvedSrc, debug]);
 
   // Setup intersection observer for lazy loading
   useEffect(() => {
-    if (!lazy || !imgRef.current) {return;}
+    if (!lazy || !imgRef.current) {
+      return;
+    }
 
     // Create intersection observer
     observerRef.current = new IntersectionObserver(
@@ -52,8 +55,8 @@ export default function LazyImage({
         }
       },
       {
-        rootMargin: '50px', // Load images when they're 50px away from viewport
-        threshold: 0.01
+        rootMargin: '100px', // Increased margin to load images earlier
+        threshold: 0.01,
       }
     );
 
@@ -71,10 +74,12 @@ export default function LazyImage({
 
   // Preload image when it becomes visible
   useEffect(() => {
-    if (!isVisible || !resolvedSrc) {return;}
+    if (!isVisible || !resolvedSrc) {
+      return;
+    }
 
     let isMounted = true;
-    
+
     preloadImage(resolvedSrc)
       .then(() => {
         if (isMounted) {
@@ -96,12 +101,14 @@ export default function LazyImage({
   const containerStyle: React.CSSProperties = {
     position: 'relative',
     overflow: 'hidden',
-    ...(aspectRatio ? {
-      aspectRatio: aspectRatio,
-    } : {
-      width: '100%',
-      height: 'auto',
-    })
+    ...(aspectRatio
+      ? {
+          aspectRatio: aspectRatio,
+        }
+      : {
+          width: '100%',
+          height: 'auto',
+        }),
   };
 
   // Handle image load error
@@ -113,7 +120,8 @@ export default function LazyImage({
   };
 
   // Determine which image to display
-  const displaySrc = error || !resolvedSrc ? (fallback || FALLBACK_IMAGE) : resolvedSrc;
+  const displaySrc =
+    error || !resolvedSrc ? fallback || FALLBACK_IMAGE : resolvedSrc;
 
   // Show placeholder while loading
   if (!loaded && isVisible) {
@@ -128,11 +136,9 @@ export default function LazyImage({
           className={`${className} block w-full h-full object-cover ${!loaded ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
           {...rest}
         />
-        
+
         {debug && resolvedSrc && (
-          <div className="text-xs p-1 bg-gray-100 break-all">
-            {resolvedSrc}
-          </div>
+          <div className="text-xs p-1 bg-gray-100 break-all">{resolvedSrc}</div>
         )}
       </div>
     );
@@ -148,11 +154,9 @@ export default function LazyImage({
         className={`${className} block w-full h-full object-cover ${loaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
         {...rest}
       />
-      
+
       {debug && resolvedSrc && (
-        <div className="text-xs p-1 bg-gray-100 break-all">
-          {resolvedSrc}
-        </div>
+        <div className="text-xs p-1 bg-gray-100 break-all">{resolvedSrc}</div>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, memo, useCallback } from 'react';
+import React, { useState, memo, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,27 +53,29 @@ const CarCardModernComponent = ({
   isAdminView: _isAdminView = false,
   onEdit: _onEdit,
   onDelete: _onDelete,
-  onBookingSuccess, // Add this new prop
+  onBookingSuccess,
 }: CarCardProps) => {
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const { user, profile, profileLoading } = useAuth();
   const { saveDraftAndRedirect } = useBooking();
 
-  // Compute isAvailable defensively - make the logic match backend values and handle undefined gracefully
-  const bookingStatus = (car.bookingStatus || '').toString().toLowerCase();
-  const isPublished = car.status
-    ? ['published', 'active', 'available'].includes(
-        String(car.status).toLowerCase()
-      )
-    : true;
-  const isArchived = !!(car.isArchived || false);
-  const notBooked = !(
-    bookingStatus === 'booked' ||
-    bookingStatus === 'reserved' ||
-    bookingStatus === 'held'
-  );
-  const computedIsAvailable = isPublished && notBooked && !isArchived;
+  // Memoize availability computation to prevent unnecessary recalculations
+  const computedIsAvailable = useMemo(() => {
+    const bookingStatus = (car.bookingStatus || '').toString().toLowerCase();
+    const isPublished = car.status
+      ? ['published', 'active', 'available'].includes(
+          String(car.status).toLowerCase()
+        )
+      : true;
+    const isArchived = !!(car.isArchived || false);
+    const notBooked = !(
+      bookingStatus === 'booked' ||
+      bookingStatus === 'reserved' ||
+      bookingStatus === 'held'
+    );
+    return isPublished && notBooked && !isArchived;
+  }, [car.bookingStatus, car.status, car.isArchived]);
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {

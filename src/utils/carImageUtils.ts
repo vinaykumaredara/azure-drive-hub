@@ -6,7 +6,47 @@ const urlCache = new Map<string, string>();
 const imageCache = new Map<string, HTMLImageElement>();
 
 // Fallback image URL for when images fail to load
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
+
+/**
+ * Normalize car images to ensure consistent format across the application
+ * @param car - Car object with various image properties
+ * @returns Array of image URLs
+ */
+export function normalizeCarImages(car: any): string[] {
+  // Accept any of: images (array), image_urls (array), image_paths (array), comma separated string
+  let urls: string[] = [];
+
+  if (Array.isArray(car.images) && car.images.length) {
+    urls = car.images.filter(Boolean);
+  } else if (Array.isArray(car.image_urls) && car.image_urls.length) {
+    urls = car.image_urls.filter(Boolean);
+  } else if (
+    typeof car.image_urls === 'string' &&
+    car.image_urls.trim().length
+  ) {
+    urls = (car.image_urls as string)
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+  } else if (Array.isArray(car.image_paths) && car.image_paths.length) {
+    // Convert storage paths to public URLs using supabase client or a resolved base
+    urls = car.image_paths
+      .map((p: string) => resolveCarImageUrl(p))
+      .filter(Boolean);
+  }
+
+  // Fallback to thumbnail or global fallback
+  if (urls.length === 0 && car.thumbnail) {
+    urls = [car.thumbnail];
+  }
+  if (urls.length === 0) {
+    urls = [FALLBACK_IMAGE];
+  }
+
+  return urls;
+}
 
 /**
  * Preload an image and cache it for better performance
@@ -40,23 +80,25 @@ export function resolveCarImageUrl(path: string | null | undefined): string {
   if (!path || typeof path !== 'string' || path.trim() === '') {
     return FALLBACK_IMAGE;
   }
-  
+
   // Check cache first
   if (urlCache.has(path)) {
     return urlCache.get(path)!;
   }
-  
+
   let result: string;
-  
+
   // If it's already a full HTTP URL, return it as-is
   if (path.startsWith('http://') || path.startsWith('https://')) {
     result = path;
   } else {
     // For storage paths, construct the public URL
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rcpkhtlvfvafympulywx.supabase.co';
+    const supabaseUrl =
+      import.meta.env.VITE_SUPABASE_URL ||
+      'https://rcpkhtlvfvafympulywx.supabase.co';
     result = `${supabaseUrl}/storage/v1/object/public/cars-photos/${path}`;
   }
-  
+
   // Cache the result
   urlCache.set(path, result);
   return result;
@@ -71,19 +113,19 @@ export function resolveCarImageUrls(car: any): any {
   if (!car) {
     return car;
   }
-  
+
   // If we have image_paths, resolve them
   if (Array.isArray(car.image_paths) && car.image_paths.length > 0) {
     car.image_urls = car.image_paths.map(resolveCarImageUrl);
     return car;
   }
-  
+
   // If we already have image_urls, resolve them to ensure they are full URLs
   if (Array.isArray(car.image_urls) && car.image_urls.length > 0) {
     car.image_urls = car.image_urls.map(resolveCarImageUrl);
     return car;
   }
-  
+
   // Fallback: ensure we have at least one fallback image
   car.image_urls = [FALLBACK_IMAGE];
   return car;
@@ -100,24 +142,30 @@ export function standardizeCarImageData(car: any) {
   }
 
   // Ensure we have proper arrays for image_paths and image_urls
-  const image_paths: string[] = (Array.isArray(car?.image_paths) && car.image_paths.length > 0) 
-    ? car.image_paths 
-    : [];
-    
-  const image_urls: string[] = (Array.isArray(car?.image_urls) && car.image_urls.length > 0) 
-    ? car.image_urls.map(resolveCarImageUrl)
-    : (image_paths.length > 0 ? image_paths.map(resolveCarImageUrl) : []);
-  
+  const image_paths: string[] =
+    Array.isArray(car?.image_paths) && car.image_paths.length > 0
+      ? car.image_paths
+      : [];
+
+  const image_urls: string[] =
+    Array.isArray(car?.image_urls) && car.image_urls.length > 0
+      ? car.image_urls.map(resolveCarImageUrl)
+      : image_paths.length > 0
+        ? image_paths.map(resolveCarImageUrl)
+        : [];
+
   // Ensure we have valid images array
-  const images = (Array.isArray(image_urls) && image_urls.length > 0) 
-    ? image_urls 
-    : [FALLBACK_IMAGE];
-    
+  const images =
+    Array.isArray(image_urls) && image_urls.length > 0
+      ? image_urls
+      : [FALLBACK_IMAGE];
+
   // Ensure we have a valid thumbnail
-  const thumbnail = (typeof images[0] === 'string' && images[0].length > 0) 
-    ? images[0] 
-    : FALLBACK_IMAGE;
-  
+  const thumbnail =
+    typeof images[0] === 'string' && images[0].length > 0
+      ? images[0]
+      : FALLBACK_IMAGE;
+
   return { ...car, image_paths, image_urls, images, thumbnail };
 }
 
@@ -130,7 +178,7 @@ export async function validateImageUrl(url: string): Promise<boolean> {
   if (!url || typeof url !== 'string' || url.trim() === '') {
     return false;
   }
-  
+
   try {
     const response = await fetch(url, { method: 'HEAD' });
     return response.ok;

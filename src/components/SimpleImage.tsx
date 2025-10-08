@@ -1,5 +1,6 @@
 import { ImgHTMLAttributes } from 'react';
 import LazyImage from '@/components/LazyImage';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SimpleImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -15,15 +16,19 @@ export default function SimpleImage({
   src,
   alt,
   className = '',
-  lazy = true,
+  lazy,
   ...rest
 }: SimpleImageProps) {
+  const isMobile = useIsMobile();
+  // For desktop views, disable lazy loading to ensure images load properly
+  const shouldLazyLoad = lazy !== undefined ? lazy : isMobile;
+
   return (
     <LazyImage
       src={src}
       alt={alt}
       className={`aspect-video object-cover ${className}`}
-      lazy={lazy}
+      lazy={shouldLazyLoad}
       fallback={FALLBACK_IMAGE}
       aspectRatio="16/9"
       {...rest}

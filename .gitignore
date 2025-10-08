@@ -23,3 +23,5 @@ dist-simple/
 dist-test/
 # Verification scripts
 final-verification.js
+# Local Netlify folder
+.netlify

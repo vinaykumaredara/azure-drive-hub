@@ -44,16 +44,39 @@
     --warning-foreground: 0 0% 100%;
 
     /* Gradients - Bluish-Purple Theme */
-    --gradient-primary: linear-gradient(135deg, hsl(250deg 84% 60%) 0%, hsl(262deg 100% 65%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(250deg 84% 60%) 0%, hsl(262deg 100% 65%) 50%, hsl(270deg 100% 50%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0deg 0% 100%) 0%, hsl(250deg 20% 98%) 100%);
-    --gradient-glass: linear-gradient(145deg, hsl(250deg 84% 60% / 10%) 0%, hsl(262deg 100% 65% / 5%) 100%);
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(250deg 84% 60%) 0%,
+      hsl(262deg 100% 65%) 100%
+    );
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(250deg 84% 60%) 0%,
+      hsl(262deg 100% 65%) 50%,
+      hsl(270deg 100% 50%) 100%
+    );
+    --gradient-card: linear-gradient(
+      145deg,
+      hsl(0deg 0% 100%) 0%,
+      hsl(250deg 20% 98%) 100%
+    );
+    --gradient-glass: linear-gradient(
+      145deg,
+      hsl(250deg 84% 60% / 10%) 0%,
+      hsl(262deg 100% 65% / 5%) 100%
+    );
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(217deg 100% 56% / 5%);
-    --shadow-md: 0 4px 6px -1px hsl(217deg 100% 56% / 10%), 0 2px 4px -1px hsl(217deg 100% 56% / 6%);
-    --shadow-lg: 0 10px 15px -3px hsl(217deg 100% 56% / 10%), 0 4px 6px -2px hsl(217deg 100% 56% / 5%);
-    --shadow-xl: 0 20px 25px -5px hsl(217deg 100% 56% / 10%), 0 10px 10px -5px hsl(217deg 100% 56% / 4%);
+    --shadow-md:
+      0 4px 6px -1px hsl(217deg 100% 56% / 10%),
+      0 2px 4px -1px hsl(217deg 100% 56% / 6%);
+    --shadow-lg:
+      0 10px 15px -3px hsl(217deg 100% 56% / 10%),
+      0 4px 6px -2px hsl(217deg 100% 56% / 5%);
+    --shadow-xl:
+      0 20px 25px -5px hsl(217deg 100% 56% / 10%),
+      0 10px 10px -5px hsl(217deg 100% 56% / 4%);
     --shadow-card: 0 4px 20px -2px hsl(217deg 100% 56% / 8%);
     --shadow-hover: 0 8px 30px -4px hsl(217deg 100% 56% / 15%);
 
@@ -72,6 +95,11 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Sidebar dimensions - fallback values */
+    --sidebar-width: 16rem;
+    --sidebar-width-mobile: 18rem;
+    --sidebar-width-icon: 3rem;
   }
 
   .dark {
@@ -127,7 +155,13 @@
   }
 
   /* Improve text readability and wrapping */
-  p, h1, h2, h3, h4, h5, h6 {
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     overflow-wrap: break-word;
   }
 
@@ -136,7 +170,7 @@
     width: 100%;
     max-width: 100%;
   }
-  
+
   /* Ensure booking flow modal is always visible */
   .booking-flow-modal {
     position: fixed !important;
@@ -190,12 +224,24 @@
     will-change: transform, opacity;
   }
 
-  .stagger-item:nth-child(1) { animation-delay: 0ms; }
-  .stagger-item:nth-child(2) { animation-delay: 40ms; }
-  .stagger-item:nth-child(3) { animation-delay: 80ms; }
-  .stagger-item:nth-child(4) { animation-delay: 120ms; }
-  .stagger-item:nth-child(5) { animation-delay: 160ms; }
-  .stagger-item:nth-child(6) { animation-delay: 200ms; }
+  .stagger-item:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .stagger-item:nth-child(2) {
+    animation-delay: 40ms;
+  }
+  .stagger-item:nth-child(3) {
+    animation-delay: 80ms;
+  }
+  .stagger-item:nth-child(4) {
+    animation-delay: 120ms;
+  }
+  .stagger-item:nth-child(5) {
+    animation-delay: 160ms;
+  }
+  .stagger-item:nth-child(6) {
+    animation-delay: 200ms;
+  }
 
   /* Glass Morphism */
   .glass {
@@ -257,16 +303,16 @@
       transform: translateY(0);
     }
   }
-  
+
   /* Ensure modal is always on top */
   .modal-overlay {
     z-index: 9999 !important;
   }
-  
+
   .modal-content {
     z-index: 10000 !important;
   }
-  
+
   /* Fix for Radix UI Dialog z-index conflicts */
   [data-radix-dialog-content] {
     z-index: 9998 !important;
@@ -282,7 +328,7 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  
+
   .mobile-animate {
     animation-duration: 0.3s !important;
     transition-duration: 0.2s !important;
@@ -302,9 +348,12 @@
   .high-res-image {
     image-rendering: -webkit-optimize-contrast;
   }
-  
+
   /* Reduce box-shadow complexity on low-end devices */
-  .shadow-card, .shadow-hover, .shadow-lg, .shadow-xl {
+  .shadow-card,
+  .shadow-hover,
+  .shadow-lg,
+  .shadow-xl {
     box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
   }
 }
