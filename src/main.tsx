@@ -64,6 +64,16 @@ function initializeApp() {
       if (import.meta.env.VITE_SUPABASE_URL) {
         console.log(' Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
       }
+      
+      // Additional debugging information
+      console.log('🔍 Environment Debug Info:');
+      console.log('  VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL ? 'SET' : 'MISSING');
+      console.log('  VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'MISSING');
+      console.log('  VITE_RAZORPAY_KEY_ID:', import.meta.env.VITE_RAZORPAY_KEY_ID ? 'SET' : 'MISSING');
+      console.log('  VITE_STRIPE_PUBLISHABLE_KEY:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? 'SET' : 'MISSING');
+      console.log('  NODE_ENV:', import.meta.env.NODE_ENV);
+      console.log('  PROD:', import.meta.env.PROD);
+      console.log('  DEV:', import.meta.env.DEV);
     }
 
     // Skip service worker cleanup in production
