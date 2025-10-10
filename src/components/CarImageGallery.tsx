@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, X, Maximize2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  Carousel, 
-  CarouselContent, 
-  CarouselItem, 
-  CarouselNext, 
-  CarouselPrevious 
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
 } from '@/components/ui/carousel';
 import SimpleImage from '@/components/SimpleImage';
 
@@ -32,29 +32,45 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
   size: _size = 'md',
   interactive = true,
 }) => {
+  // Defensive check for images array
+  const safeImages = Array.isArray(images) ? images : [];
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
+  const [isClient, setIsClient] = useState(false);
+
+  // Check if we're on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Fallback images if no images provided
-  const displayImages = images.length > 0 ? images : [
-    'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80',
-    'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&crop=center&auto=format&q=80',
-    'https://images.unsplash.com/photo-1570733117311-d990c3816c47?w=800&h=600&fit=crop&crop=center&auto=format&q=80'
-  ];
+  const displayImages =
+    safeImages.length > 0
+      ? safeImages
+      : [
+          'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80',
+          'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&crop=center&auto=format&q=80',
+          'https://images.unsplash.com/photo-1570733117311-d990c3816c47?w=800&h=600&fit=crop&crop=center&auto=format&q=80',
+        ];
 
   const aspectRatioClasses = {
     video: 'aspect-video',
     square: 'aspect-square',
-    wide: 'aspect-[16/9]'
+    wide: 'aspect-[16/9]',
   };
 
   const handlePrevious = () => {
-    setSelectedIndex((prev) => (prev === 0 ? displayImages.length - 1 : prev - 1));
+    setSelectedIndex(prev =>
+      prev === 0 ? displayImages.length - 1 : prev - 1
+    );
   };
 
   const handleNext = () => {
-    setSelectedIndex((prev) => (prev === displayImages.length - 1 ? 0 : prev + 1));
+    setSelectedIndex(prev =>
+      prev === displayImages.length - 1 ? 0 : prev + 1
+    );
   };
 
   const handleThumbnailClick = (index: number) => {
@@ -66,20 +82,37 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
     setLoadedImages(prev => ({ ...prev, [index]: true }));
   };
 
+  // If we're not on the client side, show a loading placeholder
+  if (!isClient) {
+    return (
+      <div className={`relative ${className}`}>
+        <div
+          className={`relative overflow-hidden rounded-lg bg-muted ${aspectRatioClasses[aspectRatio]}`}
+        >
+          <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Single image display
   if (displayImages.length === 1) {
     const isLoaded = loadedImages[0] || false;
-    
+
     return (
       <div className={`relative ${className}`}>
-        <div className={`relative overflow-hidden rounded-lg bg-muted ${aspectRatioClasses[aspectRatio]}`}>
+        <div
+          className={`relative overflow-hidden rounded-lg bg-muted ${aspectRatioClasses[aspectRatio]}`}
+        >
           {/* Loading placeholder */}
           {!isLoaded && (
             <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
               <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
             </div>
           )}
-          
+
           <div className={`w-full h-full ${aspectRatioClasses[aspectRatio]}`}>
             <SimpleImage
               src={displayImages[0]}
@@ -88,10 +121,13 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
               onLoad={() => handleImageLoad(0)}
             />
           </div>
-          
+
           {interactive && (
             <div className="absolute top-2 right-2">
-              <Dialog open={isFullscreenOpen} onOpenChange={setIsFullscreenOpen}>
+              <Dialog
+                open={isFullscreenOpen}
+                onOpenChange={setIsFullscreenOpen}
+              >
                 <DialogTrigger asChild>
                   <Button
                     variant="secondary"
@@ -127,17 +163,19 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
           <CarouselContent>
             {displayImages.map((image, index) => {
               const isLoaded = loadedImages[index] || false;
-              
+
               return (
                 <CarouselItem key={index}>
-                  <div className={`relative overflow-hidden rounded-lg bg-muted ${aspectRatioClasses[aspectRatio]}`}>
+                  <div
+                    className={`relative overflow-hidden rounded-lg bg-muted ${aspectRatioClasses[aspectRatio]}`}
+                  >
                     {/* Loading placeholder */}
                     {!isLoaded && (
                       <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
                         <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
                       </div>
                     )}
-                    
+
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: isLoaded ? 1 : 0 }}
@@ -150,10 +188,13 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
                         onLoad={() => handleImageLoad(index)}
                       />
                     </motion.div>
-                    
+
                     {/* Image counter badge */}
                     <div className="absolute top-2 left-2">
-                      <Badge variant="secondary" className="bg-black/50 text-white border-0">
+                      <Badge
+                        variant="secondary"
+                        className="bg-black/50 text-white border-0"
+                      >
                         {index + 1} / {displayImages.length}
                       </Badge>
                     </div>
@@ -161,7 +202,10 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
                     {/* Fullscreen button */}
                     {interactive && (
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Dialog open={isFullscreenOpen} onOpenChange={setIsFullscreenOpen}>
+                        <Dialog
+                          open={isFullscreenOpen}
+                          onOpenChange={setIsFullscreenOpen}
+                        >
                           <DialogTrigger asChild>
                             <Button
                               variant="secondary"
@@ -180,7 +224,7 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
               );
             })}
           </CarouselContent>
-          
+
           {displayImages.length > 1 && (
             <>
               <CarouselPrevious className="left-2" />
@@ -195,14 +239,14 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
         <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-2">
           {displayImages.map((image, index) => {
             const isLoaded = loadedImages[index] || false;
-            
+
             return (
               <motion.button
                 key={index}
                 onClick={() => handleThumbnailClick(index)}
                 className={`relative flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                  selectedIndex === index 
-                    ? 'border-primary scale-105' 
+                  selectedIndex === index
+                    ? 'border-primary scale-105'
                     : 'border-transparent hover:border-primary/50'
                 }`}
                 whileHover={{ scale: 1.05 }}
@@ -213,7 +257,7 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
                 {!isLoaded && (
                   <div className="absolute inset-0 bg-muted animate-pulse"></div>
                 )}
-                
+
                 <SimpleImage
                   src={image}
                   alt={`Thumbnail ${index + 1}`}
@@ -244,14 +288,14 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
             >
               <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </Button>
-            
+
             <div className="relative w-full h-full">
               <SimpleImage
                 src={displayImages[selectedIndex]}
                 alt={`${carTitle} - Fullscreen`}
                 className="max-w-full max-h-full object-contain mx-auto"
               />
-              
+
               {displayImages.length > 1 && (
                 <>
                   <Button
@@ -283,7 +327,7 @@ export const CarImageGallery: React.FC<CarImageGalleryProps> = ({
 };
 
 // Optimized compact version for car cards
-export const CarImageGalleryCompact: React.FC<CarImageGalleryProps> = (props) => {
+export const CarImageGalleryCompact: React.FC<CarImageGalleryProps> = props => {
   return (
     <CarImageGallery
       {...props}

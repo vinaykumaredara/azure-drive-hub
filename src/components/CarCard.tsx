@@ -52,6 +52,33 @@ export const CarCard = ({
   const { user, profile, profileLoading } = useAuth();
   const { saveDraftAndRedirect } = useBooking();
 
+  // Move all hooks to the top level, before any conditional returns
+  const handleWhatsAppContact = useCallback(() => {
+    const text = encodeURIComponent(
+      `Hello RP cars, I'm interested in ${car.model} (${car.id})`
+    );
+    const waUrl = `https://wa.me/918897072640?text=${text}`;
+    window.open(waUrl, '_blank');
+  }, [car.model, car.id]);
+
+  const handleBookingSuccessCallback = useCallback(() => {
+    // Refresh the page or update the car list to show the car is now booked
+    setIsBookingFlowOpen(false);
+    // Call the parent component's callback if provided
+    if (onBookingSuccess) {
+      onBookingSuccess(car.id);
+    }
+  }, [car.id, onBookingSuccess]);
+
+  // Defensive check for car object
+  if (!car) {
+    return (
+      <div className="p-4 text-center text-red-500">
+        Error: Car data is missing
+      </div>
+    );
+  }
+
   // Compute isAvailable defensively - make the logic match backend values and handle undefined gracefully
   const bookingStatus = (car.bookingStatus || '').toString().toLowerCase();
   const isPublished = car.status
@@ -139,23 +166,6 @@ export const CarCard = ({
     }
   }
 
-  const handleWhatsAppContact = useCallback(() => {
-    const text = encodeURIComponent(
-      `Hello RP cars, I'm interested in ${car.model} (${car.id})`
-    );
-    const waUrl = `https://wa.me/918897072640?text=${text}`;
-    window.open(waUrl, '_blank');
-  }, [car.model, car.id]);
-
-  const handleBookingSuccess = useCallback(() => {
-    // Refresh the page or update the car list to show the car is now booked
-    setIsBookingFlowOpen(false);
-    // Call the parent component's callback if provided
-    if (onBookingSuccess) {
-      onBookingSuccess(car.id);
-    }
-  }, [car.id, onBookingSuccess]);
-
   // Generate sample ratings data for the rating summary
   // In a real app, this would come from the database
   const generateSampleRatings = () => {
@@ -183,171 +193,189 @@ export const CarCard = ({
     title: car.title || car.model || 'Car',
   };
 
-  return (
-    <>
-      <motion.div
-        whileHover={{
-          y: -8,
-          scale: 1.03,
-          transition: { duration: 0.3, ease: 'easeOut' },
-        }}
-        whileTap={{ scale: 0.97 }}
-        className={`group ${className}`}
-      >
-        <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
-          <div className="relative aspect-video overflow-hidden">
-            {/* Use CarImageGalleryCompact with standardized images */}
-            <CarImageGalleryCompact
-              images={normalizeCarImages(car)}
-              className="h-full"
-            />
+  // Defensive rendering of the component
+  try {
+    return (
+      <>
+        <motion.div
+          whileHover={{
+            y: -8,
+            scale: 1.03,
+            transition: { duration: 0.3, ease: 'easeOut' },
+          }}
+          whileTap={{ scale: 0.97 }}
+          className={`group ${className}`}
+        >
+          <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
+            <div className="relative aspect-video overflow-hidden">
+              {/* Use CarImageGalleryCompact with standardized images */}
+              <CarImageGalleryCompact
+                images={normalizeCarImages(car)}
+                className="h-full"
+              />
 
-            {/* Enhanced Gradient Overlay */}
-            <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {/* Enhanced Gradient Overlay */}
+              <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            <div className="absolute top-3 left-3 flex flex-wrap gap-1">
-              {car.badges?.map((badge, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                >
+              <div className="absolute top-3 left-3 flex flex-wrap gap-1">
+                {car.badges?.map((badge, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Badge
+                      variant="secondary"
+                      className="bg-white/95 text-primary text-xs backdrop-blur-sm border border-primary/10 shadow-sm"
+                    >
+                      {badge}
+                    </Badge>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1 shadow-sm border border-primary/10">
+                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                <span className="text-xs font-medium">
+                  {car.rating.toFixed(1)}
+                </span>
+              </div>
+
+              {!computedIsAvailable && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
                   <Badge
-                    variant="secondary"
-                    className="bg-white/95 text-primary text-xs backdrop-blur-sm border border-primary/10 shadow-sm"
+                    variant="destructive"
+                    className="bg-red-500 text-white shadow-lg"
                   >
-                    {badge}
+                    Not Available
                   </Badge>
-                </motion.div>
-              ))}
-            </div>
+                </div>
+              )}
 
-            <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1 shadow-sm border border-primary/10">
-              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-              <span className="text-xs font-medium">
-                {car.rating.toFixed(1)}
-              </span>
-            </div>
-
-            {!computedIsAvailable && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                <Badge
-                  variant="destructive"
-                  className="bg-red-500 text-white shadow-lg"
+              {/* Hover Action Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-4">
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  className="opacity-0 group-hover:opacity-100 transition-all duration-300"
                 >
-                  Not Available
-                </Badge>
-              </div>
-            )}
-
-            {/* Hover Action Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-4">
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                whileInView={{ y: 0, opacity: 1 }}
-                className="opacity-0 group-hover:opacity-100 transition-all duration-300"
-              >
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleBookNow}
-                  disabled={!computedIsAvailable}
-                  aria-disabled={!computedIsAvailable}
-                  data-testid={`quick-book-${car.id}`}
-                  id={`quick-book-btn-${car.id}`}
-                  className="z-10 bg-white/90 hover:bg-white text-primary border-0 backdrop-blur-sm shadow-lg"
-                >
-                  Quick Book
-                </Button>
-              </motion.div>
-            </div>
-          </div>
-
-          <CardContent className="p-6 bg-gradient-to-br from-white via-white to-gray-50/30">
-            <div className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <motion.h3
-                    className="font-bold text-lg text-foreground leading-tight group-hover:text-primary transition-colors duration-300"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    {car.model}
-                  </motion.h3>
-                  <div className="flex items-center text-sm text-muted-foreground mt-1">
-                    <MapPin className="w-3 h-3 mr-1 text-primary" />
-                    {car.location}
-                  </div>
-                </div>
-              </div>
-
-              {/* Modern Ratings Summary */}
-              <div className="pt-2">
-                <RatingsSummary
-                  ratings={generateSampleRatings()}
-                  reviewCount={car.reviewCount}
-                  className="scale-90 origin-left"
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                  <div className="flex items-center">
-                    <Users className="w-4 h-4 mr-1 text-primary" />
-                    {car.seats} seats
-                  </div>
-                  <div className="flex items-center">
-                    <Fuel className="w-4 h-4 mr-1 text-primary" />
-                    <span className="capitalize">{car.fuel}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Settings className="w-4 h-4 mr-1 text-primary" />
-                    <span className="capitalize">{car.transmission}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <div>
-                  <span className="text-2xl font-bold text-primary">
-                    ₹{car.pricePerDay.toLocaleString('en-IN')}
-                  </span>
-                  <span className="text-sm text-muted-foreground">/day</span>
-                </div>
-                <div className="flex space-x-2">
                   <Button
                     size="sm"
-                    onClick={handleWhatsAppContact}
-                    variant="outline"
-                    className="z-10"
-                  >
-                    Contact
-                  </Button>
-                  <Button
-                    size="sm"
+                    variant="secondary"
                     onClick={handleBookNow}
                     disabled={!computedIsAvailable}
                     aria-disabled={!computedIsAvailable}
-                    data-testid={`book-now-${car.id}`}
-                    id={`book-now-btn-${car.id}`}
-                    className={`z-10 ${computedIsAvailable ? '' : 'opacity-50 cursor-not-allowed'}`}
+                    data-testid={`quick-book-${car.id}`}
+                    id={`quick-book-btn-${car.id}`}
+                    className="z-10 bg-white/90 hover:bg-white text-primary border-0 backdrop-blur-sm shadow-lg"
                   >
-                    Book Now
+                    Quick Book
                   </Button>
-                </div>
+                </motion.div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
 
-      {isBookingFlowOpen && (
-        <EnhancedBookingFlow
-          car={carForBooking}
-          onClose={() => setIsBookingFlowOpen(false)}
-          onBookingSuccess={handleBookingSuccess}
-        />
-      )}
-    </>
-  );
+            <CardContent className="p-6 bg-gradient-to-br from-white via-white to-gray-50/30">
+              <div className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <motion.h3
+                      className="font-bold text-lg text-foreground leading-tight group-hover:text-primary transition-colors duration-300"
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      {car.model}
+                    </motion.h3>
+                    <div className="flex items-center text-sm text-muted-foreground mt-1">
+                      <MapPin className="w-3 h-3 mr-1 text-primary" />
+                      {car.location}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modern Ratings Summary */}
+                <div className="pt-2">
+                  <RatingsSummary
+                    ratings={generateSampleRatings()}
+                    reviewCount={car.reviewCount}
+                    className="scale-90 origin-left"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <div className="flex items-center">
+                      <Users className="w-4 h-4 mr-1 text-primary" />
+                      {car.seats} seats
+                    </div>
+                    <div className="flex items-center">
+                      <Fuel className="w-4 h-4 mr-1 text-primary" />
+                      <span className="capitalize">{car.fuel}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Settings className="w-4 h-4 mr-1 text-primary" />
+                      <span className="capitalize">{car.transmission}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div>
+                    <span className="text-2xl font-bold text-primary">
+                      ₹{car.pricePerDay.toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-sm text-muted-foreground">/day</span>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      size="sm"
+                      onClick={handleWhatsAppContact}
+                      variant="outline"
+                      className="z-10"
+                    >
+                      Contact
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleBookNow}
+                      disabled={!computedIsAvailable}
+                      aria-disabled={!computedIsAvailable}
+                      data-testid={`book-now-${car.id}`}
+                      id={`book-now-btn-${car.id}`}
+                      className={`z-10 ${computedIsAvailable ? '' : 'opacity-50 cursor-not-allowed'}`}
+                    >
+                      Book Now
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {isBookingFlowOpen && (
+          <EnhancedBookingFlow
+            car={carForBooking}
+            onClose={() => setIsBookingFlowOpen(false)}
+            onBookingSuccess={handleBookingSuccessCallback}
+          />
+        )}
+      </>
+    );
+  } catch (error) {
+    console.error('Error rendering CarCard:', error);
+    // Fallback UI in case of rendering errors
+    return (
+      <Card className="p-4 border border-red-200 bg-red-50">
+        <div className="text-red-700">
+          <h3 className="font-bold">Error Loading Car</h3>
+          <p className="text-sm">
+            There was an error displaying this car. Please try refreshing the
+            page.
+          </p>
+          <p className="text-xs mt-2">Car ID: {car?.id}</p>
+        </div>
+      </Card>
+    );
+  }
 };
