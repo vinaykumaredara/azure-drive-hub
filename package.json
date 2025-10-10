@@ -32,6 +32,7 @@
     "test:watch": "vitest --watch",
     "test:ci": "vitest --run --coverage",
     "test:smoke": "node scripts/smoke-test.js",
+    "verify:build": "node scripts/verify-build.js",
     "gen:supabase-types": "node scripts/generate-supabase-types.js",
     "verify:rls": "node scripts/verify-rls-policies.js",
     "verify:final": "node scripts/final-verification.js",

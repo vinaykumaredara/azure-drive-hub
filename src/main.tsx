@@ -43,6 +43,29 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 // Enhanced error handling for app mounting
 function initializeApp() {
   try {
+    // Check for required environment variables in production
+    if (import.meta.env.PROD) {
+      const requiredEnvVars = [
+        'VITE_SUPABASE_URL',
+        'VITE_SUPABASE_ANON_KEY',
+        'VITE_RAZORPAY_KEY_ID',
+        'VITE_STRIPE_PUBLISHABLE_KEY'
+      ];
+      
+      const missingEnvVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
+      
+      if (missingEnvVars.length > 0) {
+        console.warn('⚠️ Missing environment variables:', missingEnvVars);
+      } else {
+        console.log('✅ All required environment variables are present');
+      }
+      
+      // Log Supabase URL for debugging (without exposing the key)
+      if (import.meta.env.VITE_SUPABASE_URL) {
+        console.log(' Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+      }
+    }
+
     // Skip service worker cleanup in production
     if (import.meta.env.DEV && 'serviceWorker' in navigator) {
       navigator.serviceWorker
