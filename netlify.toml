@@ -4,9 +4,20 @@
 
 [build.environment]
   NODE_VERSION = "20.19.0"
+  # Ensure pnpm is used for consistent builds
+  NPM_FLAGS = "--version" # prevent Netlify npm install
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = true
+
+# Explicitly set headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"

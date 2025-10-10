@@ -33,6 +33,7 @@
 ## 💾 Code Storage & Version Control
 
 ### 📁 Current Project Structure
+
 ```
 rp-cars/
 ├── src/
@@ -52,6 +53,7 @@ rp-cars/
 ### 🔄 Git Repository Setup
 
 1. **Initialize Git Repository** (if not already done):
+
    ```bash
    git init
    git add .
@@ -64,20 +66,22 @@ rp-cars/
    - **Bitbucket**: https://bitbucket.org
 
 3. **Connect Local to Remote**:
+
    ```bash
    git remote add origin https://github.com/yourusername/rp-cars.git
    git push -u origin main
    ```
 
 4. **Branch Strategy**:
+
    ```bash
    # Development branch
    git checkout -b development
-   
+
    # Feature branches
    git checkout -b feature/payment-integration
    git checkout -b feature/admin-dashboard
-   
+
    # Production branch
    git checkout -b production
    ```
@@ -116,6 +120,7 @@ rp-cars/
    - Website: https://cloudflare.com
 
 #### **Domain Suggestions:**
+
 - `rpcars.com`
 - `rpcarrentals.com`
 - `premiumcarrentals.in`
@@ -140,6 +145,7 @@ rp-cars/
 ### 🏆 **Option 1: Vercel (Recommended)**
 
 **Pros:**
+
 - ✅ Free tier available
 - ✅ Automatic deployments from Git
 - ✅ Built-in CDN
@@ -148,10 +154,12 @@ rp-cars/
 - ✅ Custom domain support
 
 **Pricing:**
+
 - **Free**: Hobby projects (up to 3 team members)
 - **Pro**: $20/month (commercial projects)
 
 **Setup Process:**
+
 1. Visit https://vercel.com
 2. Sign up with GitHub account
 3. Import your repository
@@ -161,34 +169,40 @@ rp-cars/
 ### 🥈 **Option 2: Netlify**
 
 **Pros:**
+
 - ✅ Free tier available
 - ✅ Form handling
 - ✅ Branch previews
 - ✅ Built-in CI/CD
 
 **Pricing:**
+
 - **Free**: Personal projects
 - **Pro**: $19/month
 
 ### 🥉 **Option 3: AWS Amplify**
 
 **Pros:**
+
 - ✅ AWS ecosystem integration
 - ✅ Global CDN
 - ✅ Custom domain with SSL
 
 **Pricing:**
+
 - **Build & Deploy**: $0.01 per build minute
 - **Hosting**: $0.15 per GB served
 
 ### 🏗️ **Option 4: Traditional VPS**
 
 **Providers:**
+
 - DigitalOcean: $6/month
 - Linode: $5/month
 - Vultr: $6/month
 
 **Pros:**
+
 - ✅ Full control
 - ✅ Can host multiple projects
 - ❌ Requires server management
@@ -235,6 +249,7 @@ VITE_GOOGLE_ANALYTICS_ID=G-XXXXXXXXXX
 ### 📦 **Vercel Deployment** (Step-by-Step)
 
 #### **Step 1: Prepare Repository**
+
 ```bash
 # Ensure all changes are committed
 git add .
@@ -243,6 +258,7 @@ git push origin main
 ```
 
 #### **Step 2: Connect to Vercel**
+
 1. Go to https://vercel.com/dashboard
 2. Click "New Project"
 3. Import from Git Repository
@@ -250,6 +266,7 @@ git push origin main
 5. Configure project settings
 
 #### **Step 3: Build Configuration**
+
 ```json
 {
   "name": "rp-cars",
@@ -265,7 +282,9 @@ git push origin main
 ```
 
 #### **Step 4: Environment Variables**
+
 Add in Vercel Dashboard → Settings → Environment Variables:
+
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_RAZORPAY_KEY_ID`
@@ -273,10 +292,63 @@ Add in Vercel Dashboard → Settings → Environment Variables:
 - `VITE_WHATSAPP_NUMBER`
 
 #### **Step 5: Deploy**
+
 ```bash
 # Automatic deployment on push to main
 git push origin main
 ```
+
+### 🌐 **Netlify Deployment** (Step-by-Step)
+
+#### **Step 1: Prepare Repository**
+
+```bash
+# Ensure all changes are committed
+git add .
+git commit -m "Prepare for Netlify deployment"
+git push origin main
+```
+
+#### **Step 2: Connect to Netlify**
+
+1. Go to https://netlify.com
+2. Sign up with GitHub account or log in
+3. Click "New site from Git"
+4. Select your Git provider (GitHub, GitLab, Bitbucket)
+5. Select the `rp-cars` repository
+6. Configure build settings
+
+#### **Step 3: Build Configuration**
+
+Netlify will automatically detect the build settings, but you can customize them:
+
+- Build command: `pnpm install && pnpm run build`
+- Publish directory: `dist`
+
+#### **Step 4: Environment Variables**
+
+**This is critical for fixing the blank screen issue:**
+
+Add in Netlify Dashboard → Site settings → Build & deploy → Environment:
+
+- `VITE_SUPABASE_URL` = Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` = Your Supabase anonymous key
+- `VITE_RAZORPAY_KEY_ID` = Your Razorpay key ID
+- `VITE_STRIPE_PUBLISHABLE_KEY` = Your Stripe publishable key
+
+#### **Step 5: Deploy**
+
+After setting environment variables:
+
+1. Go to the "Deploys" tab
+2. Click "Trigger deploy" → "Clear cache and deploy site"
+3. Wait for deployment to complete
+
+#### **Step 6: Domain Configuration** (Optional)
+
+1. Go to Site settings → Domain management
+2. Add custom domain
+3. Follow DNS configuration instructions
 
 ### 🔄 **Manual Build Process**
 
@@ -301,11 +373,13 @@ npm run preview
 ### **Supabase Production Setup**
 
 #### **Step 1: Upgrade to Pro Plan**
+
 - Visit https://supabase.com/dashboard
 - Upgrade project to Pro plan ($25/month)
 - This enables custom domains and increased limits
 
 #### **Step 2: Database Migration**
+
 ```sql
 -- Run all migration files in order
 -- Files are in supabase/migrations/
@@ -319,17 +393,20 @@ npm run preview
 ```
 
 #### **Step 3: Production Data Setup**
+
 1. **Admin User Creation**:
+
    ```sql
-   UPDATE auth.users 
-   SET is_admin = true 
+   UPDATE auth.users
+   SET is_admin = true
    WHERE email = 'admin@yourdomain.com';
    ```
 
 2. **Sample Car Data**:
+
    ```sql
    INSERT INTO cars (title, make, model, year, seats, fuel_type, transmission, price_per_day, status, location_city)
-   VALUES 
+   VALUES
    ('Premium SUV', 'Toyota', 'Fortuner', 2023, 7, 'diesel', 'automatic', 5500, 'active', 'Hyderabad'),
    ('Luxury Sedan', 'BMW', '3 Series', 2023, 5, 'petrol', 'automatic', 7500, 'active', 'Hyderabad');
    ```
@@ -337,12 +414,13 @@ npm run preview
 3. **Promo Codes**:
    ```sql
    INSERT INTO promo_codes (code, discount_percent, active, valid_from, valid_to)
-   VALUES 
+   VALUES
    ('WELCOME20', 20, true, NOW(), NOW() + INTERVAL '30 days'),
    ('FIRST50', 50, true, NOW(), NOW() + INTERVAL '7 days');
    ```
 
 #### **Step 4: Security Configuration**
+
 - Enable RLS on all tables
 - Configure API keys properly
 - Set up database backups
@@ -362,6 +440,7 @@ npm run preview
    - Add www subdomain: `www.yourdomain.com`
 
 2. **Configure DNS Records**:
+
    ```
    Type: A
    Name: @
@@ -374,8 +453,30 @@ npm run preview
    TTL: 3600
    ```
 
+#### **For Netlify Hosting:**
+
+1. **Add Domain in Netlify**:
+   - Go to Site settings → Domain management
+   - Add custom domain: `yourdomain.com`
+   - Add www subdomain: `www.yourdomain.com`
+
+2. **Configure DNS Records**:
+
+   ```
+   Type: A
+   Name: @
+   Value: 75.2.60.5 (Netlify IP)
+   TTL: 3600
+
+   Type: CNAME
+   Name: www
+   Value: your-site-name.netlify.app
+   TTL: 3600
+   ```
+
 #### **SSL Certificate**:
-- Vercel automatically provides SSL certificates
+
+- Netlify automatically provides SSL certificates
 - Certificate auto-renewal is handled
 - Force HTTPS redirect is enabled by default
 
@@ -383,7 +484,7 @@ npm run preview
 
 If your domain is `rpcars.com`:
 
-1. **Main Domain**: `rpcars.com` → Points to Vercel
+1. **Main Domain**: `rpcars.com` → Points to Netlify/Vercel
 2. **WWW Subdomain**: `www.rpcars.com` → Redirects to main
 3. **Admin Subdomain** (Optional): `admin.rpcars.com` → Points to main with /admin
 
@@ -394,11 +495,16 @@ If your domain is `rpcars.com`:
 ### **Analytics Setup**
 
 #### **Google Analytics 4**:
+
 ```typescript
 // src/utils/analytics.ts
 import { gtag } from 'ga-gtag';
 
-export const trackEvent = (action: string, category: string, label?: string) => {
+export const trackEvent = (
+  action: string,
+  category: string,
+  label?: string
+) => {
   gtag('event', action, {
     event_category: category,
     event_label: label,
@@ -409,32 +515,25 @@ export const trackEvent = (action: string, category: string, label?: string) => 
 trackEvent('booking_completed', 'conversion', carId);
 ```
 
-#### **Vercel Analytics**:
-```bash
-npm install @vercel/analytics
-```
+#### **Netlify Analytics**:
 
-```typescript
-// src/main.tsx
-import { Analytics } from '@vercel/analytics/react';
-
-<Analytics />
-```
+Netlify provides built-in analytics for free-tier sites.
 
 ### **Error Monitoring**
 
 #### **Sentry Integration**:
+
 ```bash
 npm install @sentry/react
 ```
 
 ```typescript
 // src/main.tsx
-import * as Sentry from "@sentry/react";
+import * as Sentry from '@sentry/react';
 
 Sentry.init({
-  dsn: "your-sentry-dsn",
-  environment: "production",
+  dsn: 'your-sentry-dsn',
+  environment: 'production',
 });
 ```
 
@@ -454,11 +553,13 @@ Sentry.init({
 ### **Uptime Monitoring**
 
 **UptimeRobot** (Free):
+
 - Monitor main domain
 - Check API endpoints
 - Alert via email/SMS
 
 **Setup URLs to Monitor**:
+
 - `https://yourdomain.com`
 - `https://yourdomain.com/api/health`
 - `https://your-supabase-url.supabase.co`
@@ -470,6 +571,7 @@ Sentry.init({
 ### **Common Deployment Issues**
 
 #### **Build Failures**:
+
 ```bash
 # Check build logs
 npm run build 2>&1 | tee build.log
@@ -480,26 +582,30 @@ npm run build --verbose
 ```
 
 #### **Environment Variable Issues**:
+
 ```bash
 # Verify variables are loaded
 console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
 
-# Check Vercel deployment logs
-vercel logs <deployment-url>
+# Check Netlify deployment logs
+# In Netlify dashboard → Deploys → Latest deploy → Build logs
 ```
 
 #### **Domain Not Working**:
+
 1. Check DNS propagation: https://dnschecker.org
 2. Verify DNS records in registrar
-3. Check Vercel domain configuration
+3. Check Netlify/Vercel domain configuration
 4. Wait 24-48 hours for full propagation
 
 #### **SSL Certificate Issues**:
-1. Remove and re-add domain in Vercel
+
+1. Remove and re-add domain in Netlify/Vercel
 2. Check DNS CAA records
-3. Contact Vercel support if needed
+3. Contact support if needed
 
 #### **Database Connection Issues**:
+
 1. Verify Supabase URL and keys
 2. Check RLS policies
 3. Review API rate limits
@@ -508,7 +614,7 @@ vercel logs <deployment-url>
 ### **Performance Issues**:
 
 1. **Slow Loading**:
-   - Enable Vercel Analytics
+   - Enable Netlify/Vercel Analytics
    - Optimize images
    - Use code splitting
    - Enable compression
@@ -526,30 +632,33 @@ vercel logs <deployment-url>
 ### **Monthly Cost Breakdown**
 
 #### **Basic Setup (Recommended)**:
+
 ```
 Domain Registration:     $1-2/month
-Vercel Pro:             $20/month
+Netlify Pro:            $19/month
 Supabase Pro:           $25/month
 ------------------------
-Total:                  $46-47/month
+Total:                  $45-46/month
 ```
 
 #### **Advanced Setup**:
+
 ```
 Domain + Security:      $5/month
-Vercel Pro:            $20/month
+Netlify Pro:           $19/month
 Supabase Pro:          $25/month
 CDN (Cloudflare):      $20/month
 Analytics (Optional):   $10/month
 Monitoring:            $10/month
 ------------------------
-Total:                 $90/month
+Total:                 $89/month
 ```
 
 #### **Enterprise Setup**:
+
 ```
 Premium Domain:        $10/month
-Vercel Enterprise:     $150/month
+Netlify Enterprise:   $150/month
 Supabase Team:         $99/month
 Advanced Security:     $50/month
 Premium Monitoring:    $30/month
@@ -558,11 +667,11 @@ Total:                 $339/month
 ```
 
 ### **Free Tier Options** (Development/Testing):
+
 ```
 Domain (.tk/.ml):      Free
-Vercel Hobby:          Free
-Supabase Free:         Free
 Netlify Free:          Free
+Supabase Free:         Free
 Cloudflare Free:       Free
 ------------------------
 Total:                 Free
@@ -573,6 +682,7 @@ Total:                 Free
 ## 🚀 Go-Live Checklist
 
 ### **Pre-Launch** ✅
+
 - [ ] Code reviewed and tested
 - [ ] Environment variables configured
 - [ ] Database migrated and seeded
@@ -584,6 +694,7 @@ Total:                 Free
 - [ ] Backup strategy implemented
 
 ### **Launch Day** 🎉
+
 - [ ] Deploy to production
 - [ ] Verify all features working
 - [ ] Test payment flows
@@ -594,6 +705,7 @@ Total:                 Free
 - [ ] Check WhatsApp integration
 
 ### **Post-Launch** 📈
+
 - [ ] Monitor performance metrics
 - [ ] Track user analytics
 - [ ] Review error logs
@@ -608,19 +720,22 @@ Total:                 Free
 ## 📞 Support & Resources
 
 ### **Platform Support**:
-- **Vercel**: https://vercel.com/support
+
+- **Netlify**: https://netlify.com/support
 - **Supabase**: https://supabase.com/support
 - **Domain Registrar**: Check your provider's support
 
 ### **Documentation**:
+
 - **React**: https://react.dev
 - **Vite**: https://vitejs.dev
 - **Supabase**: https://supabase.com/docs
 - **Tailwind CSS**: https://tailwindcss.com/docs
 
 ### **Community**:
+
 - **GitHub Issues**: Create issues in your repository
-- **Discord**: Join Supabase and Vercel communities
+- **Discord**: Join Supabase and Netlify communities
 - **Stack Overflow**: Tag questions appropriately
 
 ---
@@ -655,5 +770,5 @@ For additional support or questions, refer to the documentation links above or c
 
 ---
 
-*Last Updated: December 2024*
-*Version: 1.0.0*
+_Last Updated: December 2024_
+_Version: 1.0.0_

@@ -12,6 +12,7 @@
     "dev:preflight": "npx kill-port 5173 || true",
     "clean:cache": "rimraf node_modules/.vite",
     "dev:clean": "npm run dev:preflight && vite",
+    "prebuild": "node scripts/verify-env-variables.js",
     "build": "vite build",
     "build:analyze": "vite build --config scripts/analyze-bundle.js",
     "build:dev": "vite build --mode development",
@@ -39,7 +40,8 @@
     "diagnose-delete": "node scripts/diagnose-delete-issue.js",
     "audit:security": "npm audit --audit-level moderate",
     "precommit": "npm run lint:fix && npm run type-check && npm run test:ci",
-    "optimize": "node scripts/optimize-build.js"
+    "optimize": "node scripts/optimize-build.js",
+    "verify:env": "node scripts/verify-env-variables.js"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
