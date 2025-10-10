@@ -83,9 +83,4 @@ if (jsFiles.length > 0) {
   console.log(`📝 ${firstJsFile} SHA256: ${jsChecksum.substring(0, 16)}...`);
 }
 
-console.log('\n✅ Build verification completed successfully');  const jsContent = fs.readFileSync(jsFilePath);
-  const jsChecksum = crypto.createHash('sha256').update(jsContent).digest('hex');
-  console.log(`📝 ${firstJsFile} SHA256: ${jsChecksum.substring(0, 16)}...`);
-}
-
 console.log('\n✅ Build verification completed successfully');
