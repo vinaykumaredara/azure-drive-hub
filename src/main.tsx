@@ -7,8 +7,26 @@ import { applyDeviceOptimizations } from './utils/deviceOptimizations';
 // Apply device-specific optimizations
 applyDeviceOptimizations();
 
+// TEMPORARY: Unregister service workers for debugging production issues
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then(registrations => {
+      registrations.forEach(registration => {
+        registration.unregister().then(() => {
+          console.log('🧹 Unregistered service worker for debugging');
+        });
+      });
+    })
+    .catch(() => {
+      // Ignore errors during cleanup
+    });
+}
+
 // Register service worker for caching and offline support
 // Only register in production to avoid conflicts with HMR in development
+// TEMPORARY: Commented out for debugging production issues
+/*
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
@@ -20,21 +38,25 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
       });
   });
 }
+*/
 
 // Enhanced error handling for app mounting
 function initializeApp() {
   try {
     // Skip service worker cleanup in production
     if (import.meta.env.DEV && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        registrations.forEach(registration => {
-          registration.unregister().then(() => {
-            console.log('🧹 Cleaned up service worker for development');
+      navigator.serviceWorker
+        .getRegistrations()
+        .then(registrations => {
+          registrations.forEach(registration => {
+            registration.unregister().then(() => {
+              console.log('🧹 Cleaned up service worker for development');
+            });
           });
+        })
+        .catch(() => {
+          // Ignore errors during cleanup
         });
-      }).catch(() => {
-        // Ignore errors during cleanup
-      });
     }
 
     const rootElement = document.getElementById('root');
