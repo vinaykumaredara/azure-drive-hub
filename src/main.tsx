@@ -7,6 +7,8 @@ import { applyDeviceOptimizations } from './utils/deviceOptimizations';
 // Apply device-specific optimizations
 applyDeviceOptimizations();
 
+console.log('🔍 main.tsx loaded');
+
 // TEMPORARY: Unregister service workers for debugging production issues
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker
@@ -43,8 +45,11 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 // Enhanced error handling for app mounting
 function initializeApp() {
   try {
+    console.log('🔍 initializeApp called');
+    
     // Check for required environment variables in production
     if (import.meta.env.PROD) {
+      console.log('🔍 Production environment detected');
       const requiredEnvVars = [
         'VITE_SUPABASE_URL',
         'VITE_SUPABASE_ANON_KEY',
@@ -93,6 +98,7 @@ function initializeApp() {
     }
 
     const rootElement = document.getElementById('root');
+    console.log('🔍 Root element:', rootElement);
     if (!rootElement) {
       throw new Error('Root element not found in DOM');
     }
@@ -101,15 +107,25 @@ function initializeApp() {
     rootElement.innerHTML = '';
 
     const root = createRoot(rootElement);
-    // Disable React Strict Mode in development to prevent double rendering issues
-    if (import.meta.env.DEV) {
-      root.render(<App />);
-    } else {
-      root.render(
-        <React.StrictMode>
-          <App />
-        </React.StrictMode>
-      );
+    console.log('🔍 Root created successfully');
+    
+    // Test render a simple component first
+    try {
+      console.log('🔍 Attempting to render App component');
+      // Disable React Strict Mode in development to prevent double rendering issues
+      if (import.meta.env.DEV) {
+        root.render(<App />);
+      } else {
+        root.render(
+          <React.StrictMode>
+            <App />
+          </React.StrictMode>
+        );
+      }
+      console.log('✅ RP Cars app rendered successfully');
+    } catch (renderError) {
+      console.error('❌ Failed to render App component:', renderError);
+      throw renderError;
     }
 
     console.log('✅ RP Cars app initialized successfully');
@@ -121,6 +137,7 @@ function initializeApp() {
 
 // Fallback UI for critical errors
 function showFallbackUI(error: any) {
+  console.log('🔍 showFallbackUI called with error:', error);
   const rootElement = document.getElementById('root') || document.body;
   rootElement.innerHTML = `
     <div style="
@@ -214,8 +231,14 @@ function showFallbackUI(error: any) {
 }
 
 // Initialize the app when DOM is ready
+console.log('🔍 DOM ready state:', document.readyState);
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeApp);
+  console.log('🔍 Adding DOMContentLoaded listener');
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔍 DOMContentLoaded event fired');
+    initializeApp();
+  });
 } else {
+  console.log('🔍 DOM already ready, calling initializeApp immediately');
   initializeApp();
 }
