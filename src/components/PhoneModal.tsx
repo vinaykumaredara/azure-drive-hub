@@ -28,7 +28,9 @@ export function PhoneModal({ onClose, onComplete }: { onClose: () => void; onCom
   };
 
   const handleSave = async () => {
-    if (!user) return; // fruitless
+    if (!user) {
+      return; // fruitless
+    }
     
     // Validate phone number
     if (!validatePhone(phone)) {
@@ -44,7 +46,9 @@ export function PhoneModal({ onClose, onComplete }: { onClose: () => void; onCom
       const updates: any = { id: user.id, phone: cleanedPhone };
       const { data, error } = await supabase.from('users').upsert(updates, { onConflict: 'id' }).select().single();
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       // Add debug logging
       console.log('Phone number saved successfully:', data);
@@ -62,7 +66,9 @@ export function PhoneModal({ onClose, onComplete }: { onClose: () => void; onCom
         description: "Your phone number has been successfully saved.",
       });
       
-      if (onComplete) onComplete(data);
+      if (onComplete) {
+        onComplete(data);
+      }
       onClose();
     } catch (err: any) {
       console.error('save phone err', err);

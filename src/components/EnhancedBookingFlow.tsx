@@ -6,23 +6,15 @@ import {
   CreditCard, 
   CheckCircle, 
   Car, 
-  AlertCircle, 
   Phone, 
   FileText, 
-  Shield, 
-  Percent
+  Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { LicenseUpload } from '@/components/LicenseUpload';
 import { PaymentGateway } from '@/components/PaymentGateway';
 import { useAuth } from '@/hooks/use-auth';
@@ -70,14 +62,6 @@ const stepTitles = {
   payment: 'Payment Options',
   confirmation: 'Booking Confirmed'
 };
-
-interface License {
-  id: string;
-  user_id: string;
-  storage_path: string;
-  verified: boolean | null;
-  created_at: string;
-}
 
 export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, onClose, onBookingSuccess }) => {
   const [currentStep, setCurrentStep] = useState<Step>('dates');
@@ -235,6 +219,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             });
           }
         }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         // Error fetching user data - silently fail as this is not critical
       }
@@ -596,32 +581,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     setIsPaymentOpen(false);
   };
 
-  const onAttemptConfirm = async () => {
-    if (profileLoading) {
-      // wait or show spinner
-      return;
-    }
-
-    const phone = profile?.phone;
-    if (!phone) {
-      // prompt for phone modal or navigate to profile page
-      toast({
-        title: "Phone Number Required",
-        description: "Please add your phone number to continue with booking.",
-        variant: "destructive",
-      });
-      // In a more complete implementation, we would open a phone modal here
-      return;
-    }
-
-    // proceed with hold/payment creation
-    if (bookingData.advanceBooking) {
-      handleAdvancePayment();
-    } else {
-      setIsPaymentOpen(true);
-    }
-  };
-
   const renderDateSelection = () => (
     <DatesStep
       bookingData={bookingData}
@@ -643,8 +602,8 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   const renderExtrasSelection = () => (
     <ExtrasStep
       extras={bookingData.extras}
-      advanceBooking={bookingData.advanceBooking}
-      advanceAmount={bookingData.advanceAmount}
+      _advanceBooking={bookingData.advanceBooking}
+      _advanceAmount={bookingData.advanceAmount}
       totalDays={bookingData.totalDays}
       pricePerDay={car.pricePerDay}
       price_in_paise={car.price_in_paise}

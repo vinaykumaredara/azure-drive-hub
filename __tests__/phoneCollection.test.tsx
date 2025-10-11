@@ -17,7 +17,7 @@ vi.mock('@/hooks/useBooking', () => ({
 
 // Mock the EnhancedBookingFlow component
 vi.mock('@/components/EnhancedBookingFlow', () => ({
-  EnhancedBookingFlow: ({ car, onClose, onBookingSuccess }: any) => (
+  EnhancedBookingFlow: ({ _car, onClose, onBookingSuccess }: any) => (
     <div data-testid="enhanced-booking-flow">
       <button onClick={onClose}>Close</button>
       <button onClick={onBookingSuccess}>Success</button>
@@ -116,7 +116,7 @@ describe('Phone Collection Flow', () => {
     fireEvent.click(bookNowButton);
 
     // Check that the booking flow opens
-    expect(screen.getByTestId('enhanced-booking-flow')).toBeInTheDocument();
+    expect(screen.getByTestId('enhanced-booking-flow')).toBeDefined();
   });
 
   it('should show alert when profile is still loading', () => {

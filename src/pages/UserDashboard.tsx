@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Car, FileText, Settings, LogOut, User, CreditCard, Heart, MapPin, Clock, Star, Award, Bell, Download, Share2, Search, TrendingUp, Shield, Gift, Eye, DollarSign } from 'lucide-react';
@@ -66,7 +66,7 @@ interface LicenseData {
 const UserDashboard: React.FC = () => {
   const { user, signOut, profile, profileLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const _location = useLocation();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [favoriteCarIds, setFavoriteCarIds] = useState<string[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -75,15 +75,16 @@ const UserDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showPhoneModal, setShowPhoneModal] = useState(false);
-  const [restoredDraft, setRestoredDraft] = useState<any>(null);
-  const bookingsRef = useRef<Booking[]>([]);
+  const [_restoredDraft, setRestoredDraft] = useState<any>(null);
 
   // Handle booking restoration and phone collection after login
   useEffect(() => {
     // Add debug logging
     console.log('UserDashboard useEffect triggered:', { user, profile, profileLoading });
     
-    if (!user?.id) return;
+    if (!user?.id) {
+      return;
+    }
 
     // Check if we need to restore a booking
     const pendingBooking = sessionStorage.getItem('pendingBooking');
@@ -128,7 +129,7 @@ const UserDashboard: React.FC = () => {
   };
 
   // Move fetchNotifications outside useEffect so it can be called from other places
-  const fetchNotifications = async (userId: string, signal: AbortSignal) => {
+  const fetchNotifications = async (userId: string, _signal: AbortSignal) => {
     console.log('fetchNotifications called for userId=', userId);
     try {
       // Generate dynamic notifications based on user data
@@ -211,7 +212,9 @@ const UserDashboard: React.FC = () => {
     
       setNotifications(notifications);
     } catch (error: any) {
-      if (error?.name === 'AbortError') {return;}
+      if (error?.name === 'AbortError') {
+        return;
+      }
       console.error('Error in fetchNotifications:', error);
       // Fallback notification
       setNotifications([{
@@ -228,12 +231,14 @@ const UserDashboard: React.FC = () => {
   useEffect(() => {
     console.log('UserDashboard effect run:', { userId: user?.id });
     
-    if (!user?.id) {return;}
+    if (!user?.id) {
+      return;
+    }
 
     let mounted = true;
     const controller = new AbortController();
 
-    const fetchUserBookings = async (userId: string, signal: AbortSignal) => {
+    const fetchUserBookings = async (userId: string, _signal: AbortSignal) => {
       console.log('fetchUserBookings called for userId=', userId);
       try {
         const { data, error } = await supabase
@@ -255,9 +260,13 @@ const UserDashboard: React.FC = () => {
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
-        if (error) {throw error;}
+        if (error) {
+          throw error;
+        }
         
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
 
         // Process image URLs synchronously for better performance
         const processedBookings = data ? data.map((booking: any) => {
@@ -283,21 +292,22 @@ const UserDashboard: React.FC = () => {
           return booking;
         }) : [];
         
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
         setBookings(processedBookings || []);
-<<<<<<< HEAD
-      } catch (error: any) {
-        if (error?.name === 'AbortError') {return;}
-=======
       } catch (error) {
-        if ((error as Error).name === 'AbortError') {return;}
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
+        if ((error as Error).name === 'AbortError') {
+          return;
+        }
         errorLogger.logError(error as Error, {
           component: 'UserDashboard',
           action: 'fetchUserBookings',
           userId: userId
         });
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
         toast({
           title: "Error",
           description: "Failed to load your bookings",
@@ -306,7 +316,7 @@ const UserDashboard: React.FC = () => {
       }
     };
 
-    const fetchUserStats = async (userId: string, signal: AbortSignal) => {
+    const fetchUserStats = async (userId: string, _signal: AbortSignal) => {
       console.log('fetchUserStats called for userId=', userId);
       try {
         // Calculate user statistics
@@ -315,9 +325,13 @@ const UserDashboard: React.FC = () => {
           .select('total_amount, status, cars(make)')
           .eq('user_id', userId);
         
-        if (error) {throw error;}
+        if (error) {
+          throw error;
+        }
         
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
 
         if (bookingsData) {
           const totalBookings = bookingsData.length;
@@ -333,7 +347,9 @@ const UserDashboard: React.FC = () => {
           const loyaltyPoints = Math.floor(totalSpent / 10);
           const co2Saved = totalBookings * 2.3; // Estimated CO₂ saved per booking
           
-          if (!mounted) {return;}
+          if (!mounted) {
+            return;
+          }
           setUserStats({
             totalBookings,
             totalSpent,
@@ -343,147 +359,46 @@ const UserDashboard: React.FC = () => {
             co2Saved
           });
         }
-<<<<<<< HEAD
-      } catch (error: any) {
-        if (error?.name === 'AbortError') {return;}
-=======
       } catch (error) {
-        if ((error as Error).name === 'AbortError') {return;}
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
+        if ((error as Error).name === 'AbortError') {
+          return;
+        }
         console.error('Error fetching user stats:', error);
       }
     };
 
-<<<<<<< HEAD
-=======
-    const fetchNotifications = async (userId: string, signal: AbortSignal) => {
-      console.log('fetchNotifications called for userId=', userId);
-      try {
-        // Generate dynamic notifications based on user data
-        const notifications = [];
-        
-        // Check if user needs to upload license
-        const { data: license, error: licenseError } = await supabase
-          .from('licenses')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-      
-        if (licenseError && licenseError.code !== 'PGRST116') {
-          throw licenseError;
-        }
-      
-        if (!mounted) {return;}
-
-        if (!license) {
-          notifications.push({
-            id: 1,
-            title: 'Upload Your License',
-            message: 'Upload your driving license to start booking cars',
-            type: 'warning',
-            time: 'Pending',
-            created_at: new Date().toISOString()
-          });
-        } else {
-          const licenseData = license as LicenseData;
-          if (licenseData.verified === null) {
-            notifications.push({
-              id: 2,
-              title: 'License Under Review',
-              message: 'Your license is being verified. This usually takes 1-2 hours.',
-              type: 'info',
-              time: new Date(licenseData.created_at).toLocaleDateString(),
-              created_at: licenseData.created_at
-            });
-          } else if (licenseData.verified === true) {
-            notifications.push({
-              id: 3,
-              title: 'License Verified!',
-              message: 'Your driving license has been verified. You can now book cars.',
-              type: 'success',
-              time: new Date(licenseData.created_at).toLocaleDateString(),
-              created_at: licenseData.created_at
-            });
-          }
-        }
-      
-        // Check for recent bookings
-        if (bookings.length > 0) {
-          const recentBooking = bookings[0];
-          const bookingDate = new Date(recentBooking.start_datetime);
-          const now = new Date();
-          const diffTime = bookingDate.getTime() - now.getTime();
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-          if (diffDays >= 0 && diffDays <= 1) {
-            notifications.push({
-              id: 4,
-              title: 'Upcoming Booking',
-              message: `Your booking for ${recentBooking.cars?.title} starts ${diffDays === 0 ? 'today' : 'tomorrow'}`,
-              type: 'info',
-              time: bookingDate.toLocaleDateString(),
-              created_at: recentBooking.created_at
-            });
-          }
-        }
-      
-        // Add welcome message if no other notifications
-        if (notifications.length === 0) {
-          notifications.push({
-            id: 5,
-            title: 'Welcome to Azure Drive Hub!',
-            message: 'Explore our premium fleet and start your journey',
-            type: 'success',
-            time: 'Welcome',
-            created_at: new Date().toISOString()
-          });
-        }
-      
-        if (!mounted) {return;}
-        setNotifications(notifications);
-      } catch (error) {
-        if ((error as Error).name === 'AbortError') {return;}
-        console.error('Error in fetchNotifications:', error);
-        // Fallback notification
-        if (!mounted) {return;}
-        setNotifications([{
-          id: 1,
-          title: 'Welcome!',
-          message: 'Welcome to Azure Drive Hub',
-          type: 'info',
-          time: 'Now',
-          created_at: new Date().toISOString()
-        }]);
-      }
-    };
-
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
     const fetchFavorites = async (userId: string) => {
       console.log('fetchFavorites called for userId=', userId);
       // For now, use local storage for favorites until user_favorites table is created
       try {
         const savedFavorites = localStorage.getItem(`favorites_${userId}`);
         if (savedFavorites) {
-          if (!mounted) {return;}
+          if (!mounted) {
+            return;
+          }
           setFavoriteCarIds(JSON.parse(savedFavorites));
         } else {
-          if (!mounted) {return;}
+          if (!mounted) {
+            return;
+          }
           setFavoriteCarIds([]);
         }
       } catch (error) {
         console.error('Error loading favorites:', error);
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
         setFavoriteCarIds([]);
       }
     };
 
     async function loadAll() {
-      if (!user?.id) return;
+      if (!user?.id) {return;}
       
       try {
         setIsLoading(true);
         // Only proceed if user exists
-        if (!user?.id) return;
+        if (!user?.id) {return;}
         
         // example: await Promise.all([fetchBookings({ userId: user.id, signal: controller.signal }), ...])
         await Promise.all([
@@ -492,13 +407,10 @@ const UserDashboard: React.FC = () => {
           fetchNotifications(user.id, controller.signal),
           fetchFavorites(user.id)
         ]);
-<<<<<<< HEAD
-      } catch (err: any) {
-        if (err?.name === 'AbortError') {return;}
-=======
       } catch (err) {
-        if ((err as Error).name === 'AbortError') {return;}
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
+        if ((err as Error).name === 'AbortError') {
+          return;
+        }
         console.error('UserDashboard loadAll error', err);
         toast({
           title: "Dashboard Error",
@@ -506,7 +418,9 @@ const UserDashboard: React.FC = () => {
           variant: "destructive",
         });
       } finally {
-        if (mounted) {setIsLoading(false);}
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -1446,13 +1360,7 @@ const UserDashboard: React.FC = () => {
                           title: "License Uploaded",
                           description: "Your license has been uploaded successfully.",
                         });
-<<<<<<< HEAD
-                        // Refresh notifications to update license status
-                        // Note: fetchNotifications is not accessible here due to scope issues
-                        // We'll need to implement a different approach for refreshing notifications
-=======
                         // License status will be reflected on next dashboard load
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
                       }} />
                     </CardContent>
                   </Card>

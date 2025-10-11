@@ -31,11 +31,11 @@ describe('createBookingHold', () => {
     mockSupabase.single.mockResolvedValueOnce({ data: null, error: mockError });
     
     // Import the function after mocks are set up
-    const { useBooking } = await import('@/hooks/useBooking');
+    // const { useBooking } = await import('@/hooks/useBooking');
     
     // Create a mock hook instance
-    const mockUseAuth = vi.fn().mockReturnValue({ user: { id: 'user-123' } });
-    const mockNavigate = vi.fn();
+    const _mockUseAuth = vi.fn().mockReturnValue({ user: { id: 'user-123' } });
+    const _mockNavigate = vi.fn();
     
     // Since we can't easily test the actual createBookingHold function,
     // we'll test the error handling pattern that should be used
@@ -64,6 +64,7 @@ describe('createBookingHold', () => {
     try {
       // Simulate the error handling pattern
       throw mockError;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error: any) {
       // Verify that toast is called with a generic error message
       expect(mockToast).toHaveBeenCalledWith({

@@ -4,12 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
-<<<<<<< HEAD
 import { useAuth } from "@/components/AuthProvider";
-import { useState } from "react";
-=======
-import { useAuth } from "./AuthProvider";
->>>>>>> 10a15cf51beb00896f0af8464fb8a2b7114c3adb
 
 export const Header = () => {
   const navigate = useNavigate();
@@ -17,7 +12,9 @@ export const Header = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
-    if (isSigningOut) {return;} // Prevent double clicks
+    if (isSigningOut) {
+      return;
+    } // Prevent double clicks
     
     setIsSigningOut(true);
     try {
