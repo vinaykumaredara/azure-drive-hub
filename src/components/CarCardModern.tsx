@@ -1,10 +1,10 @@
 import React, { useState, memo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Heart } from "lucide-react";
-import SimpleImage from "@/components/SimpleImage";
-import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow"; // Changed from AtomicBookingFlow to EnhancedBookingFlow
+import ImageCarousel from '@/components/ImageCarousel';
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
@@ -55,7 +55,7 @@ const CarCardModernComponent = ({
   onDelete: _onDelete,
   onBookingSuccess // Add this new prop
 }: CarCardProps) => {
-  const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
+  const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
   const { user, profile, profileLoading } = useAuth();
   const { saveDraftAndRedirect } = useBooking();
@@ -71,7 +71,6 @@ const CarCardModernComponent = ({
   function handleBookNow(e?: React.MouseEvent) {
     try {
       e?.preventDefault();
-
 
       if (!computedIsAvailable) {
         // Use toast instead of alert for better UX
@@ -123,8 +122,8 @@ const CarCardModernComponent = ({
         return;
       }
 
-      // All checks passed -> open booking flow
-      setIsBookingFlowOpen(true);
+      // All checks passed -> navigate to booking page
+      navigate(`/booking/${car.id}`);
     } catch (err) {
       console.error('[BookNow] unexpected error', err);
       toast({
@@ -142,11 +141,6 @@ const CarCardModernComponent = ({
   }, [car.make, car.model, car.id]);
 
   const handleBookingSuccess = useCallback(() => {
-    // Update the car's availability state locally to reflect that it's now booked
-    
-    // Close the booking flow
-    setIsBookingFlowOpen(false);
-    
     // Call the parent component's callback if provided
     if (onBookingSuccess) {
       onBookingSuccess(car.id);
@@ -171,12 +165,18 @@ const CarCardModernComponent = ({
       >
         {/* Image Section */}
         <div className="relative w-full aspect-video overflow-hidden rounded-xl">
-          <SimpleImage 
-            src={car.thumbnail || car.image} 
-            alt={`${car.make} ${car.model}`} 
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            lazy={true}
-          />
+          {/* Use ImageCarousel with standardized images */}
+          {car.images && car.images.length > 0 ? (
+            <ImageCarousel images={car.images} className="w-full h-full" />
+          ) : car.image_urls && car.image_urls.length > 0 ? (
+            <ImageCarousel images={car.image_urls} className="w-full h-full" />
+          ) : (
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+          )}
           
           {/* Save Button */}
           <button
@@ -248,14 +248,6 @@ const CarCardModernComponent = ({
           </div>
         </div>
       </motion.article>
-
-      {isBookingFlowOpen && (
-        <EnhancedBookingFlow // Changed from AtomicBookingFlow to EnhancedBookingFlow
-          car={carForBooking} 
-          onClose={() => setIsBookingFlowOpen(false)}
-          onBookingSuccess={handleBookingSuccess}
-        />
-      )}
     </>
   );
 };

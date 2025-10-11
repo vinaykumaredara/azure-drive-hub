@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SimpleImage from '@/components/SimpleImage';
 
 export default function ImageCarousel({ images = [], className = '', debug = false }: { images?: string[], className?: string, debug?: boolean }) {
   const [idx, setIdx] = useState(0);
+  
+  // Reset index when images array changes
+  useEffect(() => {
+    setIdx(0);
+  }, [images?.length]);
   
   // Only show debug info in development mode
   const showDebug = debug && import.meta.env.DEV;
