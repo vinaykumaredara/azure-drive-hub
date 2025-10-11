@@ -430,7 +430,7 @@ const UserDashboard: React.FC = () => {
       mounted = false;
       controller.abort();
     };
-  }, [user?.id]); // ONLY depend on user?.id
+  }, [user?.id]);
 
   const toggleFavorite = (carId: string) => {
     const newFavorites = favoriteCarIds.includes(carId) 

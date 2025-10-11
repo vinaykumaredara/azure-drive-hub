@@ -13,8 +13,8 @@ interface ExtrasStepProps {
     childSeat: boolean;
     insurance: boolean;
   };
-  _advanceBooking: boolean;
-  _advanceAmount: number;
+  // _advanceBooking: boolean;
+  // _advanceAmount: number;
   totalDays: number;
   pricePerDay: number;
   price_in_paise?: number;
@@ -31,8 +31,8 @@ const defaultExtras = {
 
 export const ExtrasStep: React.FC<ExtrasStepProps> = ({
   extras,
-  advanceBooking: _advanceBooking,
-  advanceAmount: _advanceAmount,
+  // advanceBooking: _advanceBooking,
+  // advanceAmount: _advanceAmount,
   totalDays,
   pricePerDay,
   price_in_paise,

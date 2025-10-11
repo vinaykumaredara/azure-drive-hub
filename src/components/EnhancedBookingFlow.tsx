@@ -15,7 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { LicenseUpload } from '@/components/LicenseUpload';
+// import { LicenseUpload } from '@/components/LicenseUpload';
 import { PaymentGateway } from '@/components/PaymentGateway';
 import { useAuth } from '@/hooks/use-auth';
 import { DatesStep } from '@/components/booking-steps/DatesStep';
@@ -315,7 +315,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     }
   };
 
-  const _handleBookCar = async (advanceBooking = false) => {
+  const _handleBookCar = async (_advanceBooking = false) => {
     setIsLoading(true);
     setBookingError(null);
     
@@ -338,7 +338,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       }
       
       // If advance booking, create a hold
-      if (advanceBooking) {
+      if (_advanceBooking) {
         const advanceAmount = calculateAdvanceAmount();
         setBookingData(prev => ({
           ...prev,

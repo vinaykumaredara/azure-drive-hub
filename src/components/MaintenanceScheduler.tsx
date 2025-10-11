@@ -97,7 +97,7 @@ export const MaintenanceScheduler: React.FC = () => {
       setIsLoading(false);
     };
     loadData();
-  }, []);
+  }, [fetchMaintenances, fetchCars]);
 
   const resetForm = () => {
     setSelectedCarId("");

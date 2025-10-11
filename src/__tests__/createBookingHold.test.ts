@@ -43,14 +43,14 @@ describe('createBookingHold', () => {
     try {
       // Simulate the error handling pattern
       throw mockError;
-    } catch (error: any) {
+    } catch (_error: any) {
       // Verify that the error is properly surfaced
-      expect(error).toBe(mockError);
+      expect(_error).toBe(mockError);
       
       // Verify that toast is called with the error message
       expect(mockToast).toHaveBeenCalledWith({
         title: "Booking Failed",
-        description: error.message,
+        description: _error.message,
         variant: "destructive",
       });
     }
@@ -65,7 +65,7 @@ describe('createBookingHold', () => {
       // Simulate the error handling pattern
       throw mockError;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error: any) {
+    } catch (_error: any) {
       // Verify that toast is called with a generic error message
       expect(mockToast).toHaveBeenCalledWith({
         title: "Booking Failed",

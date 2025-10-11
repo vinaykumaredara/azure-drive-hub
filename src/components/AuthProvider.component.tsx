@@ -107,9 +107,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error('profile fetch err', err);
-        if (mounted) {setProfile(null);}
+        if (mounted) {
+          setProfile(null);
+        }
       } finally {
-        if (mounted) {setProfileLoading(false);}
+        if (mounted) {
+          setProfileLoading(false);
+        }
       }
     })();
 
