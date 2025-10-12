@@ -24,6 +24,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
 import { LicenseUpload } from '@/components/LicenseUpload';
+import { isMobileDevice, getModalAnimationSettings } from '@/utils/deviceOptimizations';
 import { PaymentGateway } from '@/components/PaymentGateway';
 import { useAuth } from '@/hooks/use-auth';
 import { DatesStep } from '@/components/booking-steps/DatesStep';
@@ -553,6 +554,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   };
 
   const handleLicenseUploaded = (licenseId: string) => {
+    console.debug('[EnhancedBookingFlow] License uploaded', { licenseId });
     setBookingData(prev => ({
       ...prev,
       licenseId
@@ -681,13 +683,15 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     />
   );
 
+  // Get device-optimized animation settings
+  const modalAnimations = getModalAnimationSettings();
+  const contentAnimations = getModalAnimationSettings();
+  
   return createPortal(
     <div className="booking-flow-portal">
       <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[9999] sm:backdrop-blur-sm"
+        {...modalAnimations}
+        className={`fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[9999] ${!isMobileDevice() ? 'sm:backdrop-blur-sm' : ''}`}
         onClick={onClose}
         role="dialog"
         aria-modal="true"
@@ -700,9 +704,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         }}
       >
         <motion.div 
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
+          {...contentAnimations}
           className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[95vh] flex flex-col modal-content relative sm:rounded-2xl shadow-2xl"
           onClick={(e) => e.stopPropagation()}
           style={{ 
@@ -712,11 +714,11 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           role="document"
         >
           {/* Header */}
-          <div className="p-4 sm:p-6 border-b flex-shrink-0">
+          <div className="p-3 sm:p-5 md:p-6 border-b flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
-                <h2 id="booking-flow-title" className="text-lg sm:text-xl font-bold">{stepTitles[currentStep]}</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">Booking {car.title}</p>
+                <h2 id="booking-flow-title" className="text-base sm:text-lg md:text-xl font-bold">{stepTitles[currentStep]}</h2>
+                <p className="text-xs sm:text-sm md:text-base text-muted-foreground">Booking {car.title}</p>
               </div>
               <Button 
                 variant="ghost" 
@@ -730,7 +732,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             </div>
 
             {/* Progress Steps */}
-            <div className="flex items-center space-x-1 sm:space-x-2 mt-4 overflow-x-auto pb-2" role="tablist" aria-label="Booking steps">
+            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4 mt-3 sm:mt-4 overflow-x-auto pb-2" role="tablist" aria-label="Booking steps">
               {steps.map((step, index) => {
                 const Icon = stepIcons[step];
                 const isActive = index === currentStepIndex;
@@ -739,7 +741,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                 return (
                   <Fragment key={step}>
                     <div 
-                      className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
+                      className={`flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
                         isCompleted ? 'bg-success text-white' :
                         isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
                       }`}
@@ -748,10 +750,10 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                       aria-controls={`step-${step}-panel`}
                       id={`step-${step}-tab`}
                     >
-                      <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
                     </div>
                     {index < steps.length - 1 && (
-                      <div className={`h-0.5 w-4 sm:w-8 transition-all flex-shrink-0 ${
+                      <div className={`h-0.5 w-6 sm:w-10 md:w-12 transition-all flex-shrink-0 ${
                         isCompleted ? 'bg-success' : 'bg-muted'
                       }`} />
                     )}
@@ -764,7 +766,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           {/* Scrollable Content Area */}
           <div 
             ref={contentRef}
-            className="p-4 sm:p-6 overflow-y-auto flex-grow"
+            className="p-3 sm:p-5 md:p-6 lg:p-8 overflow-y-auto flex-grow"
             style={{
               maxHeight: 'calc(100vh - 160px)',
               WebkitOverflowScrolling: 'touch',
@@ -787,7 +789,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
           {/* Sticky Footer - Always Visible */}
           {currentStep !== 'confirmation' && (
-            <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center flex-shrink-0">
+            <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-3 py-2.5 sm:px-5 sm:py-3.5 md:px-6 md:py-4 flex justify-between items-center flex-shrink-0">
               <div>
                 {currentStep !== 'dates' && (
                   <Button 
@@ -814,6 +816,13 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                 
                 <Button 
                   onClick={() => {
+                    console.debug('[EnhancedBookingFlow] Continue/Next clicked', { 
+                      currentStep, 
+                      licenseId: bookingData.licenseId,
+                      phoneNumber: bookingData.phoneNumber,
+                      termsAccepted: bookingData.termsAccepted 
+                    });
+                    
                     if (currentStep === 'payment') {
                       // Handle payment based on selected option
                       if (bookingData.advanceBooking) {
@@ -834,7 +843,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                     (currentStep === 'terms' && !bookingData.termsAccepted) ||
                     (currentStep === 'license' && !bookingData.licenseId)
                   }
-                  className="min-w-[80px] sm:min-w-[120px] text-sm sm:text-base"
+                  className="min-w-[90px] sm:min-w-[130px] md:min-w-[140px] px-4 sm:px-5 md:px-6 text-sm sm:text-base"
                   size="sm"
                   aria-label={currentStep === 'payment' ? 'Proceed to payment' : currentStep === 'license' ? 'Continue to next step' : 'Continue to next step'}
                 >
