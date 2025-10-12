@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -10,14 +10,14 @@ interface AuthStatus {
 }
 
 export const useAuthStatus = (): AuthStatus => {
-  const [status, setStatus] = React.useState<AuthStatus>({
+  const [status, setStatus] = useState<AuthStatus>({
     user: null,
     isAdmin: false,
     isLoading: true,
     error: null
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     let mounted = true;
     
     const checkAuthStatus = async () => {

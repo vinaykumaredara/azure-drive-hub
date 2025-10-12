@@ -96,10 +96,11 @@ export default function LazyImage({
   const containerStyle: React.CSSProperties = {
     position: 'relative',
     overflow: 'hidden',
+    width: '100%',
+    display: 'block',
     ...(aspectRatio ? {
       aspectRatio: aspectRatio,
     } : {
-      width: '100%',
       height: 'auto',
     })
   };
@@ -125,7 +126,7 @@ export default function LazyImage({
           alt={alt}
           onError={handleError}
           onLoad={() => setLoaded(true)}
-          className={`${className} block w-full h-full object-cover ${!loaded ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+          className={`block w-full h-full object-cover ${!loaded ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300 ${className}`}
           {...rest}
         />
         
@@ -145,7 +146,7 @@ export default function LazyImage({
         src={displaySrc}
         alt={alt}
         onError={handleError}
-        className={`${className} block w-full h-full object-cover ${loaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+        className={`block w-full h-full object-cover ${loaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300 ${className}`}
         {...rest}
       />
       

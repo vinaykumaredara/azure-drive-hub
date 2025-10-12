@@ -118,6 +118,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
   // Handle body scroll locking for mobile and focus management
   useEffect(() => {
+    console.log('[EnhancedBookingFlow] Modal opened');
     document.body.style.overflow = 'hidden';
     
     // Focus the first focusable element in the modal when it opens
@@ -129,6 +130,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     }
     
     return () => {
+      console.log('[EnhancedBookingFlow] Modal closed');
       document.body.style.overflow = '';
     };
   }, []);

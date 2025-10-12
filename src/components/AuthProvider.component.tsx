@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useAuthStatus } from '@/hooks/useAuthStatus';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -22,9 +22,9 @@ type AuthContextType = {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, isLoading, error } = useAuthStatus();
-  const [session, setSession] = React.useState<Session | null>(null);
-  const [profile, setProfile] = React.useState<AuthContextType['profile']>(null);
-  const [profileLoading, setProfileLoading] = React.useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<AuthContextType['profile']>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Function to refresh profile
   const refreshProfile = async () => {
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Update session when user changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
       // Create a minimal session object
       setSession({
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // Fetch profile whenever user changes or when profileJustUpdated flag is set
-  React.useEffect(() => {
+  useEffect(() => {
     let mounted = true;
     
     // Check if profile was just updated
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // Show error toast if auth initialization fails
-  React.useEffect(() => {
+  useEffect(() => {
     if (error) {
       toast({
         title: "Authentication Error",

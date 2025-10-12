@@ -57,6 +57,7 @@ const CarCardModernComponent = ({
 }: CarCardProps) => {
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isBookingLoading, setIsBookingLoading] = useState(false);
   const { user, profile, profileLoading } = useAuth();
   const { saveDraftAndRedirect } = useBooking();
 
@@ -69,9 +70,21 @@ const CarCardModernComponent = ({
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
+    if (isBookingLoading) return; // Prevent double-clicks
+    
     try {
       e?.preventDefault();
 
+      console.log('[BookNow] Button clicked', {
+        carId: car.id,
+        computedIsAvailable,
+        bookingStatus,
+        isPublished,
+        isArchived,
+        hasUser: !!user,
+        profileLoading,
+        hasPhone: !!(profile?.phone || user?.phone)
+      });
 
       if (!computedIsAvailable) {
         // Use toast instead of alert for better UX
@@ -85,6 +98,7 @@ const CarCardModernComponent = ({
 
       // If user is not logged in -> save draft & redirect to auth
       if (!user) {
+        console.log('[BookNow] User not logged in, redirecting to auth');
         const draft = {
           carId: car.id,
           pickup: { date: '', time: '' },
@@ -98,6 +112,7 @@ const CarCardModernComponent = ({
 
       // If profile still loading, show toast and do nothing
       if (profileLoading) {
+        console.log('[BookNow] Profile still loading');
         toast({
           title: "Finishing Sign-in",
           description: "Please wait a second while we finish loading your profile...",
@@ -111,6 +126,7 @@ const CarCardModernComponent = ({
         (user && (user.phone || user.user_metadata?.phone || user.user_metadata?.mobile));
 
       if (!phone) {
+        console.log('[BookNow] No phone number, redirecting to profile');
         // Navigate to profile page to collect phone (preserve a draft)
         const draft = {
           carId: car.id,
@@ -124,6 +140,8 @@ const CarCardModernComponent = ({
       }
 
       // All checks passed -> open booking flow
+      console.log('[BookNow] Opening booking flow');
+      setIsBookingLoading(true);
       setIsBookingFlowOpen(true);
     } catch (err) {
       console.error('[BookNow] unexpected error', err);
@@ -143,9 +161,11 @@ const CarCardModernComponent = ({
 
   const handleBookingSuccess = useCallback(() => {
     // Update the car's availability state locally to reflect that it's now booked
+    console.log('[BookingSuccess] Booking completed successfully');
     
     // Close the booking flow
     setIsBookingFlowOpen(false);
+    setIsBookingLoading(false);
     
     // Call the parent component's callback if provided
     if (onBookingSuccess) {
@@ -252,7 +272,11 @@ const CarCardModernComponent = ({
       {isBookingFlowOpen && (
         <EnhancedBookingFlow // Changed from AtomicBookingFlow to EnhancedBookingFlow
           car={carForBooking} 
-          onClose={() => setIsBookingFlowOpen(false)}
+          onClose={() => {
+            console.log('[BookingFlow] Modal closed');
+            setIsBookingFlowOpen(false);
+            setIsBookingLoading(false);
+          }}
           onBookingSuccess={handleBookingSuccess}
         />
       )}
