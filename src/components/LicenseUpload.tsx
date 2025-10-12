@@ -93,10 +93,21 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
 
     } catch (error: any) {
       console.error("Upload error:", error);
+      
+      // Provide more specific error message
+      const errorMessage = error.message?.includes('row-level security')
+        ? "Permission denied. Please make sure you're logged in and try again."
+        : error.message || "Failed to upload license. Please try again.";
+      
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload license",
+        description: errorMessage,
         variant: "destructive",
+        action: (
+          <Button variant="outline" size="sm" onClick={handleUpload}>
+            Retry
+          </Button>
+        ),
       });
     } finally {
       setIsUploading(false);

@@ -406,7 +406,7 @@ export const UserCarListing = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted">
+    <div id="cars-section" className="min-h-screen bg-gradient-to-br from-background to-muted">
       {/* Hero Section */}
       <div className="relative bg-gradient-to-r from-primary/10 to-secondary/10 py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
