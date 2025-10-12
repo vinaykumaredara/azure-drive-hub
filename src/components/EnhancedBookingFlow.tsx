@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Fragment } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -28,6 +28,7 @@ import { PaymentGateway } from '@/components/PaymentGateway';
 import { useAuth } from '@/hooks/use-auth';
 import { DatesStep } from '@/components/booking-steps/DatesStep';
 import { PhoneStep } from '@/components/booking-steps/PhoneStep';
+import { savePhoneNumber } from '@/utils/phoneNumberUtils';
 import { ExtrasStep } from '@/components/booking-steps/ExtrasStep';
 import { TermsStep } from '@/components/booking-steps/TermsStep';
 import { LicenseStep } from '@/components/booking-steps/LicenseStep';
@@ -129,22 +130,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   const steps: Step[] = ['phone', 'dates', 'terms', 'license', 'payment', 'confirmation'];
   const currentStepIndex = steps.indexOf(currentStep);
 
-  // Handle body scroll locking for mobile and focus management
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    
-    // Focus the first focusable element in the modal when it opens
-    const focusableElements = document.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusableElements.length > 0) {
-      (focusableElements[0] as HTMLElement).focus();
-    }
-    
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, []);
+  // Removed duplicate body scroll lock - see line 696 for robust implementation
 
   // Handle booking restoration on component mount - ALWAYS start at phone step
   useEffect(() => {
@@ -235,21 +221,9 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     setBookingError(null);
     
     try {
-      // Save phone number if it's new or changed
+      // Save phone number if it's new or changed (using utility function)
       if (bookingData.phoneNumber) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Cast to any to bypass TypeScript issues with Supabase generated types
-          const { error } = await (supabase
-            .from('users') as any)
-            .update({ phone: bookingData.phoneNumber } as any)
-            .eq('id', user.id)
-            .select();
-            
-          if (error) {
-            // Error updating phone number - silently fail as this is not critical
-          }
-        }
+        await savePhoneNumber(bookingData.phoneNumber);
       }
       
       // For advance booking, we'll create a hold record in the database
@@ -308,21 +282,9 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     setBookingError(null);
     
     try {
-      // Save phone number if it's new or changed
+      // Save phone number if it's new or changed (using utility function)
       if (bookingData.phoneNumber) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Cast to any to bypass TypeScript issues with Supabase generated types
-          const { error } = await (supabase
-            .from('users') as any)
-            .update({ phone: bookingData.phoneNumber } as any)
-            .eq('id', user.id)
-            .select();
-            
-          if (error) {
-            // Error updating phone number - silently fail as this is not critical
-          }
-        }
+        await savePhoneNumber(bookingData.phoneNumber);
       }
       
       // If advance booking, create a hold
@@ -429,17 +391,8 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         phoneNumber: cleanedPhone
       }));
       
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await (supabase
-            .from('users') as any)
-            .update({ phone: cleanedPhone } as any)
-            .eq('id', user.id);
-        }
-      } catch (error) {
-        // Silent error - not critical
-      }
+      // Save phone using utility function
+      await savePhoneNumber(cleanedPhone);
       
       setCurrentStep('dates');
     } else if (currentStep === 'dates') {
@@ -772,8 +725,8 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                 const isCompleted = index < currentStepIndex;
                 
                 return (
-                  <Fragment key={step}>
-                    <div 
+                  <div key={step} className="flex items-center">
+                    <div
                       className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
                         isCompleted ? 'bg-success text-white' :
                         isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
@@ -790,7 +743,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                         isCompleted ? 'bg-success' : 'bg-muted'
                       }`} />
                     )}
-                  </Fragment>
+                  </div>
                 );
               })}
             </div>

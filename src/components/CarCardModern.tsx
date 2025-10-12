@@ -164,30 +164,30 @@ const CarCardModernComponent = ({
         throw new Error('Invalid car data: missing ID');
       }
 
-      // All checks passed -> open booking flow
+      // All checks passed -> open booking flow immediately
       console.debug('[handleBookNow] Opening booking flow');
       setIsBookingLoading(true);
       
-      // Safety timeout: reset loading state after 5 seconds if modal hasn't opened
+      // Safety timeout: reset loading state after 3 seconds if modal hasn't opened
       loadingTimeoutRef.current = setTimeout(() => {
-        console.error('[handleBookNow] Timeout: Modal failed to open within 5 seconds');
+        console.error('[handleBookNow] Timeout: Modal failed to open within 3 seconds');
         setIsBookingLoading(false);
         toast({
           title: "Booking Flow Error",
           description: "Failed to open booking form. Please try again.",
           variant: "destructive",
         });
-      }, 5000);
+      }, 3000);
       
-      // Small delay to ensure UI updates, then open modal
-      setTimeout(() => {
-        setIsBookingFlowOpen(true);
-        // Clear timeout once modal opens successfully
-        if (loadingTimeoutRef.current) {
-          clearTimeout(loadingTimeoutRef.current);
-          loadingTimeoutRef.current = null;
-        }
-      }, 100);
+      // Open modal immediately - no artificial delay
+      setIsBookingFlowOpen(true);
+      setIsBookingLoading(false);
+      
+      // Clear timeout once component confirms render
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
       
     } catch (err) {
       console.error('[handleBookNow] ERROR', err);

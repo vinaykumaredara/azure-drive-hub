@@ -147,30 +147,30 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         return;
       }
 
-      // PHASE C: Set loading with 5-second timeout
+      // Open modal immediately - no unnecessary delay
       setIsBookingLoading(true);
-      logBookingEvent('Setting loading state', { carId: car.id });
+      logBookingEvent('Opening booking flow', { carId: car.id });
       
+      // Safety timeout: reset if modal doesn't render within 3 seconds
       loadingTimeoutRef.current = setTimeout(() => {
-        console.error('[handleBookNow] Timeout: Modal failed to open within 5 seconds');
+        console.error('[handleBookNow] Timeout: Modal failed to open within 3 seconds');
         setIsBookingLoading(false);
         toast({
           title: "Booking Flow Error",
           description: "Failed to open booking form. Please try again.",
           variant: "destructive",
         });
-      }, 5000);
+      }, 3000);
 
-      // Open modal after small delay
-      setTimeout(() => {
-        logBookingEvent('Opening booking flow', { carId: car.id });
-        setIsBookingFlowOpen(true);
-        if (loadingTimeoutRef.current) {
-          clearTimeout(loadingTimeoutRef.current);
-          loadingTimeoutRef.current = null;
-        }
-        setIsBookingLoading(false);
-      }, 100);
+      // Open modal immediately
+      setIsBookingFlowOpen(true);
+      setIsBookingLoading(false);
+      
+      // Clear timeout once component confirms render
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
       
     } catch (err) {
       console.error('[handleBookNow] ERROR', err);
