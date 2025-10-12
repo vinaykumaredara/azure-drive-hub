@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/dom';
 import { CarCardModern } from '@/components/CarCardModern';
 import * as AuthProvider from '@/components/AuthProvider';
 import * as useBooking from '@/hooks/useBooking';

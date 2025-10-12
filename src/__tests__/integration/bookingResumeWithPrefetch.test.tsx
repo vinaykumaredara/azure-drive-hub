@@ -1,6 +1,7 @@
 // PHASE F: Integration test for booking resume with modal prefetching
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
+import { waitFor } from '@testing-library/dom';
 import { useBookingResume } from '@/hooks/useBookingResume';
 import { supabase } from '@/integrations/supabase/client';
 
