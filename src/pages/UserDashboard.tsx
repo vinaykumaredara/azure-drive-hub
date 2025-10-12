@@ -20,6 +20,7 @@ import ImageCarousel from '@/components/ImageCarousel';
 import { resolveCarImageUrl } from '@/utils/carImageUtils';
 import { formatINRFromPaise } from '@/utils/currency';
 import { PhoneModal } from '@/components/PhoneModal';
+import { useBookingResume } from '@/hooks/useBookingResume';
 
 interface Booking {
   id: string;
@@ -68,6 +69,7 @@ const UserDashboard: React.FC = () => {
   const { user, signOut, profile, profileLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { resumedCar, isResuming, clearResumedCar } = useBookingResume();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [favoriteCarIds, setFavoriteCarIds] = useState<string[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -81,12 +83,31 @@ const UserDashboard: React.FC = () => {
   const [selectedCarForBooking, setSelectedCarForBooking] = useState<any>(null);
   const bookingsRef = useRef<Booking[]>([]);
 
-  // Handle booking restoration and phone collection after login - NON-BLOCKING VERSION
+  // Handle resumed car from useBookingResume hook
+  useEffect(() => {
+    if (resumedCar && !showPhoneModal && !profileLoading) {
+      console.debug('[UserDashboard] Resumed car detected', resumedCar);
+      
+      if (!profile?.phone) {
+        console.debug('[UserDashboard] No phone, showing phone modal');
+        setSelectedCarForBooking(resumedCar);
+        setShowPhoneModal(true);
+      } else {
+        console.debug('[UserDashboard] Phone exists, opening booking');
+        setSelectedCarForBooking(resumedCar);
+        setShouldOpenBooking(true);
+        clearResumedCar();
+      }
+    }
+  }, [resumedCar, profile?.phone, showPhoneModal, profileLoading, clearResumedCar]);
+  
+  // Legacy: Handle booking restoration from sessionStorage (fallback)
   useEffect(() => {
     if (!user?.id || profileLoading) return;
 
     const pendingBooking = sessionStorage.getItem('pendingBooking');
     if (pendingBooking) {
+      console.debug('[UserDashboard] Legacy sessionStorage booking detected');
       try {
         const draft = JSON.parse(pendingBooking);
         setRestoredDraft(draft);
@@ -117,18 +138,21 @@ const UserDashboard: React.FC = () => {
               
               // Check if profile has phone number
               if (!profile?.phone) {
-                console.log('No phone number - showing phone modal');
+                console.debug('[UserDashboard] Legacy: No phone - showing phone modal');
                 setShowPhoneModal(true);
                 setSelectedCarForBooking(carForBooking);
               } else {
                 // Phone exists, open booking flow immediately
-                console.log('Phone exists - opening booking flow');
+                console.debug('[UserDashboard] Legacy: Phone exists - opening booking flow');
                 setSelectedCarForBooking(carForBooking);
                 setShouldOpenBooking(true);
               }
+              
+              // Clear legacy sessionStorage after processing
+              sessionStorage.removeItem('pendingBooking');
             }
           } catch (error) {
-            console.error('Failed to fetch car for booking:', error);
+            console.error('[UserDashboard] Failed to fetch car for booking:', error);
             toast({
               title: "Error",
               description: "Failed to restore your booking. Please try again.",
@@ -140,7 +164,7 @@ const UserDashboard: React.FC = () => {
         
         fetchCarForBooking();
       } catch (error) {
-        console.error('Failed to parse pending booking:', error);
+        console.error('[UserDashboard] Failed to parse pending booking:', error);
         sessionStorage.removeItem('pendingBooking');
       }
     }
@@ -148,12 +172,13 @@ const UserDashboard: React.FC = () => {
 
   // Handle phone modal completion
   const handlePhoneModalComplete = async () => {
-    console.log('Phone modal completed, refreshing profile and opening booking');
+    console.debug('[UserDashboard] Phone modal completed, refreshing profile and opening booking');
     setShowPhoneModal(false);
     
     // Wait a moment for profile to refresh, then open booking flow
     setTimeout(() => {
       if (selectedCarForBooking) {
+        console.debug('[UserDashboard] Opening booking after phone collection');
         setShouldOpenBooking(true);
       }
     }, 500);

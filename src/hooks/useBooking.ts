@@ -48,6 +48,7 @@ export const useBooking = () => {
   const saveDraftAndRedirect = (draft: BookingDraft, options: SaveDraftOptions = {}) => {
     // Save booking draft to session storage
     sessionStorage.setItem('pendingBooking', JSON.stringify(draft));
+    console.debug('[useBooking] Draft saved and redirecting', { draft, options });
     
     // Set flags in sessionStorage for post-login handling
     if (options.redirectToProfile) {
@@ -92,6 +93,8 @@ export const useBooking = () => {
   };
 
   const createBookingHold = async (draft: BookingDraft, payMode: "full" | "hold") => {
+    console.debug('[useBooking] createBookingHold called', { draft, payMode, user: !!user });
+    
     if (!user) {
       saveDraftAndRedirect(draft);
       return null;
@@ -99,6 +102,7 @@ export const useBooking = () => {
 
     // Add defensive validation client-side before calling server
     if (!draft.carId || !draft.pickup?.date || !draft.pickup?.time || !draft.return?.date || !draft.return?.time) {
+      console.debug('[useBooking] Validation failed - missing fields', draft);
       toast({
         title: "Validation Error",
         description: "Missing required booking information. Please fill in all date and time fields.",
@@ -108,6 +112,7 @@ export const useBooking = () => {
     }
 
     try {
+      console.debug('[useBooking] Calling create-hold edge function');
       // Call Edge Function to create booking hold
       const { data, error } = await supabase.functions.invoke('create-hold', {
         body: {
@@ -120,12 +125,17 @@ export const useBooking = () => {
         }
       });
 
-      if (error) {throw error;}
+      if (error) {
+        console.error('[useBooking] Edge function error', error);
+        throw error;
+      }
 
       if (!data.success) {
+        console.error('[useBooking] Booking hold failed', data);
         throw new Error(data.error || "Failed to create booking hold");
       }
 
+      console.debug('[useBooking] Booking hold created successfully', data);
       toast({
         title: "Booking Hold Created",
         description: payMode === "hold" 
@@ -135,6 +145,7 @@ export const useBooking = () => {
 
       return data;
     } catch (error: any) {
+      console.error('[useBooking] createBookingHold error', error);
       const errorMessage = error?.message || "Failed to create booking. Please try again.";
       toast({
         title: "Booking Failed",

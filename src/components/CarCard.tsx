@@ -10,6 +10,7 @@ import ImageCarousel from '@/components/ImageCarousel';
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
+import { bookingIntentStorage } from "@/utils/bookingIntent";
 
 export interface CarCardProps {
   car: {
@@ -55,11 +56,20 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
+    console.debug('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
+    
     try {
+      e?.stopPropagation();
       e?.preventDefault();
+      console.debug('[handleBookNow] ENTRY', { 
+        carId: car.id, 
+        user: !!user, 
+        profile: !!profile, 
+        profileLoading,
+        computedIsAvailable 
+      });
 
       if (!computedIsAvailable) {
-        // Use toast instead of alert for better UX
         toast({
           title: "Car Not Available",
           description: "This car is not available for booking.",
@@ -68,8 +78,14 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         return;
       }
 
-      // If user is not logged in -> save draft & redirect to auth
+      // If user is not logged in -> save intent & redirect to auth
       if (!user) {
+        bookingIntentStorage.save({
+          type: 'BOOK_CAR',
+          carId: car.id,
+          timestamp: Date.now(),
+        });
+        
         const draft = {
           carId: car.id,
           pickup: { date: '', time: '' },
@@ -104,13 +120,15 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
           addons: {},
           totals: { subtotal: 0, serviceCharge: 0, total: 0 }
         };
-        saveDraftAndRedirect(draft, { redirectToProfile: true }); // add optional param to go to profile page
+        saveDraftAndRedirect(draft, { redirectToProfile: true });
         return;
       }
 
       // All checks passed -> open booking flow
+      console.debug('[handleBookNow] Opening booking flow');
       setIsBookingFlowOpen(true);
     } catch (err) {
+      console.error('[handleBookNow] ERROR', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -286,18 +304,33 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                   <span className="text-2xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}</span>
                   <span className="text-sm text-muted-foreground">/day</span>
                 </div>
-                <div className="flex space-x-2">
-                  <Button size="sm" onClick={handleWhatsAppContact} variant="outline">
+                <div className="flex gap-2 sm:gap-3 relative z-10">
+                  <Button 
+                    type="button"
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.debug('[Contact] Button clicked', { carId: car.id });
+                      handleWhatsAppContact();
+                    }} 
+                    variant="outline"
+                    className="min-w-[80px]"
+                  >
                     Contact
                   </Button>
                   <Button 
+                    type="button"
                     size="sm" 
-                    onClick={handleBookNow}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleBookNow(e);
+                    }}
                     disabled={!computedIsAvailable}
                     aria-disabled={!computedIsAvailable}
                     data-testid={`book-now-${car.id}`}
                     id={`book-now-btn-${car.id}`}
-                    className={computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}
+                    className={`min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
                   >
                     Book Now
                   </Button>

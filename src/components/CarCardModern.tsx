@@ -8,6 +8,7 @@ import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow"; // Chang
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
+import { bookingIntentStorage } from "@/utils/bookingIntent";
 
 // Define the car interface
 interface Car {
@@ -70,13 +71,25 @@ const CarCardModernComponent = ({
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
-    if (isBookingLoading) return; // Prevent double-clicks
+    console.debug('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
+    
+    if (isBookingLoading) {
+      console.debug('[BookNow] Already loading, ignoring');
+      return;
+    }
     
     try {
+      e?.stopPropagation();
       e?.preventDefault();
+      console.debug('[handleBookNow] ENTRY', { 
+        carId: car.id, 
+        user: !!user, 
+        profile: !!profile, 
+        profileLoading,
+        computedIsAvailable 
+      });
 
       if (!computedIsAvailable) {
-        // Use toast instead of alert for better UX
         toast({
           title: "Car Not Available",
           description: "This car is not available for booking.",
@@ -85,8 +98,14 @@ const CarCardModernComponent = ({
         return;
       }
 
-      // If user is not logged in -> save draft & redirect to auth
+      // If user is not logged in -> save intent & redirect to auth
       if (!user) {
+        bookingIntentStorage.save({
+          type: 'BOOK_CAR',
+          carId: car.id,
+          timestamp: Date.now(),
+        });
+        
         const draft = {
           carId: car.id,
           pickup: { date: '', time: '' },
@@ -121,14 +140,16 @@ const CarCardModernComponent = ({
           addons: {},
           totals: { subtotal: 0, serviceCharge: 0, total: 0 }
         };
-        saveDraftAndRedirect(draft, { redirectToProfile: true }); // add optional param to go to profile page
+        saveDraftAndRedirect(draft, { redirectToProfile: true });
         return;
       }
 
       // All checks passed -> open booking flow
+      console.debug('[handleBookNow] Opening booking flow');
       setIsBookingLoading(true);
       setIsBookingFlowOpen(true);
     } catch (err) {
+      console.error('[handleBookNow] ERROR', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -225,23 +246,33 @@ const CarCardModernComponent = ({
 
           <div className="flex items-center justify-between mt-3 sm:mt-4">
             <div className="text-lg sm:text-xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
-            <div className="flex gap-1 sm:gap-2">
+            <div className="flex gap-2 sm:gap-3 relative z-10">
               <Button 
+                type="button"
                 size="sm" 
                 variant="outline" 
-                onClick={handleWhatsAppContact}
-                className="text-[0.6rem] sm:text-xs px-2 py-1 sm:px-3 sm:py-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.debug('[Contact] Button clicked', { carId: car.id });
+                  handleWhatsAppContact();
+                }}
+                className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
               >
                 Contact
               </Button>
               <Button 
+                type="button"
                 size="sm" 
-                onClick={handleBookNow}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleBookNow(e);
+                }}
                 disabled={!computedIsAvailable}
                 aria-disabled={!computedIsAvailable}
                 data-testid={`book-now-${car.id}`}
                 id={`book-now-btn-${car.id}`}
-                className={`text-[0.6rem] sm:text-xs px-2 py-1 sm:px-3 sm:py-2 ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
               >
                 Book Now
               </Button>
