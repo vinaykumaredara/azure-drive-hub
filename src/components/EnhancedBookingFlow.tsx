@@ -80,7 +80,20 @@ interface License {
 }
 
 export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, onClose, onBookingSuccess }) => {
-  const [currentStep, setCurrentStep] = useState<Step>('phone'); // Start with phone step
+  const { user, profile, profileLoading } = useAuth();
+  
+  // Smart initial step: skip phone if already collected
+  const getInitialStep = (): Step => {
+    const phone = profile?.phone || user?.phone || user?.user_metadata?.phone;
+    if (phone) {
+      console.debug('[BookingFlow] Phone exists, starting at dates');
+      return 'dates';
+    }
+    console.debug('[BookingFlow] No phone, starting at phone step');
+    return 'phone';
+  };
+  
+  const [currentStep, setCurrentStep] = useState<Step>(getInitialStep());
   const [existingLicense, setExistingLicense] = useState<{
     id: string;
     verified: boolean | null;
@@ -111,7 +124,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const { profile, profileLoading } = useAuth();
 
   // Reordered steps: phone first, then dates, terms, license, payment (no extras)
   const steps: Step[] = ['phone', 'dates', 'terms', 'license', 'payment', 'confirmation'];
@@ -681,14 +693,37 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     />
   );
 
+  // Body scroll lock effect
+  useEffect(() => {
+    console.debug('[BookingFlow] Modal mounted, locking body scroll');
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    
+    // Lock scroll
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    
+    return () => {
+      console.debug('[BookingFlow] Modal unmounted, restoring body scroll');
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, []);
+
   return createPortal(
     <div className="booking-flow-portal">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[9999] sm:backdrop-blur-sm"
-        onClick={onClose}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm modal-overlay flex items-center justify-center p-0 sm:p-6 overflow-hidden booking-flow-modal z-[9999]"
+        onClick={(e) => {
+          console.debug('[BookingFlow] Overlay clicked, closing modal');
+          onClose();
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="booking-flow-title"

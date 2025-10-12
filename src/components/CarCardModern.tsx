@@ -246,17 +246,19 @@ const CarCardModernComponent = ({
 
           <div className="flex items-center justify-between mt-3 sm:mt-4">
             <div className="text-lg sm:text-xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
-            <div className="flex gap-2 sm:gap-3 relative z-10">
+            <div className="flex gap-2 sm:gap-3 relative z-20 flex-shrink-0">
               <Button 
                 type="button"
                 size="sm" 
                 variant="outline" 
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   console.debug('[Contact] Button clicked', { carId: car.id });
                   handleWhatsAppContact();
                 }}
-                className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
+                className="text-xs sm:text-sm px-3 py-2 min-w-[80px] relative z-10"
+                disabled={isBookingLoading}
               >
                 Contact
               </Button>
@@ -266,25 +268,38 @@ const CarCardModernComponent = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
+                  console.debug('[BookNow] Button clicked', { carId: car.id, available: computedIsAvailable });
                   handleBookNow(e);
                 }}
-                disabled={!computedIsAvailable}
-                aria-disabled={!computedIsAvailable}
+                disabled={!computedIsAvailable || isBookingLoading}
+                aria-disabled={!computedIsAvailable || isBookingLoading}
                 data-testid={`book-now-${car.id}`}
                 id={`book-now-btn-${car.id}`}
-                className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] relative z-20 ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
               >
-                Book Now
+                {isBookingLoading ? 'Opening...' : 'Book Now'}
               </Button>
             </div>
           </div>
         </div>
       </motion.article>
 
-      {isBookingFlowOpen && (
-        <EnhancedBookingFlow // Changed from AtomicBookingFlow to EnhancedBookingFlow
+      {/* Loading overlay */}
+      {isBookingLoading && !isBookingFlowOpen && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-[9998]">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-sm text-muted-foreground">Opening booking flow...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Booking modal */}
+      {isBookingFlowOpen && carForBooking && (
+        <EnhancedBookingFlow
           car={carForBooking} 
           onClose={() => {
+            console.debug('[CarCardModern] Closing booking flow');
             setIsBookingFlowOpen(false);
             setIsBookingLoading(false);
           }}
