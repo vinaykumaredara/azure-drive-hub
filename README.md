@@ -15,6 +15,7 @@ A modern, full-stack car rental platform built with React, TypeScript, and Supab
 - **Enhanced Booking Flow**: Complete booking workflow with phone collection, license upload, and terms acceptance
 - **Advance Booking**: Reserve cars with 10% upfront payment
 - **License Management**: Upload driver's license for verification
+- **Persistent Booking Intent**: Automatically resumes booking after sign-in
 
 ### 🛠️ **Admin Features**
 - **Comprehensive Dashboard**: Real-time analytics and metrics
@@ -35,6 +36,7 @@ A modern, full-stack car rental platform built with React, TypeScript, and Supab
 - **Performance Optimized**: Lazy loading and code splitting
 - **Type Safety**: Full TypeScript implementation
 - **Atomic Booking**: Thread-safe booking operations to prevent double bookings
+- **Booking Intent Persistence**: Survives page reloads and OAuth redirects
 
 ## 🏗️ Tech Stack
 
@@ -203,6 +205,7 @@ We've implemented a complete booking workflow with all required features:
 - **Payment Integration**: Secure payment processing with multiple gateways
 - **Admin Dashboard Enhancements**: Real-time display of all booking details
 - **User Dashboard Updates**: Complete booking history with payment status
+- **Booking Intent Persistence**: Automatically resumes booking after sign-in
 
 For detailed information, see [FINAL_IMPLEMENTATION_REPORT.md](./FINAL_IMPLEMENTATION_REPORT.md)
 
@@ -260,6 +263,7 @@ npm run test:unit
 Key test files:
 - `src/__tests__/hooks/useBookingFlow.test.ts` - Tests for booking flow state management
 - `src/__tests__/functions/createBooking.test.ts` - Tests for Edge Function integration
+- `src/__tests__/utils/bookingIntentUtils.test.ts` - Tests for booking intent persistence
 
 ### Integration Tests
 Run integration tests for the booking system:
@@ -309,6 +313,13 @@ npm run test:e2e
    - Confirm phone numbers are saved in user profiles
    - Test that overlapping bookings are prevented by database constraints
 
+6. **Booking Intent Persistence**
+   - Click "Book Now" while signed out
+   - Verify pending intent is saved to localStorage
+   - Complete sign-in process
+   - Verify booking modal automatically opens for the intended car
+   - Verify localStorage intent is cleared after successful resume
+
 ## 📈 Performance & UX
 
 ### Lazy Loading
@@ -345,3 +356,32 @@ npm run test:e2e
 - Payment processing handled by trusted third-party providers
 - No sensitive payment data stored in application database
 - Edge Functions provide secure server-side booking creation
+
+## 🔄 Booking Intent Persistence
+
+### How It Works
+The booking intent persistence feature ensures that users never lose their booking progress, even when they need to sign in first:
+
+1. **Intent Storage**: When an unauthenticated user clicks "Book Now", the system saves the booking intent to localStorage with the car ID and timestamp.
+
+2. **Sign-In Handling**: The user is redirected to the sign-in page with a clear message that their booking will be resumed automatically.
+
+3. **Resume Logic**: After successful authentication, the system automatically:
+   - Retrieves the saved intent from localStorage
+   - Fetches the car details from the database
+   - Opens the booking modal for that specific car
+   - Clears the saved intent to prevent duplicate bookings
+
+4. **Cross-Flow Support**: Works with both modal sign-ins and OAuth redirects, ensuring consistent behavior across all authentication methods.
+
+### Technical Implementation
+- **Utility Functions**: `src/utils/bookingIntentUtils.ts` contains all logic for saving, retrieving, and resuming booking intents
+- **Component Integration**: `NewBookNowButton` handles intent saving before redirecting to sign-in
+- **App-Level Resume**: `App.tsx` includes a component that listens for authentication state changes and resumes intents when the user becomes authenticated
+- **Error Handling**: Graceful handling of cases where the car is no longer available or other errors occur during resume
+
+### Benefits
+- **Seamless UX**: Users don't need to remember which car they wanted to book
+- **Robust**: Works across page reloads, OAuth redirects, and different sign-in methods
+- **Secure**: Only stores minimal information (car ID) without sensitive data
+- **Transparent**: Users are informed when their booking is being resumed

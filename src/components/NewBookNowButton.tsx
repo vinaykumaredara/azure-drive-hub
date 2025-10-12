@@ -1,10 +1,11 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { useBookingFlow } from '../hooks/useBookingFlow';
 import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { PhoneModal } from '@/components/PhoneModal';
+import { savePendingIntent } from '@/utils/bookingIntentUtils';
 
 // Lazy load the booking modal to improve initial load performance
 const BookingModal = lazy(() => import('@/components/BookingModal/BookingModal'));
@@ -51,6 +52,30 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
   const notBooked = !(bookingStatus === 'booked' || bookingStatus === 'reserved' || bookingStatus === 'held');
   const computedIsAvailable = isPublished && notBooked && !isArchived;
 
+  // Check for pending intent on component mount
+  useEffect(() => {
+    // This is a defensive check - the main resume logic is in App.tsx
+    // But we'll show a toast if there's a pending intent
+    const checkPendingIntent = () => {
+      try {
+        const raw = localStorage.getItem('pendingIntent');
+        if (raw) {
+          const payload = JSON.parse(raw);
+          if (payload?.type === 'BOOK_CAR' && payload.carId === car.id) {
+            toast({
+              title: "Resuming your booking",
+              description: "We're resuming your booking for this car...",
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[NewBookNowButton] Error checking pending intent:', err);
+      }
+    };
+    
+    checkPendingIntent();
+  }, [car.id]);
+
   const handleBookNow = async (e: React.MouseEvent<HTMLButtonElement>) => {
     try {
       e.stopPropagation();
@@ -73,10 +98,18 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
         return;
       }
 
-      // If user is not logged in, open sign-in modal
+      // If user is not logged in, save pending intent and redirect to auth
       if (!user) {
-        // For now, we'll redirect to the auth page
-        // In a real implementation, we would open a modal
+        // Save the booking intent
+        savePendingIntent({ type: 'BOOK_CAR', carId: car.id });
+        
+        // Show a toast to inform user
+        toast({
+          title: "Sign in required",
+          description: "We'll resume your booking automatically after you sign in.",
+        });
+        
+        // Redirect to auth page with next parameter
         window.location.href = `/auth?next=${encodeURIComponent(window.location.pathname)}`;
         return;
       }
