@@ -1,0 +1,2 @@
+import{r,G as u}from"./index-CvoPUybl.js";function f(e,n,a,i,h){r.useEffect(()=>{let s;return(()=>{s=u.channel(`${e}-changes`),n&&s.on("postgres_changes",{event:"INSERT",schema:"public",table:e},c=>{n(c)}),a&&s.on("postgres_changes",{event:"UPDATE",schema:"public",table:e},c=>{a(c)}),i&&s.on("postgres_changes",{event:"DELETE",schema:"public",table:e},c=>{i(c)}),s.subscribe()})(),()=>{s&&u.removeChannel(s)}},[e,n,a,i,h])}export{f as u};
+//# sourceMappingURL=useRealtime-Cu8CyKs1.js.map

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Car, FileText, Settings, LogOut, User, CreditCard, Heart, MapPin, Clock, Star, Award, Bell, Download, Share2, Search, TrendingUp, Shield, Gift, Eye, DollarSign } from 'lucide-react';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/components/AuthProvider';
+import { useBookingFlow } from '@/hooks/useBookingFlow';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { LicenseUpload } from '@/components/LicenseUpload';
@@ -64,9 +65,10 @@ interface LicenseData {
 }
 
 const UserDashboard: React.FC = () => {
-  const { user, signOut, profile, profileLoading } = useAuth();
+  const { user, signOut, profile, profileLoading, refreshProfile } = useAuth();
+  const { openBookingModal } = useBookingFlow();
   const navigate = useNavigate();
-  const location = useLocation();
+  const _location = useLocation();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [favoriteCarIds, setFavoriteCarIds] = useState<string[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -76,59 +78,124 @@ const UserDashboard: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState<any>(null);
-  const bookingsRef = useRef<Booking[]>([]);
+  const [shouldOpenBooking, setShouldOpenBooking] = useState(false);
+  const [selectedCarForBooking, setSelectedCarForBooking] = useState<string | null>(null);
 
-  // Handle booking restoration and phone collection after login
+  // Render the booking modal if we should open it
+  useEffect(() => {
+    const openBookingForCar = async () => {
+      if (shouldOpenBooking && selectedCarForBooking) {
+        // Reset the flag
+        setShouldOpenBooking(false);
+        
+        // Fetch car data
+        try {
+          const { data, error } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('id', selectedCarForBooking)
+            .single();
+          
+          if (error) throw error;
+          
+          // Type assertion for the car data
+          const car = data as any;
+          
+          if (car) {
+            // Open the booking modal for the selected car
+            openBookingModal({
+              id: car.id,
+              title: car.title,
+              model: car.model,
+              make: car.make,
+              year: car.year,
+              image: car.image_urls?.[0] || car.image || '',
+              images: car.image_urls || [],
+              pricePerDay: car.price_per_day || (car.price_in_paise ? (car.price_in_paise || 0) / 100 : 0),
+              location: car.location,
+              fuel: car.fuel_type || car.fuel,
+              transmission: car.transmission,
+              seats: car.seats,
+              rating: car.rating || 0,
+              reviewCount: car.review_count || 0,
+              isAvailable: car.status === 'available',
+              badges: car.badges || [],
+              thumbnail: car.image_urls?.[0] || car.image || '',
+              bookingStatus: car.status,
+              price_in_paise: car.price_in_paise,
+              image_urls: car.image_urls,
+              image_paths: car.image_paths,
+              status: car.status,
+              isArchived: car.is_archived || false
+            } as any);
+          }
+        } catch (error) {
+          console.error('Failed to fetch car for booking:', error);
+          toast({
+            title: "Error",
+            description: "Failed to open booking flow. Please try again.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+    
+    openBookingForCar();
+  }, [shouldOpenBooking, selectedCarForBooking, openBookingModal]);
+
+  // Handle booking restoration with non-blocking approach
   useEffect(() => {
     // Add debug logging
     console.log('UserDashboard useEffect triggered:', { user, profile, profileLoading });
     
-    if (!user?.id) return;
+    if (!user?.id || profileLoading) return;
 
-    // Check if we need to restore a booking
     const pendingBooking = sessionStorage.getItem('pendingBooking');
     if (pendingBooking) {
       try {
         const draft = JSON.parse(pendingBooking);
         setRestoredDraft(draft);
         
-        // Wait for profile to load
-        const checkProfile = async () => {
-          // Wait for profile to load (max 5 seconds)
-          let attempts = 0;
-          while (profileLoading && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-          
-          // Check if profile has phone number
-          if (!profile?.phone) {
-            console.log('Showing phone modal to collect phone number');
-            setShowPhoneModal(true);
-          } else {
-            // Phone exists, we can proceed with booking
-            console.log('Phone exists, booking can proceed');
-            // The actual booking restoration will be handled by the CarCard components
-          }
-        };
-        
-        checkProfile();
+        // Check if profile has phone number
+        if (!profile?.phone) {
+          console.log('Showing phone modal to collect phone number');
+          setShowPhoneModal(true);
+        } else {
+          // Phone exists, open booking flow
+          console.log('Phone exists, booking can proceed');
+          setSelectedCarForBooking(draft.carId);
+          setShouldOpenBooking(true);
+        }
       } catch (error) {
         console.error('Failed to parse pending booking:', error);
         sessionStorage.removeItem('pendingBooking');
       }
     }
-  }, [user?.id, profile, profileLoading]);
+  }, [user?.id, profile?.phone, profileLoading]);
 
   // Handle phone modal completion
-  const handlePhoneModalComplete = () => {
+  const handlePhoneModalComplete = async () => {
     console.log('Phone modal completed, booking can proceed');
     setShowPhoneModal(false);
-    // The actual booking restoration will be handled by the CarCard components
+    
+    // Refresh profile to get updated phone number
+    await refreshProfile();
+    
+    // Open booking flow if draft exists
+    const pendingBooking = sessionStorage.getItem('pendingBooking');
+    if (pendingBooking) {
+      try {
+        const draft = JSON.parse(pendingBooking);
+        setSelectedCarForBooking(draft.carId);
+        setShouldOpenBooking(true);
+      } catch (error) {
+        console.error('Failed to restore booking:', error);
+      }
+    }
   };
 
   // Move fetchNotifications outside useEffect so it can be called from other places
-  const fetchNotifications = async (userId: string, signal: AbortSignal) => {
+  const fetchNotifications = async (userId: string, _signal: AbortSignal) => {
     console.log('fetchNotifications called for userId=', userId);
     try {
       // Generate dynamic notifications based on user data
@@ -211,7 +278,9 @@ const UserDashboard: React.FC = () => {
     
       setNotifications(notifications);
     } catch (error: any) {
-      if (error?.name === 'AbortError') {return;}
+      if (error?.name === 'AbortError') {
+        return;
+      }
       console.error('Error in fetchNotifications:', error);
       // Fallback notification
       setNotifications([{
@@ -228,12 +297,14 @@ const UserDashboard: React.FC = () => {
   useEffect(() => {
     console.log('UserDashboard effect run:', { userId: user?.id });
     
-    if (!user?.id) {return;}
+    if (!user?.id) {
+      return;
+    }
 
     let mounted = true;
     const controller = new AbortController();
 
-    const fetchUserBookings = async (userId: string, signal: AbortSignal) => {
+    const fetchUserBookings = async (userId: string, _signal: AbortSignal) => {
       console.log('fetchUserBookings called for userId=', userId);
       try {
         const { data, error } = await supabase
@@ -255,9 +326,13 @@ const UserDashboard: React.FC = () => {
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
-        if (error) {throw error;}
+        if (error) {
+          throw error;
+        }
         
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
 
         // Process image URLs synchronously for better performance
         const processedBookings = data ? data.map((booking: any) => {
@@ -283,7 +358,9 @@ const UserDashboard: React.FC = () => {
           return booking;
         }) : [];
         
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
         setBookings(processedBookings || []);
       } catch (error: any) {
         if (error?.name === 'AbortError') {return;}
@@ -292,7 +369,9 @@ const UserDashboard: React.FC = () => {
           action: 'fetchUserBookings',
           userId: userId
         });
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
         toast({
           title: "Error",
           description: "Failed to load your bookings",
@@ -301,7 +380,7 @@ const UserDashboard: React.FC = () => {
       }
     };
 
-    const fetchUserStats = async (userId: string, signal: AbortSignal) => {
+    const fetchUserStats = async (userId: string, _signal: AbortSignal) => {
       console.log('fetchUserStats called for userId=', userId);
       try {
         // Calculate user statistics
@@ -310,9 +389,13 @@ const UserDashboard: React.FC = () => {
           .select('total_amount, status, cars(make)')
           .eq('user_id', userId);
         
-        if (error) {throw error;}
+        if (error) {
+          throw error;
+        }
         
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
 
         if (bookingsData) {
           const totalBookings = bookingsData.length;
@@ -328,7 +411,9 @@ const UserDashboard: React.FC = () => {
           const loyaltyPoints = Math.floor(totalSpent / 10);
           const co2Saved = totalBookings * 2.3; // Estimated CO₂ saved per booking
           
-          if (!mounted) {return;}
+          if (!mounted) {
+            return;
+          }
           setUserStats({
             totalBookings,
             totalSpent,
@@ -451,26 +536,32 @@ const UserDashboard: React.FC = () => {
       try {
         const savedFavorites = localStorage.getItem(`favorites_${userId}`);
         if (savedFavorites) {
-          if (!mounted) {return;}
+          if (!mounted) {
+            return;
+          }
           setFavoriteCarIds(JSON.parse(savedFavorites));
         } else {
-          if (!mounted) {return;}
+          if (!mounted) {
+            return;
+          }
           setFavoriteCarIds([]);
         }
       } catch (error) {
         console.error('Error loading favorites:', error);
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
         setFavoriteCarIds([]);
       }
     };
 
     async function loadAll() {
-      if (!user?.id) return;
+      if (!user?.id) {return;}
       
       try {
         setIsLoading(true);
         // Only proceed if user exists
-        if (!user?.id) return;
+        if (!user?.id) {return;}
         
         // example: await Promise.all([fetchBookings({ userId: user.id, signal: controller.signal }), ...])
         await Promise.all([
@@ -488,7 +579,9 @@ const UserDashboard: React.FC = () => {
           variant: "destructive",
         });
       } finally {
-        if (mounted) {setIsLoading(false);}
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -498,7 +591,7 @@ const UserDashboard: React.FC = () => {
       mounted = false;
       controller.abort();
     };
-  }, [user?.id]); // ONLY depend on user?.id
+  }, [user?.id]);
 
   const toggleFavorite = (carId: string) => {
     const newFavorites = favoriteCarIds.includes(carId) 
@@ -1422,8 +1515,8 @@ const UserDashboard: React.FC = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <LicenseUpload onUploaded={(licenseId) => {
-                        console.log('License uploaded with ID:', licenseId);
+                      <LicenseUpload onLicenseUpload={(filePath: string) => {
+                        console.log('License uploaded with file path:', filePath);
                         toast({
                           title: "License Uploaded",
                           description: "Your license has been uploaded successfully.",

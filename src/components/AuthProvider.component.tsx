@@ -28,7 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Function to refresh profile
   const refreshProfile = async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     
     setProfileLoading(true);
     try {
@@ -96,22 +98,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (mounted) {
-          if (!error) setProfile(data);
-          else {
+          if (!error) {
+            setProfile(data);
+          } else {
             console.warn('Could not fetch profile:', error);
             setProfile(null);
           }
         }
       } catch (err) {
         console.error('profile fetch err', err);
-        if (mounted) setProfile(null);
+        if (mounted) {
+          setProfile(null);
+        }
       } finally {
-        if (mounted) setProfileLoading(false);
+        if (mounted) {
+          setProfileLoading(false);
+        }
       }
     })();
 
     return () => { mounted = false; };
-  }, [user]);
+  }, [user, refreshProfile]);
 
   // Show error toast if auth initialization fails
   useEffect(() => {

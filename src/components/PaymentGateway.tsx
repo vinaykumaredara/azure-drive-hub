@@ -51,7 +51,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
   onSuccess,
 }) => {
   const { user } = useAuth();
-  const [selectedGateway, setSelectedGateway] = useState<'razorpay' | 'stripe'>('razorpay');
+  const [selectedGateway, setSelectedGateway] = useState<'razorpay' | 'stripe' | 'phonepe'>('razorpay');
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'details' | 'processing' | 'success' | 'failed'>('details');
   const [_bookingId, setBookingId] = useState<string | null>(null);
@@ -229,8 +229,13 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
       // Process payment based on selected gateway
       if (selectedGateway === 'razorpay') {
         await processRazorpayPayment(newBookingId);
-      } else {
+      } else if (selectedGateway === 'stripe') {
         await processStripePayment(newBookingId);
+      } else {
+        // PhonePe placeholder - for now just show a message
+        setTimeout(() => {
+          setPaymentStep('failed');
+        }, 2000);
       }
     } catch (error) {
       console.error('Payment processing error:', error);
@@ -250,7 +255,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
       {/* Gateway Selection */}
       <div className="space-y-3">
         <Label className="text-base font-semibold">Select Payment Method</Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Card 
             className={`cursor-pointer transition-all ${selectedGateway === 'razorpay' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'}`}
             onClick={() => setSelectedGateway('razorpay')}
@@ -284,6 +289,27 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
                 <h3 className="font-semibold">Stripe</h3>
                 <p className="text-xs text-muted-foreground">International Cards</p>
                 {selectedGateway === 'stripe' && (
+                  <Badge className="bg-primary text-primary-foreground">
+                    <Check className="w-3 h-3 mr-1" />
+                    Selected
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card 
+            className={`cursor-pointer transition-all ${selectedGateway === 'phonepe' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+            onClick={() => setSelectedGateway('phonepe')}
+          >
+            <CardContent className="p-4 text-center">
+              <div className="space-y-2">
+                <div className="w-12 h-12 mx-auto bg-green-100 rounded-lg flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-green-600" />
+                </div>
+                <h3 className="font-semibold">PhonePe</h3>
+                <p className="text-xs text-muted-foreground">Coming Soon</p>
+                {selectedGateway === 'phonepe' && (
                   <Badge className="bg-primary text-primary-foreground">
                     <Check className="w-3 h-3 mr-1" />
                     Selected
@@ -350,7 +376,7 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
             <div className="text-sm">
               <h4 className="font-medium text-primary mb-1">Secure Payment Process</h4>
               <ul className="text-muted-foreground space-y-1 text-xs">
-                <li>• Click "Pay Now" to proceed to {selectedGateway === 'razorpay' ? 'Razorpay' : 'Stripe'} secure checkout</li>
+                <li>• Click "Pay Now" to proceed to {selectedGateway === 'razorpay' ? 'Razorpay' : selectedGateway === 'stripe' ? 'Stripe' : 'PhonePe'} secure checkout</li>
                 <li>• Your booking will be confirmed after successful payment</li>
                 <li>• You'll receive confirmation details via email</li>
               </ul>
@@ -366,13 +392,15 @@ export const PaymentGateway: React.FC<PaymentGatewayProps> = ({
           <div className="flex items-center gap-2 text-sm text-primary">
             <Check className="w-4 h-4" />
             <span className="font-medium">
-              {selectedGateway === 'razorpay' ? 'Razorpay' : 'Stripe'} selected
+              {selectedGateway === 'razorpay' ? 'Razorpay' : selectedGateway === 'stripe' ? 'Stripe' : 'PhonePe'} selected
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {selectedGateway === 'razorpay' 
               ? 'UPI, Cards, Net Banking & Wallets available'
-              : 'International cards accepted'
+              : selectedGateway === 'stripe'
+              ? 'International cards accepted'
+              : 'PhonePe integration coming soon'
             }
           </p>
         </div>

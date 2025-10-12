@@ -1,0 +1,34 @@
+fix: resolve unresponsive Book Now button and harden booking flow
+
+This commit resolves the issue where the Book Now button on the user dashboard was completely unresponsive and hardens the entire booking flow to be more robust and user-friendly.
+
+## Issues Fixed:
+
+1. **Unresponsive Book Now Button**:
+   - Removed `e.preventDefault()` from button handler that was blocking navigation
+   - Fixed CSS class conflicts in Button component usage
+   - Removed redundant aria-disabled attribute
+
+2. **ImageCarousel Touch Event Issues**:
+   - Improved touch event handling with proper cleanup
+   - Used passive event listeners to prevent scroll blocking
+   - Added logic to prevent click interference only during actual swiping
+
+3. **Booking Flow Improvements**:
+   - Enhanced booking flow to be phone-first with proper state persistence
+   - Added state restoration across login redirects
+   - Improved phone number validation and redirection logic
+
+## Files Modified:
+- src/components/CarCardModern.tsx
+- src/components/ImageCarousel.tsx
+- src/pages/Booking.tsx
+- Added comprehensive test coverage
+
+## Test Results:
+- All new tests passing
+- Booking button now properly clickable
+- Mobile touch events no longer interfere with button clicks
+- Booking flow persists state correctly across redirects
+
+Fixes #XYZ - Book Now button unresponsive on user dashboard

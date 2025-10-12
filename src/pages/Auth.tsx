@@ -21,9 +21,9 @@ const Auth: React.FC = () => {
   const location = useLocation();
   const { signIn, signUp, signInWithGoogle, user, isAdmin, profile, profileLoading } = useAuth();
 
-  // Handle post-login redirect logic
+  // Handle post-login redirect logic with non-blocking approach
   useEffect(() => {
-    if (user && !isLoading) {
+    if (user && !isLoading && !profileLoading) {
       // Add debug logging
       console.log('Auth useEffect triggered:', { user, profile, profileLoading });
       
@@ -38,53 +38,29 @@ const Auth: React.FC = () => {
         // Remove the flag
         sessionStorage.removeItem('redirectToProfileAfterLogin');
         
-        // Wait for profile to load
-        const checkProfile = async () => {
-          // Wait for profile to load (max 5 seconds)
-          let attempts = 0;
-          while (profileLoading && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-          
-          // Check if profile has phone number
-          if (!profile?.phone) {
-            // Redirect to user dashboard profile section
-            console.log('Redirecting to profile section to collect phone number');
-            navigate('/dashboard?tab=profile', { replace: true });
-            return;
-          }
-          
-          // If phone exists, restore booking
-          const pendingBooking = sessionStorage.getItem('pendingBooking');
-          if (pendingBooking) {
-            console.log('Restoring booking after login');
-            // We'll handle this in the UserDashboard or a dedicated restore component
-            navigate('/dashboard', { replace: true });
-            return;
-          }
-          
-          // Default redirect
-          if (nextUrl) {
-            navigate(nextUrl, { replace: true });
-          } else if (isAdmin) {
-            navigate('/admin', { replace: true });
-          } else {
-            navigate('/dashboard', { replace: true });
-          }
-        };
-        
-        checkProfile();
-      } else {
-        // Normal redirect logic - use client-side navigation only
-        if (nextUrl && nextUrl.startsWith('/')) {
-          // Only navigate to relative paths to avoid 404s
-          navigate(nextUrl, { replace: true });
-        } else if (isAdmin) {
-          navigate('/admin', { replace: true });
-        } else {
+        // If no phone, go to dashboard (phone modal will show there)
+        if (!profile?.phone) {
           navigate('/dashboard', { replace: true });
+          return;
         }
+        
+        // If phone exists, restore booking
+        const pendingBooking = sessionStorage.getItem('pendingBooking');
+        if (pendingBooking) {
+          console.log('Restoring booking after login');
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+      }
+      
+      // Normal redirect logic - use client-side navigation only
+      if (nextUrl && nextUrl.startsWith('/')) {
+        // Only navigate to relative paths to avoid 404s
+        navigate(nextUrl, { replace: true });
+      } else if (isAdmin) {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
       }
     }
   }, [user, isAdmin, navigate, isLoading, location.search, profile, profileLoading]);

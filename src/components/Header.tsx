@@ -12,7 +12,9 @@ export const Header = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
-    if (isSigningOut) {return;} // Prevent double clicks
+    if (isSigningOut) {
+      return;
+    } // Prevent double clicks
     
     setIsSigningOut(true);
     try {

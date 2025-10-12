@@ -10,12 +10,12 @@ describe('CarCard Booking Flow', () => {
     it('should redirect to auth when user is not logged in', async () => {
       // This would be tested with a full component test
       // For now, we'll just verify the logic paths
-      const mockUser = null;
-      const mockProfile = null;
-      const mockProfileLoading = false;
+      const _mockUser = null;
+      const _mockProfile = null;
+      const _mockProfileLoading = false;
       
       // Simulate the conditions
-      expect(mockUser).toBeNull();
+      expect(_mockUser).toBeNull();
       
       // Save draft logic would be triggered
       const draft = {
@@ -39,13 +39,13 @@ describe('CarCard Booking Flow', () => {
 
     it('should show toast when profile is loading', () => {
       // Simulate the conditions
-      const mockUser = { id: 'user-123' };
-      const mockProfile = null;
-      const mockProfileLoading = true;
+      const _mockUser = { id: 'user-123' };
+      const _mockProfile = null;
+      const _mockProfileLoading = true;
       
       // Verify the state
-      expect(mockUser).not.toBeNull();
-      expect(mockProfileLoading).toBe(true);
+      expect(_mockUser).not.toBeNull();
+      expect(_mockProfileLoading).toBe(true);
       
       // Should show "Finishing sign-in" toast
       // This would be tested with a full component test with toast mocking
@@ -53,14 +53,14 @@ describe('CarCard Booking Flow', () => {
 
     it('should redirect to profile when user has no phone', () => {
       // Simulate the conditions
-      const mockUser = { id: 'user-123' };
-      const mockProfile = { id: 'user-123', phone: undefined }; // No phone
-      const mockProfileLoading = false;
+      const _mockUser = { id: 'user-123' };
+      const _mockProfile = { id: 'user-123', phone: undefined }; // No phone
+      const _mockProfileLoading = false;
       
       // Verify the state
-      expect(mockUser).not.toBeNull();
-      expect(mockProfileLoading).toBe(false);
-      expect(mockProfile?.phone).toBeUndefined();
+      expect(_mockUser).not.toBeNull();
+      expect(_mockProfileLoading).toBe(false);
+      expect(_mockProfile?.phone).toBeUndefined();
       
       // Should redirect to profile with draft
       const draft = {
@@ -80,14 +80,14 @@ describe('CarCard Booking Flow', () => {
 
     it('should open booking flow when user has phone', () => {
       // Simulate the conditions
-      const mockUser = { id: 'user-123' };
-      const mockProfile = { id: 'user-123', phone: '9876543210' };
-      const mockProfileLoading = false;
+      const _mockUser = { id: 'user-123' };
+      const _mockProfile = { id: 'user-123', phone: '9876543210' };
+      const _mockProfileLoading = false;
       
       // Verify the state
-      expect(mockUser).not.toBeNull();
-      expect(mockProfileLoading).toBe(false);
-      expect(mockProfile?.phone).toBe('9876543210');
+      expect(_mockUser).not.toBeNull();
+      expect(_mockProfileLoading).toBe(false);
+      expect(_mockProfile?.phone).toBe('9876543210');
       
       // Should open booking flow
       // This would be tested with a full component test

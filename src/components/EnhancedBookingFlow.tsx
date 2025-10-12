@@ -6,24 +6,16 @@ import {
   CreditCard, 
   CheckCircle, 
   Car, 
-  AlertCircle, 
   Phone, 
   FileText, 
-  Shield, 
-  Percent
+  Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
-import { LicenseUpload } from '@/components/LicenseUpload';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// import { LicenseUpload } from '@/components/LicenseUpload';
 import { PaymentGateway } from '@/components/PaymentGateway';
 import { useAuth } from '@/hooks/use-auth';
 import { DatesStep } from '@/components/booking-steps/DatesStep';
@@ -49,7 +41,7 @@ interface EnhancedBookingFlowProps {
   onBookingSuccess: () => void;
 }
 
-type Step = 'dates' | 'phone' | 'extras' | 'terms' | 'license' | 'payment' | 'confirmation';
+type Step = 'phone' | 'dates' | 'terms' | 'license' | 'payment' | 'confirmation';
 
 const stepIcons = {
   dates: Calendar,
@@ -71,16 +63,8 @@ const stepTitles = {
   confirmation: 'Booking Confirmed'
 };
 
-interface License {
-  id: string;
-  user_id: string;
-  storage_path: string;
-  verified: boolean | null;
-  created_at: string;
-}
-
 export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, onClose, onBookingSuccess }) => {
-  const [currentStep, setCurrentStep] = useState<Step>('dates');
+  const [currentStep, setCurrentStep] = useState<Step>('phone');
   const [existingLicense, setExistingLicense] = useState<{
     id: string;
     verified: boolean | null;
@@ -92,12 +76,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     startTime: '10:00',
     endTime: '18:00',
     phoneNumber: '' as string | null,
-    extras: {
-      driver: false,
-      gps: false,
-      childSeat: false,
-      insurance: true
-    },
     totalDays: 1,
     holdId: null as string | null,
     holdExpiry: null as string | null,
@@ -113,12 +91,11 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   const contentRef = useRef<HTMLDivElement | null>(null);
   const { profile, profileLoading } = useAuth();
 
-  const steps: Step[] = ['dates', 'phone', 'extras', 'terms', 'license', 'payment', 'confirmation'];
+  const steps: Step[] = ['phone', 'dates', 'terms', 'license', 'payment', 'confirmation'];
   const currentStepIndex = steps.indexOf(currentStep);
 
   // Handle body scroll locking for mobile and focus management
   useEffect(() => {
-    console.log('[EnhancedBookingFlow] Modal opened');
     document.body.style.overflow = 'hidden';
     
     // Focus the first focusable element in the modal when it opens
@@ -130,25 +107,17 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     }
     
     return () => {
-      console.log('[EnhancedBookingFlow] Modal closed');
       document.body.style.overflow = '';
     };
   }, []);
 
-  // Handle booking restoration on component mount
+  // Handle booking restoration on component mount with non-blocking approach
   useEffect(() => {
     const restoreBooking = async () => {
       const pendingBookingRaw = sessionStorage.getItem('pendingBooking');
       if (pendingBookingRaw) {
         try {
           const pendingBooking = JSON.parse(pendingBookingRaw);
-          
-          // Wait for profile to load
-          let attempts = 0;
-          while (profileLoading && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
           
           // Check if profile has phone number
           if (!profile?.phone) {
@@ -197,7 +166,10 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       }
     };
     
-    restoreBooking();
+    // Only run restoration when profile is loaded
+    if (!profileLoading) {
+      restoreBooking();
+    }
   }, [profile, profileLoading, currentStep]);
 
   // Fetch user phone number and existing licenses on component mount
@@ -237,6 +209,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             });
           }
         }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         // Error fetching user data - silently fail as this is not critical
       }
@@ -247,12 +220,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
   const calculateTotal = () => {
     const basePrice = (car.price_in_paise ? car.price_in_paise / 100 : car.pricePerDay) * bookingData.totalDays;
-    const extrasPrice = Object.entries(bookingData.extras).reduce((acc, [key, enabled]) => {
-      if (!enabled) {return acc;}
-      const prices = { driver: 500, gps: 200, childSeat: 150, insurance: 300 };
-      return acc + (prices[key as keyof typeof prices] || 0);
-    }, 0);
-    return basePrice + extrasPrice;
+    return basePrice;
   };
 
   const calculateAdvanceAmount = () => {
@@ -332,7 +300,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     }
   };
 
-  const _handleBookCar = async (advanceBooking = false) => {
+  const _handleBookCar = async (_advanceBooking = false) => {
     setIsLoading(true);
     setBookingError(null);
     
@@ -355,7 +323,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       }
       
       // If advance booking, create a hold
-      if (advanceBooking) {
+      if (_advanceBooking) {
         const advanceAmount = calculateAdvanceAmount();
         setBookingData(prev => ({
           ...prev,
@@ -389,17 +357,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       // If successful, proceed to confirmation
       setCurrentStep('confirmation');
       onBookingSuccess();
-      
-      // Reset add-ons state after successful booking
-      setBookingData(prev => ({
-        ...prev,
-        extras: {
-          driver: false,
-          gps: false,
-          childSeat: false,
-          insurance: true
-        }
-      }));
       
       toast({
         title: "Success",
@@ -530,8 +487,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         phoneNumber: cleanedPhone
       }));
       
-      setCurrentStep('extras');
-    } else if (currentStep === 'extras') {
       setCurrentStep('terms');
     } else if (currentStep === 'terms') {
       if (!bookingData.termsAccepted) {
@@ -598,32 +553,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     setIsPaymentOpen(false);
   };
 
-  const onAttemptConfirm = async () => {
-    if (profileLoading) {
-      // wait or show spinner
-      return;
-    }
-
-    const phone = profile?.phone;
-    if (!phone) {
-      // prompt for phone modal or navigate to profile page
-      toast({
-        title: "Phone Number Required",
-        description: "Please add your phone number to continue with booking.",
-        variant: "destructive",
-      });
-      // In a more complete implementation, we would open a phone modal here
-      return;
-    }
-
-    // proceed with hold/payment creation
-    if (bookingData.advanceBooking) {
-      handleAdvancePayment();
-    } else {
-      setIsPaymentOpen(true);
-    }
-  };
-
   const renderDateSelection = () => (
     <DatesStep
       bookingData={bookingData}
@@ -639,29 +568,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     <PhoneStep
       phoneNumber={bookingData.phoneNumber}
       onPhoneNumberChange={(phone) => setBookingData(prev => ({ ...prev, phoneNumber: phone }))}
-    />
-  );
-
-  const renderExtrasSelection = () => (
-    <ExtrasStep
-      extras={bookingData.extras}
-      advanceBooking={bookingData.advanceBooking}
-      advanceAmount={bookingData.advanceAmount}
-      totalDays={bookingData.totalDays}
-      pricePerDay={car.pricePerDay}
-      price_in_paise={car.price_in_paise}
-      onExtraToggle={(extra) => setBookingData(prev => ({
-        ...prev,
-        extras: {
-          ...prev.extras,
-          [extra]: !prev.extras[extra]
-        }
-      }))}
-      onAdvanceBookingToggle={(isAdvance, amount) => setBookingData(prev => ({
-        ...prev,
-        advanceBooking: isAdvance,
-        advanceAmount: amount
-      }))}
     />
   );
 
@@ -696,7 +602,12 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       advanceBooking={bookingData.advanceBooking}
       advanceAmount={bookingData.advanceAmount}
       totalAmount={calculateTotal()}
-      extras={bookingData.extras}
+      extras={{
+        driver: false,
+        gps: false,
+        childSeat: false,
+        insurance: false
+      }}
       onPaymentOptionChange={(isAdvance) => setBookingData(prev => ({ ...prev, advanceBooking: isAdvance }))}
     />
   );
@@ -713,179 +624,183 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     />
   );
 
-  return createPortal(
-    <div className="booking-flow-portal">
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[9999] sm:backdrop-blur-sm"
-        onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="booking-flow-title"
-        onKeyDown={(e) => {
-          // Close modal on Escape key
-          if (e.key === 'Escape') {
-            onClose();
-          }
-        }}
-      >
-        <motion.div 
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[95vh] flex flex-col modal-content relative sm:rounded-2xl shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-          style={{ 
-            maxHeight: '100vh',
-            margin: 'auto'
-          }}
-          role="document"
-        >
-          {/* Header */}
-          <div className="p-4 sm:p-6 border-b flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 id="booking-flow-title" className="text-lg sm:text-xl font-bold">{stepTitles[currentStep]}</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">Booking {car.title}</p>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={onClose} 
-                className="h-8 w-8 p-0"
-                aria-label="Close booking flow"
-              >
-                ✕
-              </Button>
-            </div>
-
-            {/* Progress Steps */}
-            <div className="flex items-center space-x-1 sm:space-x-2 mt-4 overflow-x-auto pb-2" role="tablist" aria-label="Booking steps">
-              {steps.map((step, index) => {
-                const Icon = stepIcons[step];
-                const isActive = index === currentStepIndex;
-                const isCompleted = index < currentStepIndex;
-                
-                return (
-                  <Fragment key={step}>
-                    <div 
-                      className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
-                        isCompleted ? 'bg-success text-white' :
-                        isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
-                      }`}
-                      role="tab"
-                      aria-selected={isActive}
-                      aria-controls={`step-${step}-panel`}
-                      id={`step-${step}-tab`}
-                    >
-                      <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </div>
-                    {index < steps.length - 1 && (
-                      <div className={`h-0.5 w-4 sm:w-8 transition-all flex-shrink-0 ${
-                        isCompleted ? 'bg-success' : 'bg-muted'
-                      }`} />
-                    )}
-                  </Fragment>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Scrollable Content Area */}
-          <div 
-            ref={contentRef}
-            className="p-4 sm:p-6 overflow-y-auto flex-grow"
-            style={{
-              maxHeight: 'calc(100vh - 160px)',
-              WebkitOverflowScrolling: 'touch',
+  return (
+    <>
+      {createPortal(
+        <div className="booking-flow-portal">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[9999] sm:backdrop-blur-sm"
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-flow-title"
+            onKeyDown={(e) => {
+              // Close modal on Escape key
+              if (e.key === 'Escape') {
+                onClose();
+              }
             }}
-            id={`step-${currentStep}-panel`}
-            role="tabpanel"
-            aria-labelledby={`step-${currentStep}-tab`}
-            tabIndex={-1}
           >
-            <AnimatePresence mode="wait">
-              {currentStep === 'dates' && renderDateSelection()}
-              {currentStep === 'phone' && renderPhoneCollection()}
-              {currentStep === 'extras' && renderExtrasSelection()}
-              {currentStep === 'terms' && renderTermsAndConditions()}
-              {currentStep === 'license' && renderLicenseUpload()}
-              {currentStep === 'payment' && renderPayment()}
-              {currentStep === 'confirmation' && renderConfirmation()}
-            </AnimatePresence>
-          </div>
-
-          {/* Sticky Footer - Always Visible */}
-          {currentStep !== 'confirmation' && (
-            <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center flex-shrink-0">
-              <div>
-                {currentStep !== 'dates' && (
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[95vh] flex flex-col modal-content relative sm:rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              style={{ 
+                maxHeight: '100vh',
+                margin: 'auto'
+              }}
+              role="document"
+            >
+              {/* Header */}
+              <div className="p-4 sm:p-6 border-b flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 id="booking-flow-title" className="text-lg sm:text-xl font-bold">{stepTitles[currentStep]}</h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Booking {car.title}</p>
+                  </div>
                   <Button 
-                    variant="outline" 
-                    onClick={handleBack} 
-                    disabled={isLoading} 
-                    size="sm"
-                    aria-label="Go back to previous step"
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={onClose} 
+                    className="h-8 w-8 p-0"
+                    aria-label="Close booking flow"
                   >
-                    Back
+                    ✕
                   </Button>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="font-bold text-lg">
-                    {bookingData.advanceBooking 
-                      ? formatINRFromPaise(bookingData.advanceAmount * 100)
-                      : formatINRFromPaise(calculateTotal() * 100)}
-                  </p>
                 </div>
-                
-                <Button 
-                  onClick={() => {
-                    if (currentStep === 'payment') {
-                      // Handle payment based on selected option
-                      if (bookingData.advanceBooking) {
-                        // For advance booking, we need to handle the 10% payment
-                        handleAdvancePayment();
-                      } else {
-                        // For full payment, open the payment gateway
-                        setIsPaymentOpen(true);
-                      }
-                    } else {
-                      // For other steps, proceed to next step
-                      handleNext();
-                    }
-                  }}
-                  disabled={isLoading || 
-                    (currentStep === 'dates' && (!bookingData.startDate || !bookingData.endDate)) ||
-                    (currentStep === 'phone' && !bookingData.phoneNumber) ||
-                    (currentStep === 'terms' && !bookingData.termsAccepted) ||
-                    (currentStep === 'license' && !bookingData.licenseId)
-                  }
-                  className="min-w-[80px] sm:min-w-[120px] text-sm sm:text-base"
-                  size="sm"
-                  aria-label={currentStep === 'payment' ? 'Proceed to payment' : currentStep === 'license' ? 'Continue to next step' : 'Continue to next step'}
-                >
-                  {isLoading ? (
-                    <motion.div 
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full"
-                      aria-label="Processing"
-                    />
-                  ) : (
-                    currentStep === 'payment' ? 'Proceed to Pay' : currentStep === 'license' ? 'Continue' : 'Next'
-                  )}
-                </Button>
+
+                {/* Progress Steps */}
+                <div className="flex items-center space-x-1 sm:space-x-2 mt-4 overflow-x-auto pb-2" role="tablist" aria-label="Booking steps">
+                  {steps.map((step, index) => {
+                    const Icon = stepIcons[step];
+                    const isActive = index === currentStepIndex;
+                    const isCompleted = index < currentStepIndex;
+                    
+                    return (
+                      <Fragment key={step}>
+                        <div 
+                          className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 text-xs sm:text-base ${
+                            isCompleted ? 'bg-success text-white' :
+                            isActive ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                          }`}
+                          role="tab"
+                          aria-selected={isActive}
+                          aria-controls={`step-${step}-panel`}
+                          id={`step-${step}-tab`}
+                        >
+                          <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </div>
+                        {index < steps.length - 1 && (
+                          <div className={`h-0.5 w-4 sm:w-8 transition-all flex-shrink-0 ${
+                            isCompleted ? 'bg-success' : 'bg-muted'
+                          }`} />
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-        </motion.div>
-      </motion.div>
+
+              {/* Scrollable Content Area */}
+              <div 
+                ref={contentRef}
+                className="p-4 sm:p-6 overflow-y-auto flex-grow"
+                style={{
+                  maxHeight: 'calc(100vh - 160px)',
+                  WebkitOverflowScrolling: 'touch',
+                }}
+                id={`step-${currentStep}-panel`}
+                role="tabpanel"
+                aria-labelledby={`step-${currentStep}-tab`}
+                tabIndex={-1}
+              >
+                <AnimatePresence mode="wait">
+                  {currentStep === 'dates' && renderDateSelection()}
+                  {currentStep === 'phone' && renderPhoneCollection()}
+                  {currentStep === 'terms' && renderTermsAndConditions()}
+                  {currentStep === 'license' && renderLicenseUpload()}
+                  {currentStep === 'payment' && renderPayment()}
+                  {currentStep === 'confirmation' && renderConfirmation()}
+                </AnimatePresence>
+              </div>
+
+              {/* Sticky Footer - Always Visible */}
+              {currentStep !== 'confirmation' && (
+                <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center flex-shrink-0">
+                  <div>
+                    {currentStep !== 'dates' && (
+                      <Button 
+                        variant="outline" 
+                        onClick={handleBack} 
+                        disabled={isLoading} 
+                        size="sm"
+                        aria-label="Go back to previous step"
+                      >
+                        Back
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-sm text-muted-foreground">Total</p>
+                      <p className="font-bold text-lg">
+                        {bookingData.advanceBooking 
+                          ? formatINRFromPaise(bookingData.advanceAmount * 100)
+                          : formatINRFromPaise(calculateTotal() * 100)}
+                      </p>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => {
+                        if (currentStep === 'payment') {
+                          // Handle payment based on selected option
+                          if (bookingData.advanceBooking) {
+                            // For advance booking, we need to handle the 10% payment
+                            handleAdvancePayment();
+                          } else {
+                            // For full payment, open the payment gateway
+                            setIsPaymentOpen(true);
+                          }
+                        } else {
+                          // For other steps, proceed to next step
+                          handleNext();
+                        }
+                      }}
+                      disabled={isLoading || 
+                        (currentStep === 'dates' && (!bookingData.startDate || !bookingData.endDate)) ||
+                        (currentStep === 'phone' && !bookingData.phoneNumber) ||
+                        (currentStep === 'terms' && !bookingData.termsAccepted) ||
+                        (currentStep === 'license' && !bookingData.licenseId)
+                      }
+                      className="min-w-[80px] sm:min-w-[120px] text-sm sm:text-base"
+                      size="sm"
+                      aria-label={currentStep === 'payment' ? 'Proceed to payment' : currentStep === 'license' ? 'Continue to next step' : 'Continue to next step'}
+                    >
+                      {isLoading ? (
+                        <motion.div 
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full"
+                          aria-label="Processing"
+                        />
+                      ) : (
+                        currentStep === 'payment' ? 'Proceed to Pay' : currentStep === 'license' ? 'Continue' : 'Next'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        </div>,
+        (typeof document !== 'undefined' && document.getElementById('modal-root')) || document.body
+      )}
 
       {/* Payment Gateway Modal */}
       <PaymentGateway
@@ -910,7 +825,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         }}
         onSuccess={handlePaymentSuccess}
       />
-    </div>,
-    document.body
+    </>
   );
 };

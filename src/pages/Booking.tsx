@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, MapPin, Users, Fuel, Settings, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Fuel, Settings, ArrowLeft, AlertCircle, CheckCircle, Phone, Camera } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,12 +41,13 @@ const BookingPage: React.FC = () => {
   const { carId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, profile, profileLoading } = useAuth();
   const { pendingBooking, clearDraft, createBookingHold } = useBooking();
   
   const [car, setCar] = useState<Car | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [pickupDate, setPickupDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [pickupTime, setPickupTime] = useState("10:00");
@@ -57,9 +58,12 @@ const BookingPage: React.FC = () => {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoDiscountType, setPromoDiscountType] = useState<'percent' | 'flat'>('percent');
   const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
-  const [step, setStep] = useState<"dates" | "license" | "payment">("dates");
+  const [step, setStep] = useState<"phone" | "dates" | "license" | "terms" | "payment">("phone");
   const [payMode, setPayMode] = useState<"full" | "hold">("full");
   const [licenseUploaded, setLicenseUploaded] = useState(false);
+  const [licensePath, setLicensePath] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
   const [_holdId, setHoldId] = useState<string | null>(null);
 
@@ -114,6 +118,67 @@ const BookingPage: React.FC = () => {
       clearDraft(); // Clear the draft from session storage
     }
   }, [pendingBooking, clearDraft]);
+
+  // Save booking state to sessionStorage on every step
+  useEffect(() => {
+    const bookingState = {
+      step,
+      phoneNumber,
+      pickupDate,
+      returnDate,
+      pickupTime,
+      returnTime,
+      licenseUploaded,
+      licensePath,
+      termsAccepted,
+      payMode
+    };
+    sessionStorage.setItem('bookingState', JSON.stringify(bookingState));
+  }, [step, phoneNumber, pickupDate, returnDate, pickupTime, returnTime, licenseUploaded, licensePath, termsAccepted, payMode]);
+
+  // Load booking state from sessionStorage on mount
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('bookingState');
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        setStep(state.step || "phone");
+        setPhoneNumber(state.phoneNumber || "");
+        setPickupDate(state.pickupDate || "");
+        setReturnDate(state.returnDate || "");
+        setPickupTime(state.pickupTime || "10:00");
+        setReturnTime(state.returnTime || "18:00");
+        setLicenseUploaded(state.licenseUploaded || false);
+        setLicensePath(state.licensePath || null);
+        setTermsAccepted(state.termsAccepted || false);
+        setPayMode(state.payMode || "full");
+      } catch (error) {
+        console.error('Failed to parse booking state:', error);
+        sessionStorage.removeItem('bookingState');
+      }
+    }
+  }, []);
+
+  // Initialize phone number from profile
+  useEffect(() => {
+    if (profile && profile.phone) {
+      setPhoneNumber(profile.phone);
+    }
+  }, [profile]);
+
+  // Check if user has phone number and set initial step
+  // Also check for restored booking data
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      if (profile.phone) {
+        // User has phone number, proceed to dates step
+        setStep("dates");
+      } else {
+        // User doesn't have phone number, stay on phone step
+        setStep("phone");
+      }
+    }
+  }, [profile, profileLoading]);
 
   useEffect(() => {
     fetchCar();
@@ -175,82 +240,135 @@ const BookingPage: React.FC = () => {
   const actualHours = duration.hours || 0;
   const billingHours = duration.billingHours || 0;
   const subtotal = car ? car.price_per_day * days : 0;
-  const discountAmount = promoDiscountType === 'percent' 
-    ? (subtotal * promoDiscount) / 100 
-    : promoDiscount;
-  const subtotalAfterDiscount = subtotal - discountAmount;
-  const serviceCharge = car?.service_charge || 0;
-  const total = subtotalAfterDiscount + serviceCharge;
+  const serviceCharge = car && car.service_charge ? car.service_charge : Math.round(subtotal * 0.05);
+  const total = subtotal + serviceCharge;
 
-  const handleContinue = async () => {
-    if (!duration.isValid) {
+  const handlePhoneSubmit = async () => {
+    if (!phoneNumber) {
       toast({
-        title: "Invalid Duration",
-        description: duration.error || "Please check your booking dates and times",
+        title: "Phone Number Required",
+        description: "Please enter your phone number",
         variant: "destructive",
       });
       return;
     }
 
-    if (step === "dates") {
-      if (!user) {
-        // Save draft and redirect to login
-        const draft = {
-          carId: car?.id || "",
-          pickup: { date: pickupDate, time: pickupTime },
-          return: { date: returnDate, time: returnTime },
-          addons: {},
-          totals: { subtotal, serviceCharge, total }
-        };
-        sessionStorage.setItem('pendingBooking', JSON.stringify(draft));
-        navigate(`/auth?next=${encodeURIComponent(location.pathname)}`);
+    // Update user profile with phone number
+    if (user) {
+      const { error } = await supabase
+        .from('users')
+        .update({ phone: phoneNumber })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Failed to update phone number:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update phone number",
+          variant: "destructive",
+        });
         return;
       }
       
-      // Move to license step
-      setStep("license");
-    } else if (step === "license") {
-      // Move to payment step
-      setStep("payment");
+      // Proceed to next step
+      setStep("dates");
+      toast({
+        title: "Phone Number Saved",
+        description: "Your phone number has been saved successfully",
+      });
     }
   };
 
-  const handleLicenseUpload = (_licenseId: string) => {
+  const handleLicenseUpload = (filePath: string) => {
+    setLicensePath(filePath);
     setLicenseUploaded(true);
-    toast({
-      title: "License Uploaded",
-      description: "Your license has been uploaded successfully.",
-    });
   };
 
-  const handleCreateHold = async () => {
-    if (!car) {return;}
-
-    const draft = {
-      carId: car.id,
-      pickup: { date: pickupDate, time: pickupTime },
-      return: { date: returnDate, time: returnTime },
-      addons: {},
-      totals: { subtotal, serviceCharge, total }
-    };
-
-    const result = await createBookingHold(draft, payMode);
-    
-    if (result) {
-      setHoldId(result.bookingId);
-      if (payMode === "hold" && result.holdUntil) {
-        setHoldExpiry(new Date(result.holdUntil));
-      }
-      setIsPaymentModalOpen(true);
+  const handleCreateBooking = async () => {
+    if (!carId || !pickupDate || !returnDate || !pickupTime || !returnTime) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
     }
-  };
 
-  const handlePaymentSuccess = (_bookingId: string) => {
-    toast({
-      title: "Booking Confirmed!",
-      description: "Your car has been successfully booked. Check your dashboard for details.",
-    });
-    navigate("/dashboard");
+    if (!licenseUploaded) {
+      toast({
+        title: "License Required",
+        description: "Please upload your driver's license",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!termsAccepted) {
+      toast({
+        title: "Terms Required",
+        description: "Please accept the terms and conditions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    
+    try {
+      // Create booking draft
+      const draft = {
+        carId,
+        pickup: { date: pickupDate, time: pickupTime },
+        return: { date: returnDate, time: returnTime },
+        addons: {},
+        totals: { subtotal, serviceCharge, total }
+      };
+
+      // Call the new transactional booking function
+      const { data, error } = await supabase.functions.invoke('create-booking', {
+        body: {
+          carId,
+          pickup: { date: pickupDate, time: pickupTime },
+          return: { date: returnDate, time: returnTime },
+          addons: {},
+          totals: { subtotal, serviceCharge, total },
+          payMode,
+          licensePath
+        }
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Failed to create booking");
+
+      // Clear booking state from sessionStorage
+      sessionStorage.removeItem('bookingState');
+      sessionStorage.removeItem('pendingBooking');
+      
+      // Show success message
+      toast({
+        title: "Booking Created",
+        description: payMode === "hold" 
+          ? "Your booking is reserved for 24 hours. Complete payment within this time." 
+          : "Booking created successfully. Please proceed with payment.",
+      });
+
+      // Navigate to success page or payment page
+      if (payMode === "hold") {
+        navigate(`/booking-success/${data.bookingId}`);
+      } else {
+        // For full payment, open payment modal
+        setIsPaymentModalOpen(true);
+      }
+    } catch (error: any) {
+      console.error("Booking creation error:", error);
+      toast({
+        title: "Booking Failed",
+        description: error.message || "Failed to create booking. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (loading) {
@@ -356,33 +474,72 @@ const BookingPage: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle>
+                  {step === "phone" && "Phone Number"}
                   {step === "dates" && "Select Dates & Times"}
                   {step === "license" && "Upload License"}
+                  {step === "terms" && "Terms & Conditions"}
                   {step === "payment" && "Payment Options"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {step === "phone" && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <Phone className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-800">Phone Number Required</p>
+                          <p className="text-sm text-blue-700 mt-1">
+                            We need your phone number to contact you about your booking.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className="text-lg"
+                      />
+                    </div>
+                    
+                    <Button 
+                      onClick={handlePhoneSubmit}
+                      className="w-full"
+                      disabled={!phoneNumber}
+                    >
+                      Continue
+                    </Button>
+                  </div>
+                )}
+
                 {step === "dates" && (
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="pickup-date">Pickup Date</Label>
                         <div className="relative">
-                          <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                           <Input
                             id="pickup-date"
                             type="date"
                             value={pickupDate}
                             onChange={(e) => setPickupDate(e.target.value)}
-                            className="pl-10"
                             min={new Date().toISOString().split('T')[0]}
+                            className="pl-10"
                           />
                         </div>
                       </div>
+                      
                       <div className="space-y-2">
                         <Label htmlFor="pickup-time">Pickup Time</Label>
                         <div className="relative">
-                          <Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                           <Input
                             id="pickup-time"
                             type="time"
@@ -393,26 +550,27 @@ const BookingPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="return-date">Return Date</Label>
                         <div className="relative">
-                          <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                           <Input
                             id="return-date"
                             type="date"
                             value={returnDate}
                             onChange={(e) => setReturnDate(e.target.value)}
-                            className="pl-10"
                             min={pickupDate || new Date().toISOString().split('T')[0]}
+                            className="pl-10"
                           />
                         </div>
                       </div>
+                      
                       <div className="space-y-2">
                         <Label htmlFor="return-time">Return Time</Label>
                         <div className="relative">
-                          <Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                           <Input
                             id="return-time"
                             type="time"
@@ -423,199 +581,201 @@ const BookingPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
-                    <Separator />
-
-                    {/* Duration Validation Error */}
+                    
                     {durationError && (
                       <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-800 font-medium">{durationError}</p>
-                        <p className="text-xs text-red-600 mt-1">
-                          Please select a minimum of 12 hours or 24 hours booking duration.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Duration Summary */}
-                    {duration.isValid && (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="text-sm space-y-1">
-                          <p><strong>Actual Duration:</strong> {actualHours.toFixed(1)} hours</p>
-                          <p><strong>Billing Duration:</strong> {billingHours} hours ({days} day{days !== 1 ? 's' : ''})</p>
-                          {actualHours !== billingHours && (
-                            <p className="text-blue-600 text-xs">
-                              ℹ️ Rounded up to minimum {billingHours < 24 ? '12-hour' : '24-hour'} billing cycle
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-red-800">Invalid Duration</p>
+                            <p className="text-sm text-red-700 mt-1">
+                              {durationError}
                             </p>
-                          )}
+                          </div>
                         </div>
                       </div>
                     )}
-
-                    {/* Price Breakdown */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold">Price Breakdown</h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowPromoCode(!showPromoCode)}
-                          className="text-primary hover:text-primary/80"
-                        >
-                          <span className="mr-1">🎁</span>
-                          Promo Code
-                        </Button>
-                      </div>
-                      
-                      {showPromoCode && (
-                        <LazyPromoCodeInput
-                          totalAmount={subtotal}
-                          onPromoApplied={(discount, code, discountType) => {
-                            setPromoDiscount(discount);
-                            setPromoDiscountType(discountType || 'percent');
-                            setAppliedPromoCode(code);
-                          }}
-                          onPromoRemoved={() => {
-                            setPromoDiscount(0);
-                            setPromoDiscountType('percent');
-                            setAppliedPromoCode(null);
-                          }}
-                        />
-                      )}
-                      
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>₹{car.price_per_day.toLocaleString()} × {days} day{days > 1 ? 's' : ''}</span>
-                          <span>₹{subtotal.toLocaleString()}</span>
-                        </div>
-                        {promoDiscount > 0 && (
-                          <div className="flex justify-between text-green-600">
-                            <span>Promo Code Discount ({appliedPromoCode})</span>
-                            <span>-₹{discountAmount.toLocaleString()}</span>
+                    
+                    {duration.isValid && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-green-800">Duration Confirmed</p>
+                            <p className="text-sm text-green-700 mt-1">
+                              {days} days ({Math.round(actualHours)} hours)
+                            </p>
                           </div>
-                        )}
-                        {serviceCharge > 0 && (
-                          <div className="flex justify-between">
-                            <span>Service Charge</span>
-                            <span>₹{serviceCharge.toLocaleString()}</span>
-                          </div>
-                        )}
-                        <Separator />
-                        <div className="flex justify-between font-semibold text-lg">
-                          <span>Total</span>
-                          <span className="text-primary">₹{total.toLocaleString()}</span>
                         </div>
                       </div>
+                    )}
+                    
+                    <div className="flex justify-between">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setStep("phone")}
+                      >
+                        Back
+                      </Button>
+                      <Button 
+                        onClick={() => setStep("license")}
+                        disabled={!duration.isValid}
+                      >
+                        Continue
+                      </Button>
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {step === "license" && (
-                  <div className="space-y-4">
-                    {!licenseUploaded ? (
-                      <>
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium text-blue-800">License Required</p>
-                              <p className="text-sm text-blue-700 mt-1">
-                                Please upload a clear photo of your driver's license before proceeding to payment.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <LicenseUpload onUploaded={handleLicenseUpload} />
-                      </>
-                    ) : (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
-                        <div className="flex items-center justify-center gap-2 text-green-800">
-                          <CheckCircle className="w-5 h-5" />
-                          <span className="font-medium">License Uploaded Successfully</span>
-                        </div>
-                        <p className="text-sm text-green-700 mt-1">
-                          Your license is uploaded and will be verified by our team.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {step === "payment" && (
                   <div className="space-y-6">
-                    <PaymentOptions 
-                      payMode={payMode}
-                      onPayModeChange={setPayMode}
-                      totalAmount={total}
+                    <LicenseUpload 
+                      onLicenseUpload={handleLicenseUpload}
+                      existingLicense={null}
                     />
                     
-                    {holdExpiry && (
-                      <HoldNotice 
-                        holdExpiry={holdExpiry}
-                        totalAmount={total}
-                      />
-                    )}
+                    <div className="flex justify-between">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setStep("dates")}
+                      >
+                        Back
+                      </Button>
+                      <Button 
+                        onClick={() => setStep("terms")}
+                        disabled={!licenseUploaded}
+                      >
+                        Continue
+                      </Button>
+                    </div>
                   </div>
                 )}
 
-                <div className="flex justify-between">
-                  {step !== "dates" && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setStep(step === "license" ? "dates" : "license")}
-                    >
-                      Back
-                    </Button>
-                  )}
-                  
-                  <Button
-                    onClick={step === "payment" ? handleCreateHold : handleContinue}
-                    className="ml-auto"
-                    size="lg"
-                    disabled={
-                      step === "dates" && (!pickupDate || !returnDate || !duration.isValid) ||
-                      step === "license" && !licenseUploaded
-                    }
-                  >
-                    {step === "dates" && "Continue"}
-                    {step === "license" && "Continue to Payment"}
-                    {step === "payment" && "Proceed to Payment"}
-                  </Button>
-                </div>
-
-                {!user && step === "dates" && (
-                  <p className="text-sm text-muted-foreground text-center">
-                    You need to sign in to complete your booking
-                  </p>
+                {step === "terms" && (
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="font-semibold">Booking Summary</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>Subtotal ({days} days)</span>
+                          <span>₹{subtotal.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Service Charge</span>
+                          <span>₹{serviceCharge.toLocaleString('en-IN')}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between font-semibold">
+                          <span>Total</span>
+                          <span>₹{total.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <h3 className="font-semibold">Payment Options</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button
+                          variant={payMode === "hold" ? "default" : "outline"}
+                          onClick={() => setPayMode("hold")}
+                          className="flex flex-col items-center justify-center h-24"
+                        >
+                          <div className="font-semibold">10% Hold</div>
+                          <div className="text-xs mt-1">
+                            ₹{Math.round(total * 0.1).toLocaleString('en-IN')} now
+                          </div>
+                          <div className="text-xs mt-1 text-muted-foreground">
+                            Hold for 24 hours
+                          </div>
+                        </Button>
+                        <Button
+                          variant={payMode === "full" ? "default" : "outline"}
+                          onClick={() => setPayMode("full")}
+                          className="flex flex-col items-center justify-center h-24"
+                        >
+                          <div className="font-semibold">Full Payment</div>
+                          <div className="text-xs mt-1">
+                            ₹{total.toLocaleString('en-IN')} now
+                          </div>
+                          <div className="text-xs mt-1 text-muted-foreground">
+                            Confirm booking
+                          </div>
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="terms"
+                        checked={termsAccepted}
+                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="terms" className="text-sm">
+                        I accept the{' '}
+                        <button 
+                          type="button"
+                          className="text-primary hover:underline"
+                          onClick={() => window.open('/terms', '_blank')}
+                        >
+                          Terms & Conditions
+                        </button>
+                      </Label>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setStep("license")}
+                      >
+                        Back
+                      </Button>
+                      <Button 
+                        onClick={handleCreateBooking}
+                        disabled={!termsAccepted || isProcessing}
+                      >
+                        {isProcessing ? (
+                          <>
+                            <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin mr-2" />
+                            Processing...
+                          </>
+                        ) : (
+                          "Confirm Booking"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
         </motion.div>
       </div>
-
-      {/* Payment Gateway Modal */}
-      <LazyPaymentGateway
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        bookingData={{
-          carId: car.id,
-          carTitle: car.title,
-          carImage: car.image_urls?.[0] || 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80',
-          startDate: pickupDate,
-          endDate: returnDate,
-          startTime: pickupTime,
-          endTime: returnTime,
-          duration: {
-            hours: actualHours,
-            days,
-            billingHours
-          },
-          subtotal,
-          serviceCharge,
-          total: Math.round(total)
-        }}
-        onSuccess={handlePaymentSuccess}
-      />
+      
+      {/* Payment Modal */}
+      {isPaymentModalOpen && (
+        <LazyPaymentGateway 
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          amount={total}
+          currency="INR"
+          onPaymentSuccess={(paymentId) => {
+            toast({
+              title: "Payment Successful",
+              description: "Your booking has been confirmed.",
+            });
+            navigate(`/booking-success/${paymentId}`);
+          }}
+          onPaymentError={(error) => {
+            toast({
+              title: "Payment Failed",
+              description: error,
+              variant: "destructive",
+            });
+          }}
+        />
+      )}
     </div>
   );
 };

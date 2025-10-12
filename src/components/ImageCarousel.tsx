@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SimpleImage from '@/components/SimpleImage';
 
 export default function ImageCarousel({ images = [], className = '', debug = false }: { images?: string[], className?: string, debug?: boolean }) {
   const [idx, setIdx] = useState(0);
+  
+  // Reset index when images array changes
+  useEffect(() => {
+    setIdx(0);
+  }, [images?.length]);
   
   // Only show debug info in development mode
   const showDebug = debug && import.meta.env.DEV;
@@ -26,7 +31,13 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
 
   // Handle touch events for mobile swipe
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Only handle touch events on the image itself, not on child buttons
+    if (e.target !== e.currentTarget) {
+      return;
+    }
+    
     const touchStartX = e.touches[0].clientX;
+    let moved = false;
     
     const handleTouchMove = (moveEvent: TouchEvent) => {
       const touchMoveX = moveEvent.touches[0].clientX;
@@ -34,6 +45,7 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
       
       // Minimum swipe distance to trigger navigation
       if (Math.abs(diff) > 50) {
+        moved = true;
         if (diff > 0) {
           next(); // Swipe left - next image
         } else {
@@ -41,19 +53,25 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
         }
         
         // Remove event listeners after swipe
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleTouchEnd);
+        document.removeEventListener('touchmove', handleTouchMove as EventListener);
+        document.removeEventListener('touchend', handleTouchEnd as EventListener);
       }
     };
     
     const handleTouchEnd = () => {
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleTouchEnd);
+      // Remove event listeners
+      document.removeEventListener('touchmove', handleTouchMove as EventListener);
+      document.removeEventListener('touchend', handleTouchEnd as EventListener);
+      
+      // Prevent click event if we've moved
+      if (moved) {
+        e.preventDefault();
+      }
     };
     
     // Add event listeners for touch move and end
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleTouchEnd, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove as EventListener, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd as EventListener, { passive: true });
   };
 
   return (
@@ -61,7 +79,8 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
       <SimpleImage 
         src={validImages[idx]} 
         alt={`Car image ${idx + 1}`} 
-        className="w-full aspect-video object-cover rounded" 
+        className="w-full h-full object-cover rounded" 
+        aspectRatio="16/9"
       />
       {validImages.length > 1 && (
         <>

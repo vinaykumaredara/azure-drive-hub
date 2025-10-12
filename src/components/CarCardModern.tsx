@@ -1,13 +1,13 @@
-import React, { useState, memo, useCallback, useEffect } from "react";
+import React, { useState, memo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Heart } from "lucide-react";
-import SimpleImage from "@/components/SimpleImage";
-import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow"; // Changed from AtomicBookingFlow to EnhancedBookingFlow
+import ImageCarousel from '@/components/ImageCarousel';
 import { useAuth } from "@/components/AuthProvider";
-import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
+import { NewBookNowButton } from '@/components/NewBookNowButton';
 
 // Define the car interface
 interface Car {
@@ -55,11 +55,9 @@ const CarCardModernComponent = ({
   onDelete: _onDelete,
   onBookingSuccess // Add this new prop
 }: CarCardProps) => {
-  const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
+  const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
-  const [isBookingLoading, setIsBookingLoading] = useState(false);
   const { user, profile, profileLoading } = useAuth();
-  const { saveDraftAndRedirect } = useBooking();
 
   // Compute availability based on status and booking_status
   const bookingStatus = car.bookingStatus?.toString().toLowerCase() || '';
@@ -68,91 +66,6 @@ const CarCardModernComponent = ({
   const notBooked = !bookingStatus || !['booked', 'reserved', 'held'].includes(bookingStatus);
   const computedIsAvailable = isPublished && notBooked && !isArchived;
 
-  // Replace the memoized handler with a fresh function that reads current values at click time
-  function handleBookNow(e?: React.MouseEvent) {
-    if (isBookingLoading) return; // Prevent double-clicks
-    
-    try {
-      e?.preventDefault();
-
-      console.log('[BookNow] Button clicked', {
-        carId: car.id,
-        computedIsAvailable,
-        bookingStatus,
-        isPublished,
-        isArchived,
-        hasUser: !!user,
-        profileLoading,
-        hasPhone: !!(profile?.phone || user?.phone)
-      });
-
-      if (!computedIsAvailable) {
-        // Use toast instead of alert for better UX
-        toast({
-          title: "Car Not Available",
-          description: "This car is not available for booking.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // If user is not logged in -> save draft & redirect to auth
-      if (!user) {
-        console.log('[BookNow] User not logged in, redirecting to auth');
-        const draft = {
-          carId: car.id,
-          pickup: { date: '', time: '' },
-          return: { date: '', time: '' },
-          addons: {},
-          totals: { subtotal: 0, serviceCharge: 0, total: 0 }
-        };
-        saveDraftAndRedirect(draft);
-        return;
-      }
-
-      // If profile still loading, show toast and do nothing
-      if (profileLoading) {
-        console.log('[BookNow] Profile still loading');
-        toast({
-          title: "Finishing Sign-in",
-          description: "Please wait a second while we finish loading your profile...",
-        });
-        return;
-      }
-
-      // canonical phone check: profile.phone is primary; fallback to user metadata
-      const phone =
-        (profile && profile.phone) ||
-        (user && (user.phone || user.user_metadata?.phone || user.user_metadata?.mobile));
-
-      if (!phone) {
-        console.log('[BookNow] No phone number, redirecting to profile');
-        // Navigate to profile page to collect phone (preserve a draft)
-        const draft = {
-          carId: car.id,
-          pickup: { date: '', time: '' },
-          return: { date: '', time: '' },
-          addons: {},
-          totals: { subtotal: 0, serviceCharge: 0, total: 0 }
-        };
-        saveDraftAndRedirect(draft, { redirectToProfile: true }); // add optional param to go to profile page
-        return;
-      }
-
-      // All checks passed -> open booking flow
-      console.log('[BookNow] Opening booking flow');
-      setIsBookingLoading(true);
-      setIsBookingFlowOpen(true);
-    } catch (err) {
-      console.error('[BookNow] unexpected error', err);
-      toast({
-        title: "Unexpected Error",
-        description: "An unexpected error occurred. Please check the console or contact support.",
-        variant: "destructive",
-      });
-    }
-  }
-
   const handleWhatsAppContact = useCallback(() => {
     const text = encodeURIComponent(`Hello RP cars, I'm interested in ${car.make} ${car.model} (${car.id})`);
     const waUrl = `https://wa.me/918897072640?text=${text}`;
@@ -160,13 +73,6 @@ const CarCardModernComponent = ({
   }, [car.make, car.model, car.id]);
 
   const handleBookingSuccess = useCallback(() => {
-    // Update the car's availability state locally to reflect that it's now booked
-    console.log('[BookingSuccess] Booking completed successfully');
-    
-    // Close the booking flow
-    setIsBookingFlowOpen(false);
-    setIsBookingLoading(false);
-    
     // Call the parent component's callback if provided
     if (onBookingSuccess) {
       onBookingSuccess(car.id);
@@ -190,17 +96,27 @@ const CarCardModernComponent = ({
         aria-label={`${car.make} ${car.model}`}
       >
         {/* Image Section */}
-        <div className="relative w-full aspect-video overflow-hidden rounded-xl bg-muted">
-          <SimpleImage 
-            src={car.thumbnail || car.image} 
-            alt={`${car.make} ${car.model}`} 
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            lazy={true}
-          />
+        <div className="relative w-full aspect-video overflow-hidden rounded-xl">
+          {/* Use ImageCarousel with standardized images */}
+          {car.images && car.images.length > 0 ? (
+            <ImageCarousel images={car.images} className="w-full h-full" />
+          ) : car.image_urls && car.image_urls.length > 0 ? (
+            <ImageCarousel images={car.image_urls} className="w-full h-full" />
+          ) : (
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+          )}
           
           {/* Save Button */}
           <button
-            onClick={() => setIsSaved(!isSaved)}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsSaved(!isSaved);
+            }}
             className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shadow-sm hover:bg-white transition-colors"
             aria-label={isSaved ? "Remove from saved" : "Save car"}
           >
@@ -246,40 +162,24 @@ const CarCardModernComponent = ({
             <div className="text-lg sm:text-xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
             <div className="flex gap-1 sm:gap-2">
               <Button 
+                type="button"
                 size="sm" 
                 variant="outline" 
-                onClick={handleWhatsAppContact}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleWhatsAppContact();
+                }}
                 className="text-[0.6rem] sm:text-xs px-2 py-1 sm:px-3 sm:py-2"
               >
                 Contact
               </Button>
-              <Button 
-                size="sm" 
-                onClick={handleBookNow}
-                disabled={!computedIsAvailable}
-                aria-disabled={!computedIsAvailable}
-                data-testid={`book-now-${car.id}`}
-                id={`book-now-btn-${car.id}`}
-                className={`text-[0.6rem] sm:text-xs px-2 py-1 sm:px-3 sm:py-2 ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
-              >
-                Book Now
-              </Button>
+              <NewBookNowButton 
+                car={carForBooking}
+              />
             </div>
           </div>
         </div>
       </motion.article>
-
-      {isBookingFlowOpen && (
-        <EnhancedBookingFlow // Changed from AtomicBookingFlow to EnhancedBookingFlow
-          car={carForBooking} 
-          onClose={() => {
-            console.log('[BookingFlow] Modal closed');
-            setIsBookingFlowOpen(false);
-            setIsBookingLoading(false);
-          }}
-          onBookingSuccess={handleBookingSuccess}
-        />
-      )}
     </>
   );
 };

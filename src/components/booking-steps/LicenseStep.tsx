@@ -1,9 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FileText, CheckCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { LicenseUpload } from '@/components/LicenseUpload';
 
 interface LicenseStepProps {
@@ -72,7 +71,7 @@ export const LicenseStep: React.FC<LicenseStepProps> = ({
         </Card>
       )}
 
-      <LicenseUpload onUploaded={onLicenseUploaded} />
+      <LicenseUpload onLicenseUpload={onLicenseUploaded} />
 
       {licenseId && (
         <div className="p-4 bg-success/10 border border-success/20 rounded-lg" role="status" aria-live="polite">
