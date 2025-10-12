@@ -56,6 +56,8 @@ export const DatesStep: React.FC<DatesStepProps> = ({
             className="mt-1 text-sm"
             min={new Date().toISOString().split('T')[0]}
             aria-describedby="startDate-help"
+            autoFocus
+            data-testid="start-date-input"
           />
           <p id="startDate-help" className="text-xs text-muted-foreground mt-1">
             Select your pickup date

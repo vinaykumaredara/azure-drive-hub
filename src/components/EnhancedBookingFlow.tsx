@@ -34,6 +34,8 @@ import { TermsStep } from '@/components/booking-steps/TermsStep';
 import { LicenseStep } from '@/components/booking-steps/LicenseStep';
 import { PaymentStep } from '@/components/booking-steps/PaymentStep';
 import { ConfirmationStep } from '@/components/booking-steps/ConfirmationStep';
+import { telemetry } from '@/utils/telemetry';
+import { BookingStepSkeleton } from '@/components/ui/feedback/LoadingSkeleton';
 
 interface EnhancedBookingFlowProps {
   car: {
@@ -144,8 +146,10 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [stepLoading, setStepLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   // Reordered steps: phone first, then dates, terms, license, payment (no extras)
@@ -328,6 +332,12 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     setIsLoading(true);
     setBookingError(null);
     
+    telemetry.track('booking_attempt', {
+      carId: car.id,
+      advanceBooking,
+      retryCount,
+    });
+    
     try {
       // Save phone number if it's new or changed (using utility function)
       if (bookingData.phoneNumber) {
@@ -347,6 +357,13 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         // For now, we'll just simulate it
         setCurrentStep('confirmation');
         onBookingSuccess();
+        
+        telemetry.trackBookingSuccess({
+          carId: car.id,
+          totalAmount: advanceAmount,
+          advanceBooking: true,
+          totalDays: bookingData.totalDays,
+        });
         return;
       }
       
@@ -381,10 +398,20 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         }
       }));
       
+      telemetry.trackBookingSuccess({
+        carId: car.id,
+        totalAmount: calculateTotal(),
+        advanceBooking: false,
+        totalDays: bookingData.totalDays,
+      });
+      
       toast({
         title: "Success",
         description: "Car booked successfully!",
       });
+      
+      // Reset retry count on success
+      setRetryCount(0);
     } catch (error: unknown) {
       // Handle booking error
       let errorMessage = 'Failed to book car. Please try again.';
@@ -397,11 +424,28 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       }
       
       setBookingError(errorMessage);
+      setRetryCount(prev => prev + 1);
+      
+      telemetry.trackError('payment', errorMessage, {
+        carId: car.id,
+        retryCount: retryCount + 1,
+        advanceBooking,
+      });
       
       toast({
         title: "Booking Failed",
         description: errorMessage,
         variant: "destructive",
+        action: retryCount < 2 ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => _handleBookCar(advanceBooking)}
+            data-testid="retry-booking"
+          >
+            Retry
+          </Button>
+        ) : undefined,
       });
     } finally {
       setIsLoading(false);
@@ -409,6 +453,8 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   };
 
   const handleNext = async () => {
+    telemetry.stepComplete(currentStep);
+    
     if (currentStep === 'phone') {
       // Validate phone number
       if (!bookingData.phoneNumber) {
@@ -693,7 +739,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     />
   );
 
-  // Body scroll lock effect with enhanced logging
+  // Track modal open/close and body scroll lock
   useEffect(() => {
     const mountTime = Date.now();
     console.debug('[BookingFlow] ✅ Modal mounted successfully', { 
@@ -703,6 +749,8 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       hasUser: !!user,
       hasProfile: !!profile
     });
+    
+    telemetry.trackModalOpen(car.id);
     
     const originalOverflow = document.body.style.overflow;
     const originalPaddingRight = document.body.style.paddingRight;
@@ -721,10 +769,19 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         duration: `${unmountTime - mountTime}ms`,
         finalStep: currentStep
       });
+      
+      const reason = currentStep === 'confirmation' ? 'completed' : 'abandoned';
+      telemetry.trackModalClose(car.id, reason);
+      
       document.body.style.overflow = originalOverflow;
       document.body.style.paddingRight = originalPaddingRight;
     };
   }, [car.id, currentStep, user, profile]);
+  
+  // Track step changes
+  useEffect(() => {
+    telemetry.stepStart(currentStep);
+  }, [currentStep]);
 
   return createPortal(
     <div className="booking-flow-portal">
@@ -772,6 +829,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                 onClick={onClose} 
                 className="h-8 w-8 p-0"
                 aria-label="Close booking flow"
+                data-testid="close-modal"
               >
                 ✕
               </Button>
@@ -823,13 +881,19 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             tabIndex={-1}
           >
             <AnimatePresence mode="wait">
-              {currentStep === 'dates' && renderDateSelection()}
-              {currentStep === 'phone' && renderPhoneCollection()}
-              {currentStep === 'extras' && renderExtrasSelection()}
-              {currentStep === 'terms' && renderTermsAndConditions()}
-              {currentStep === 'license' && renderLicenseUpload()}
-              {currentStep === 'payment' && renderPayment()}
-              {currentStep === 'confirmation' && renderConfirmation()}
+              {stepLoading ? (
+                <BookingStepSkeleton />
+              ) : (
+                <>
+                  {currentStep === 'dates' && renderDateSelection()}
+                  {currentStep === 'phone' && renderPhoneCollection()}
+                  {currentStep === 'extras' && renderExtrasSelection()}
+                  {currentStep === 'terms' && renderTermsAndConditions()}
+                  {currentStep === 'license' && renderLicenseUpload()}
+                  {currentStep === 'payment' && renderPayment()}
+                  {currentStep === 'confirmation' && renderConfirmation()}
+                </>
+              )}
             </AnimatePresence>
           </div>
 
@@ -844,6 +908,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                     disabled={isLoading} 
                     size="sm"
                     aria-label="Go back to previous step"
+                    data-testid="back-button"
                   >
                     Back
                   </Button>
@@ -885,6 +950,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                   className="min-w-[80px] sm:min-w-[120px] text-sm sm:text-base"
                   size="sm"
                   aria-label={currentStep === 'payment' ? 'Proceed to payment' : currentStep === 'license' ? 'Continue to next step' : 'Continue to next step'}
+                  data-testid={currentStep === 'payment' ? 'proceed-to-pay' : 'next-button'}
                 >
                   {isLoading ? (
                     <motion.div 

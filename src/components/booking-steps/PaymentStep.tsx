@@ -47,6 +47,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {bookingError}
           </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Need help? <a href="mailto:support@azuredrivehub.com" className="text-primary hover:underline">Contact Support</a>
+          </p>
         </div>
       )}
 

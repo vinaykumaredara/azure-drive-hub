@@ -94,7 +94,7 @@ export class BookingModalErrorBoundary extends Component<Props, State> {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button onClick={this.handleReset} className="flex-1">
+                <Button onClick={this.handleReset} className="flex-1" data-testid="error-try-again">
                   Try Again
                 </Button>
                 <Button
@@ -105,6 +105,9 @@ export class BookingModalErrorBoundary extends Component<Props, State> {
                   Reload Page
                 </Button>
               </div>
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                Still having issues? <a href="mailto:support@azuredrivehub.com" className="text-primary hover:underline">Contact Support</a>
+              </p>
             </CardContent>
           </Card>
         </div>
