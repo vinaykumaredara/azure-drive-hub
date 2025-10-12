@@ -58,7 +58,6 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
     try {
       e?.preventDefault();
 
-
       if (!computedIsAvailable) {
         // Use toast instead of alert for better UX
         toast({
@@ -112,7 +111,6 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
       // All checks passed -> open booking flow
       setIsBookingFlowOpen(true);
     } catch (err) {
-      console.error('[BookNow] unexpected error', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -172,7 +170,7 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         className={`group ${className}`}
       >
         <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
-          <div className="relative aspect-video overflow-hidden w-full">
+          <div className="relative aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden w-full">
             {/* Use ImageCarousel with standardized images */}
             {car.images && car.images.length > 0 ? (
               <ImageCarousel images={car.images} className="w-full h-full object-cover" />

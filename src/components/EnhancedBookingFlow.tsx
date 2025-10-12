@@ -91,7 +91,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     endDate: '',
     startTime: '10:00',
     endTime: '18:00',
-    phoneNumber: '' as string | null,
+    phoneNumber: null as string | null,
     extras: {
       driver: false,
       gps: false,
@@ -119,7 +119,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
   // Handle body scroll locking for mobile and focus management
   useEffect(() => {
-    console.log('[EnhancedBookingFlow] Modal opened');
     document.body.style.overflow = 'hidden';
     
     // Focus the first focusable element in the modal when it opens
@@ -131,39 +130,32 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     }
     
     return () => {
-      console.log('[EnhancedBookingFlow] Modal closed');
       document.body.style.overflow = '';
     };
   }, []);
 
-  // Handle booking restoration on component mount - NON-BLOCKING VERSION
+  // Handle booking restoration on component mount - ALWAYS start at phone step
   useEffect(() => {
     // Only restore if profile is loaded (not loading)
     if (profileLoading) return;
     
     const pendingBookingRaw = sessionStorage.getItem('pendingBooking');
-    if (!pendingBookingRaw) return;
     
-    try {
-      const pendingBooking = JSON.parse(pendingBookingRaw);
-      console.log('[EnhancedBookingFlow] Restoring booking:', pendingBooking);
-      
-      // If no phone, stay on phone step
-      if (!profile?.phone) {
-        console.log('[EnhancedBookingFlow] No phone, staying on phone step');
-        setCurrentStep('phone');
-        return;
-      }
-      
-      // Pre-fill phone number from profile
+    // Pre-fill phone number from profile if available
+    if (profile?.phone && !bookingData.phoneNumber) {
       setBookingData(prev => ({
         ...prev,
         phoneNumber: profile.phone || null
       }));
+    }
+    
+    if (!pendingBookingRaw) return;
+    
+    try {
+      const pendingBooking = JSON.parse(pendingBookingRaw);
       
-      // If draft has dates, restore them and move to dates step (user can review)
+      // If draft has dates, restore them (but don't change step)
       if (pendingBooking.pickup?.date && pendingBooking.return?.date) {
-        console.log('[EnhancedBookingFlow] Restoring dates from draft');
         setBookingData(prev => ({
           ...prev,
           startDate: pendingBooking.pickup.date,
@@ -171,32 +163,15 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           startTime: pendingBooking.pickup.time || '10:00',
           endTime: pendingBooking.return.time || '18:00'
         }));
-        // Start at dates step so user can review/modify
-        setCurrentStep('dates');
-      } else {
-        // No dates in draft, start at dates step
-        console.log('[EnhancedBookingFlow] No dates in draft, starting at dates step');
-        setCurrentStep('dates');
       }
       
       // Clear the pending booking from sessionStorage after restoration
       sessionStorage.removeItem('pendingBooking');
     } catch (error) {
-      console.error('[EnhancedBookingFlow] Failed to parse pending booking:', error);
       sessionStorage.removeItem('pendingBooking');
     }
-  }, [profileLoading, profile?.phone]);
-
-  // Pre-fill phone number from profile when modal opens
-  useEffect(() => {
-    if (!profileLoading && profile?.phone && !bookingData.phoneNumber) {
-      console.log('[EnhancedBookingFlow] Pre-filling phone from profile:', profile.phone);
-      setBookingData(prev => ({
-        ...prev,
-        phoneNumber: profile.phone || null
-      }));
-    }
   }, [profileLoading, profile?.phone, bookingData.phoneNumber]);
+
 
   // Fetch existing licenses on component mount
   useEffect(() => {
@@ -222,7 +197,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           });
         }
       } catch (error) {
-        console.error('[EnhancedBookingFlow] Error fetching licenses:', error);
+        // Silent error - not critical
       }
     };
     
@@ -413,8 +388,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   };
 
   const handleNext = async () => {
-    console.log('[EnhancedBookingFlow] handleNext called, currentStep:', currentStep);
-    
     if (currentStep === 'phone') {
       // Validate phone number
       if (!bookingData.phoneNumber) {
@@ -451,13 +424,11 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             .from('users') as any)
             .update({ phone: cleanedPhone } as any)
             .eq('id', user.id);
-          console.log('[EnhancedBookingFlow] Phone number saved to database');
         }
       } catch (error) {
-        console.error('[EnhancedBookingFlow] Error saving phone:', error);
+        // Silent error - not critical
       }
       
-      console.log('[EnhancedBookingFlow] Moving from phone to dates');
       setCurrentStep('dates');
     } else if (currentStep === 'dates') {
       // Validate dates
@@ -530,7 +501,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         totalDays: diffDays
       }));
       
-      console.log('[EnhancedBookingFlow] Moving from dates to terms');
       setCurrentStep('terms');
     } else if (currentStep === 'terms') {
       if (!bookingData.termsAccepted) {
@@ -541,7 +511,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         });
         return;
       }
-      console.log('[EnhancedBookingFlow] Moving from terms to license');
       setCurrentStep('license');
     } else if (currentStep === 'license') {
       if (!bookingData.licenseId) {
@@ -552,11 +521,9 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         });
         return;
       }
-      console.log('[EnhancedBookingFlow] Moving from license to payment');
       setCurrentStep('payment');
     } else if (currentStep === 'payment') {
       // Payment button will be handled separately
-      console.log('[EnhancedBookingFlow] On payment step, opening payment gateway');
       setIsPaymentOpen(true);
     }
     

@@ -75,17 +75,6 @@ const CarCardModernComponent = ({
     try {
       e?.preventDefault();
 
-      console.log('[BookNow] Button clicked', {
-        carId: car.id,
-        computedIsAvailable,
-        bookingStatus,
-        isPublished,
-        isArchived,
-        hasUser: !!user,
-        profileLoading,
-        hasPhone: !!(profile?.phone || user?.phone)
-      });
-
       if (!computedIsAvailable) {
         // Use toast instead of alert for better UX
         toast({
@@ -98,7 +87,6 @@ const CarCardModernComponent = ({
 
       // If user is not logged in -> save draft & redirect to auth
       if (!user) {
-        console.log('[BookNow] User not logged in, redirecting to auth');
         const draft = {
           carId: car.id,
           pickup: { date: '', time: '' },
@@ -112,7 +100,6 @@ const CarCardModernComponent = ({
 
       // If profile still loading, show toast and do nothing
       if (profileLoading) {
-        console.log('[BookNow] Profile still loading');
         toast({
           title: "Finishing Sign-in",
           description: "Please wait a second while we finish loading your profile...",
@@ -126,7 +113,6 @@ const CarCardModernComponent = ({
         (user && (user.phone || user.user_metadata?.phone || user.user_metadata?.mobile));
 
       if (!phone) {
-        console.log('[BookNow] No phone number, redirecting to profile');
         // Navigate to profile page to collect phone (preserve a draft)
         const draft = {
           carId: car.id,
@@ -140,11 +126,9 @@ const CarCardModernComponent = ({
       }
 
       // All checks passed -> open booking flow
-      console.log('[BookNow] Opening booking flow');
       setIsBookingLoading(true);
       setIsBookingFlowOpen(true);
     } catch (err) {
-      console.error('[BookNow] unexpected error', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -160,9 +144,6 @@ const CarCardModernComponent = ({
   }, [car.make, car.model, car.id]);
 
   const handleBookingSuccess = useCallback(() => {
-    // Update the car's availability state locally to reflect that it's now booked
-    console.log('[BookingSuccess] Booking completed successfully');
-    
     // Close the booking flow
     setIsBookingFlowOpen(false);
     setIsBookingLoading(false);
@@ -190,7 +171,7 @@ const CarCardModernComponent = ({
         aria-label={`${car.make} ${car.model}`}
       >
         {/* Image Section */}
-        <div className="relative w-full aspect-video overflow-hidden rounded-xl bg-muted">
+        <div className="relative w-full aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden rounded-xl bg-muted">
           <SimpleImage 
             src={car.thumbnail || car.image} 
             alt={`${car.make} ${car.model}`} 
@@ -273,7 +254,6 @@ const CarCardModernComponent = ({
         <EnhancedBookingFlow // Changed from AtomicBookingFlow to EnhancedBookingFlow
           car={carForBooking} 
           onClose={() => {
-            console.log('[BookingFlow] Modal closed');
             setIsBookingFlowOpen(false);
             setIsBookingLoading(false);
           }}
