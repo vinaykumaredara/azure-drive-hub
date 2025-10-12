@@ -80,7 +80,7 @@ interface License {
 }
 
 export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, onClose, onBookingSuccess }) => {
-  const [currentStep, setCurrentStep] = useState<Step>('dates');
+  const [currentStep, setCurrentStep] = useState<Step>('phone'); // Start with phone step
   const [existingLicense, setExistingLicense] = useState<{
     id: string;
     verified: boolean | null;
@@ -136,114 +136,97 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     };
   }, []);
 
-  // Handle booking restoration on component mount
+  // Handle booking restoration on component mount - NON-BLOCKING VERSION
   useEffect(() => {
-    const restoreBooking = async () => {
-      const pendingBookingRaw = sessionStorage.getItem('pendingBooking');
-      if (pendingBookingRaw) {
-        try {
-          const pendingBooking = JSON.parse(pendingBookingRaw);
-          
-          // Wait for profile to load
-          let attempts = 0;
-          while (profileLoading && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-          
-          // Check if profile has phone number
-          if (!profile?.phone) {
-            if (currentStep !== 'phone') {
-              setCurrentStep('phone');
-            }
-            return;
-          }
-          
-          // Validate draft: check if pickup/return dates are missing
-          if (!pendingBooking.pickup?.date || !pendingBooking.return?.date) {
-            if (currentStep !== 'dates') {
-              setCurrentStep('dates');
-            }
-            // Populate the booking data with the draft
-            setBookingData(prev => ({
-              ...prev,
-              startDate: pendingBooking.pickup?.date || '',
-              endDate: pendingBooking.return?.date || '',
-              startTime: pendingBooking.pickup?.time || '10:00',
-              endTime: pendingBooking.return?.time || '18:00'
-            }));
-            return;
-          }
-          
-          // If dates exist, proceed to terms
-          if (currentStep !== 'terms') {
-            setCurrentStep('terms');
-          }
-          
-          // Populate the booking data with the draft
-          setBookingData(prev => ({
-            ...prev,
-            startDate: pendingBooking.pickup.date,
-            endDate: pendingBooking.return.date,
-            startTime: pendingBooking.pickup.time || '10:00',
-            endTime: pendingBooking.return.time || '18:00'
-          }));
-          
-          // Clear the pending booking from sessionStorage
-          sessionStorage.removeItem('pendingBooking');
-        } catch (error) {
-          console.error('EnhancedBookingFlow: Failed to parse pending booking:', error);
-          sessionStorage.removeItem('pendingBooking');
-        }
-      }
-    };
+    // Only restore if profile is loaded (not loading)
+    if (profileLoading) return;
     
-    restoreBooking();
-  }, [profile, profileLoading, currentStep]);
+    const pendingBookingRaw = sessionStorage.getItem('pendingBooking');
+    if (!pendingBookingRaw) return;
+    
+    try {
+      const pendingBooking = JSON.parse(pendingBookingRaw);
+      console.log('[EnhancedBookingFlow] Restoring booking:', pendingBooking);
+      
+      // If no phone, stay on phone step
+      if (!profile?.phone) {
+        console.log('[EnhancedBookingFlow] No phone, staying on phone step');
+        setCurrentStep('phone');
+        return;
+      }
+      
+      // Pre-fill phone number from profile
+      setBookingData(prev => ({
+        ...prev,
+        phoneNumber: profile.phone || null
+      }));
+      
+      // If draft has dates, restore them and move to dates step (user can review)
+      if (pendingBooking.pickup?.date && pendingBooking.return?.date) {
+        console.log('[EnhancedBookingFlow] Restoring dates from draft');
+        setBookingData(prev => ({
+          ...prev,
+          startDate: pendingBooking.pickup.date,
+          endDate: pendingBooking.return.date,
+          startTime: pendingBooking.pickup.time || '10:00',
+          endTime: pendingBooking.return.time || '18:00'
+        }));
+        // Start at dates step so user can review/modify
+        setCurrentStep('dates');
+      } else {
+        // No dates in draft, start at dates step
+        console.log('[EnhancedBookingFlow] No dates in draft, starting at dates step');
+        setCurrentStep('dates');
+      }
+      
+      // Clear the pending booking from sessionStorage after restoration
+      sessionStorage.removeItem('pendingBooking');
+    } catch (error) {
+      console.error('[EnhancedBookingFlow] Failed to parse pending booking:', error);
+      sessionStorage.removeItem('pendingBooking');
+    }
+  }, [profileLoading, profile?.phone]);
 
-  // Fetch user phone number and existing licenses on component mount
+  // Pre-fill phone number from profile when modal opens
   useEffect(() => {
-    const fetchUserData = async () => {
+    if (!profileLoading && profile?.phone && !bookingData.phoneNumber) {
+      console.log('[EnhancedBookingFlow] Pre-filling phone from profile:', profile.phone);
+      setBookingData(prev => ({
+        ...prev,
+        phoneNumber: profile.phone || null
+      }));
+    }
+  }, [profileLoading, profile?.phone, bookingData.phoneNumber]);
+
+  // Fetch existing licenses on component mount
+  useEffect(() => {
+    const fetchLicenses = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Fetch phone number
-          const { data: profile, error: phoneError } = await (supabase
-            .from('users') as any)
-            .select('phone')
-            .eq('id', user.id)
-            .single();
-            
-          if (!phoneError && profile && profile.phone) {
-            setBookingData(prev => ({
-              ...prev,
-              phoneNumber: profile.phone
-            }));
-          }
+        if (!user) return;
+        
+        // Fetch existing licenses
+        const { data: licenses, error: licenseError } = await (supabase
+          .from('licenses') as any)
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
           
-          // Fetch existing licenses
-          const { data: licenses, error: licenseError } = await (supabase
-            .from('licenses') as any)
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-            
-          if (!licenseError && licenses && licenses.length > 0) {
-            // Set the most recent license
-            const latestLicense: any = licenses[0];
-            setExistingLicense({
-              id: latestLicense.id,
-              verified: latestLicense.verified,
-              createdAt: latestLicense.created_at
-            });
-          }
+        if (!licenseError && licenses && licenses.length > 0) {
+          // Set the most recent license
+          const latestLicense: any = licenses[0];
+          setExistingLicense({
+            id: latestLicense.id,
+            verified: latestLicense.verified,
+            createdAt: latestLicense.created_at
+          });
         }
       } catch (error) {
-        // Error fetching user data - silently fail as this is not critical
+        console.error('[EnhancedBookingFlow] Error fetching licenses:', error);
       }
     };
     
-    fetchUserData();
+    fetchLicenses();
   }, []);
 
   const calculateTotal = () => {
@@ -430,7 +413,53 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   };
 
   const handleNext = async () => {
-    if (currentStep === 'dates') {
+    console.log('[EnhancedBookingFlow] handleNext called, currentStep:', currentStep);
+    
+    if (currentStep === 'phone') {
+      // Validate phone number
+      if (!bookingData.phoneNumber) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter your phone number",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Basic phone number validation (Indian format)
+      const phoneRegex = /^[6-9]\d{9}$/;
+      const cleanedPhone = bookingData.phoneNumber.replace(/\D/g, '');
+      if (!phoneRegex.test(cleanedPhone)) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter a valid 10-digit Indian phone number",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Update with cleaned phone number and save to database
+      setBookingData(prev => ({
+        ...prev,
+        phoneNumber: cleanedPhone
+      }));
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await (supabase
+            .from('users') as any)
+            .update({ phone: cleanedPhone } as any)
+            .eq('id', user.id);
+          console.log('[EnhancedBookingFlow] Phone number saved to database');
+        }
+      } catch (error) {
+        console.error('[EnhancedBookingFlow] Error saving phone:', error);
+      }
+      
+      console.log('[EnhancedBookingFlow] Moving from phone to dates');
+      setCurrentStep('dates');
+    } else if (currentStep === 'dates') {
       // Validate dates
       if (!bookingData.startDate || !bookingData.endDate) {
         toast({
@@ -501,38 +530,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         totalDays: diffDays
       }));
       
-      setCurrentStep('phone');
-    } else if (currentStep === 'phone') {
-      // Validate phone number
-      if (!bookingData.phoneNumber) {
-        toast({
-          title: "Validation Error",
-          description: "Please enter your phone number",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Basic phone number validation (Indian format)
-      const phoneRegex = /^[6-9]\d{9}$/;
-      const cleanedPhone = bookingData.phoneNumber.replace(/\D/g, '');
-      if (!phoneRegex.test(cleanedPhone)) {
-        toast({
-          title: "Validation Error",
-          description: "Please enter a valid 10-digit Indian phone number",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Update with cleaned phone number
-      setBookingData(prev => ({
-        ...prev,
-        phoneNumber: cleanedPhone
-      }));
-      
-      setCurrentStep('extras');
-    } else if (currentStep === 'extras') {
+      console.log('[EnhancedBookingFlow] Moving from dates to terms');
       setCurrentStep('terms');
     } else if (currentStep === 'terms') {
       if (!bookingData.termsAccepted) {
@@ -543,6 +541,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         });
         return;
       }
+      console.log('[EnhancedBookingFlow] Moving from terms to license');
       setCurrentStep('license');
     } else if (currentStep === 'license') {
       if (!bookingData.licenseId) {
@@ -553,10 +552,11 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         });
         return;
       }
+      console.log('[EnhancedBookingFlow] Moving from license to payment');
       setCurrentStep('payment');
     } else if (currentStep === 'payment') {
-      // Instead of immediately opening payment gateway, we'll handle the payment options in the payment step
-      // Open payment gateway only when user clicks the payment button
+      // Payment button will be handled separately
+      console.log('[EnhancedBookingFlow] On payment step, opening payment gateway');
       setIsPaymentOpen(true);
     }
     
