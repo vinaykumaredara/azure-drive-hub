@@ -691,7 +691,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     <div className="booking-flow-portal">
       <motion.div 
         {...modalAnimations}
-        className={`fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[9999] ${!isMobileDevice() ? 'sm:backdrop-blur-sm' : ''}`}
+        className={`fixed inset-0 bg-black/60 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[100] ${!isMobileDevice() ? 'sm:backdrop-blur-sm' : ''}`}
         onClick={onClose}
         role="dialog"
         aria-modal="true"

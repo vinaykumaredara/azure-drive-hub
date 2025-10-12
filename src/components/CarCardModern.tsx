@@ -1,4 +1,4 @@
-import React, { useState, memo, useCallback, useEffect, lazy, Suspense } from "react";
+import React, { useState, memo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { bookingIntentStorage } from "@/utils/bookingIntent";
 import { isMobileDevice } from "@/utils/deviceOptimizations";
 import { debugLog, errorLog } from "@/utils/logger";
-
-const EnhancedBookingFlow = lazy(() => import("@/components/EnhancedBookingFlow").then(m => ({ default: m.EnhancedBookingFlow })));
+import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
 
 // Define the car interface
 interface Car {
@@ -74,23 +73,13 @@ const CarCardModernComponent = ({
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
-    debugLog('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
-    
     if (isBookingLoading) {
-      debugLog('[BookNow] Already loading, ignoring');
       return;
     }
     
     try {
       e?.stopPropagation();
       e?.preventDefault();
-      debugLog('[handleBookNow] ENTRY', {
-        carId: car.id, 
-        user: !!user, 
-        profile: !!profile, 
-        profileLoading,
-        computedIsAvailable 
-      });
 
       if (!computedIsAvailable) {
         toast({
@@ -148,14 +137,13 @@ const CarCardModernComponent = ({
       }
 
       // All checks passed -> open booking flow
-      debugLog('[handleBookNow] Opening booking flow');
       setIsBookingLoading(true);
       setIsBookingFlowOpen(true);
     } catch (err) {
       errorLog('[handleBookNow] ERROR', err);
       toast({
         title: "Unexpected Error",
-        description: "An unexpected error occurred. Please check the console or contact support.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     }
@@ -257,17 +245,16 @@ const CarCardModernComponent = ({
 
           <div className="flex items-center justify-between mt-3 sm:mt-4">
             <div className="text-lg sm:text-xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
-            <div className="flex gap-2 sm:gap-3 relative z-10">
+            <div className="flex gap-2 flex-shrink-0">
               <Button 
                 type="button"
                 size="sm" 
                 variant="outline" 
                 onClick={(e) => {
                   e.stopPropagation();
-                  debugLog('[Contact] Button clicked', { carId: car.id });
                   handleWhatsAppContact();
                 }}
-                className="text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[100px] sm:min-w-[110px]"
+                className="text-xs sm:text-sm whitespace-nowrap"
               >
                 Contact
               </Button>
@@ -280,10 +267,8 @@ const CarCardModernComponent = ({
                   handleBookNow(e);
                 }}
                 disabled={!computedIsAvailable}
-                aria-disabled={!computedIsAvailable}
                 data-testid={`book-now-${car.id}`}
-                id={`book-now-btn-${car.id}`}
-                className={`text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[110px] sm:min-w-[130px] md:min-w-[140px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                className="text-xs sm:text-sm whitespace-nowrap"
               >
                 Book Now
               </Button>
@@ -293,20 +278,14 @@ const CarCardModernComponent = ({
       </motion.article>
 
       {isBookingFlowOpen && (
-        <Suspense fallback={
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        }>
-          <EnhancedBookingFlow
-            car={carForBooking} 
-            onClose={() => {
-              setIsBookingFlowOpen(false);
-              setIsBookingLoading(false);
-            }}
-            onBookingSuccess={handleBookingSuccess}
-          />
-        </Suspense>
+        <EnhancedBookingFlow
+          car={carForBooking} 
+          onClose={() => {
+            setIsBookingFlowOpen(false);
+            setIsBookingLoading(false);
+          }}
+          onBookingSuccess={handleBookingSuccess}
+        />
       )}
     </>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, lazy, Suspense } from "react";
+import React, { useState, useCallback } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -12,8 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { bookingIntentStorage } from "@/utils/bookingIntent";
 import { isMobileDevice } from "@/utils/deviceOptimizations";
 import { debugLog, errorLog } from "@/utils/logger";
-
-const EnhancedBookingFlow = lazy(() => import("@/components/EnhancedBookingFlow").then(m => ({ default: m.EnhancedBookingFlow })));
+import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
 
 export interface CarCardProps {
   car: {
@@ -345,17 +344,11 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
       </motion.div>
 
       {isBookingFlowOpen && (
-        <Suspense fallback={
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        }>
-          <EnhancedBookingFlow 
-            car={carForBooking} 
-            onClose={() => setIsBookingFlowOpen(false)}
-            onBookingSuccess={handleBookingSuccess}
-          />
-        </Suspense>
+        <EnhancedBookingFlow 
+          car={carForBooking} 
+          onClose={() => setIsBookingFlowOpen(false)}
+          onBookingSuccess={handleBookingSuccess}
+        />
       )}
     </>
   );
