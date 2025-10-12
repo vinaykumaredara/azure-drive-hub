@@ -1,10 +1,10 @@
-import React, { useState, memo, useCallback, useEffect } from "react";
+import React, { useState, memo, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Heart } from "lucide-react";
-import SimpleImage from "@/components/SimpleImage";
-import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow"; // Changed from AtomicBookingFlow to EnhancedBookingFlow
+import ImageCarousel from "@/components/ImageCarousel";
+import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
@@ -61,6 +61,7 @@ const CarCardModernComponent = ({
   const [isBookingLoading, setIsBookingLoading] = useState(false);
   const { user, profile, profileLoading } = useAuth();
   const { saveDraftAndRedirect } = useBooking();
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Compute availability based on status and booking_status
   const bookingStatus = car.bookingStatus?.toString().toLowerCase() || '';
@@ -68,6 +69,15 @@ const CarCardModernComponent = ({
   const isArchived = !!(car.isArchived);
   const notBooked = !bookingStatus || !['booked', 'reserved', 'held'].includes(bookingStatus);
   const computedIsAvailable = isPublished && notBooked && !isArchived;
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
@@ -144,12 +154,48 @@ const CarCardModernComponent = ({
         return;
       }
 
+      // Validate car data before opening modal
+      const carData = {
+        ...car,
+        title: car.title || car.model || 'Car'
+      };
+      
+      if (!carData.id) {
+        throw new Error('Invalid car data: missing ID');
+      }
+
       // All checks passed -> open booking flow
       console.debug('[handleBookNow] Opening booking flow');
       setIsBookingLoading(true);
-      setIsBookingFlowOpen(true);
+      
+      // Safety timeout: reset loading state after 5 seconds if modal hasn't opened
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.error('[handleBookNow] Timeout: Modal failed to open within 5 seconds');
+        setIsBookingLoading(false);
+        toast({
+          title: "Booking Flow Error",
+          description: "Failed to open booking form. Please try again.",
+          variant: "destructive",
+        });
+      }, 5000);
+      
+      // Small delay to ensure UI updates, then open modal
+      setTimeout(() => {
+        setIsBookingFlowOpen(true);
+        // Clear timeout once modal opens successfully
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
+      }, 100);
+      
     } catch (err) {
       console.error('[handleBookNow] ERROR', err);
+      setIsBookingLoading(false);
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -193,17 +239,15 @@ const CarCardModernComponent = ({
       >
         {/* Image Section */}
         <div className="relative w-full aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden rounded-xl bg-muted">
-          <SimpleImage 
-            src={car.thumbnail || car.image} 
-            alt={`${car.make} ${car.model}`} 
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            lazy={true}
+          <ImageCarousel 
+            images={car.image_urls || car.images || [car.thumbnail || car.image]} 
+            className="w-full h-full"
           />
           
           {/* Save Button */}
           <button
             onClick={() => setIsSaved(!isSaved)}
-            className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shadow-sm hover:bg-white transition-colors"
+            className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shadow-sm hover:bg-white transition-colors z-10"
             aria-label={isSaved ? "Remove from saved" : "Save car"}
           >
             <Heart 
@@ -212,7 +256,7 @@ const CarCardModernComponent = ({
           </button>
           
           {/* Badges */}
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-wrap gap-1">
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-wrap gap-1 z-10">
             {car.badges?.map((badge, index) => (
               <Badge 
                 key={`${car.id}-badge-${index}`} 

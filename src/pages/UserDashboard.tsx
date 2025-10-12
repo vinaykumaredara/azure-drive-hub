@@ -14,6 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { LicenseUpload } from '@/components/LicenseUpload';
 import { EnhancedBookingFlow } from '@/components/EnhancedBookingFlow';
+import { UserDashboardSidebar } from '@/components/UserDashboardSidebar';
+import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 
 import { errorLogger } from '@/utils/errorLogger';
 import ImageCarousel from '@/components/ImageCarousel';
@@ -81,6 +83,7 @@ const UserDashboard: React.FC = () => {
   const [restoredDraft, setRestoredDraft] = useState<any>(null);
   const [shouldOpenBooking, setShouldOpenBooking] = useState(false);
   const [selectedCarForBooking, setSelectedCarForBooking] = useState<any>(null);
+  const [currentTab, setCurrentTab] = useState('overview');
   const bookingsRef = useRef<Booking[]>([]);
 
   // Handle resumed car from useBookingResume hook
@@ -705,40 +708,47 @@ const UserDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-white/90 backdrop-blur-xl border-b border-border/30 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center space-x-4">
-              <motion.div 
-                whileHover={{ scale: 1.05 }}
-                className="w-12 h-12 bg-gradient-to-r from-primary to-accent-purple rounded-xl flex items-center justify-center shadow-lg"
-              >
-                <Car className="h-6 w-6 text-white" />
-              </motion.div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent">RP CARS</h1>
-                <p className="text-sm text-muted-foreground">Dashboard</p>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        {/* Sidebar */}
+        <UserDashboardSidebar 
+          onSignOut={handleSignOut}
+          onTabChange={setCurrentTab}
+          currentTab={currentTab}
+        />
+        
+        {/* Main Content */}
+        <SidebarInset className="flex-1">
+          {/* Header with Sidebar Trigger */}
+          <header className="bg-white/90 backdrop-blur-xl border-b border-border/30 sticky top-0 z-50 shadow-sm">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
+              <SidebarTrigger className="md:hidden" />
+              
+              <div className="flex items-center justify-between flex-1 flex-wrap gap-2">
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent">
+                      Welcome back!
+                    </h1>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  </div>
+                </div>
+                <div className="hidden md:flex items-center space-x-4">
+                  <Button variant="outline" onClick={shareProfile}>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share Profile
+                  </Button>
+                  <Button variant="outline" onClick={downloadBookingHistory}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download History
+                  </Button>
+                </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" onClick={shareProfile}>
-                <Share2 className="h-4 w-4 mr-2" />
-                Share Profile
-              </Button>
-              <Button variant="outline" onClick={downloadBookingHistory}>
-                <Download className="h-4 w-4 mr-2" />
-                Download History
-              </Button>
-              <Button variant="outline" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+          </header>
+          
+          {/* Main Content Area */}
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -791,57 +801,19 @@ const UserDashboard: React.FC = () => {
             </motion.div>
           </div>
 
-          <Tabs defaultValue="overview" className="space-y-6 sm:space-y-8">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 sm:gap-2 bg-muted/30 p-1 rounded-xl border border-border/50">
-                <TabsTrigger 
-                  value="overview" 
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all text-xs sm:text-sm"
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="bookings" 
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all text-xs sm:text-sm"
-                >
-                  Bookings
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="favorites" 
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all text-xs sm:text-sm"
-                >
-                  Favorites
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="profile" 
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all text-xs sm:text-sm"
-                >
-                  Profile
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="licenses" 
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all text-xs sm:text-sm"
-                >
-                  Licenses
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="notifications" 
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all text-xs sm:text-sm"
-                >
-                  Alerts
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="support" 
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all text-xs sm:text-sm"
-                >
-                  Support
-                </TabsTrigger>
+          <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6 sm:space-y-8">
+            {/* Hide TabsList since sidebar handles navigation */}
+            <div className="sr-only">
+              <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="bookings">Bookings</TabsTrigger>
+                <TabsTrigger value="favorites">Favorites</TabsTrigger>
+                <TabsTrigger value="profile">Profile</TabsTrigger>
+                <TabsTrigger value="licenses">Licenses</TabsTrigger>
+                <TabsTrigger value="notifications">Alerts</TabsTrigger>
+                <TabsTrigger value="support">Support</TabsTrigger>
               </TabsList>
-            </motion.div>
+            </div>
 
             <AnimatePresence mode="wait">
               <TabsContent value="overview" className="space-y-6 sm:space-y-8 mt-0">
@@ -1494,41 +1466,44 @@ const UserDashboard: React.FC = () => {
             </AnimatePresence>
           </Tabs>
         </motion.div>
-      </main>
-      {showPhoneModal && (
-        <PhoneModal 
-          onClose={() => setShowPhoneModal(false)} 
-          onComplete={handlePhoneModalComplete} 
-        />
-      )}
-      
-      {/* Booking Modal */}
-      {shouldOpenBooking && selectedCarForBooking && (
-        <EnhancedBookingFlow
-          car={selectedCarForBooking}
-          onClose={() => {
-            setShouldOpenBooking(false);
-            setSelectedCarForBooking(null);
-            // Clear the pending booking from sessionStorage
-            sessionStorage.removeItem('pendingBooking');
-          }}
-          onBookingSuccess={() => {
-            setShouldOpenBooking(false);
-            setSelectedCarForBooking(null);
-            sessionStorage.removeItem('pendingBooking');
-            toast({
-              title: "Booking Complete",
-              description: "Your booking has been successfully completed!",
-            });
-            // Reload bookings to show the new one
-            if (user?.id) {
-              window.location.reload();
-            }
-          }}
-        />
-      )}
-      
-    </div>
+          </main>
+        </SidebarInset>
+        
+        {/* Modals */}
+        {showPhoneModal && (
+          <PhoneModal 
+            onClose={() => setShowPhoneModal(false)} 
+            onComplete={handlePhoneModalComplete} 
+          />
+        )}
+        
+        {/* Booking Modal */}
+        {shouldOpenBooking && selectedCarForBooking && (
+          <EnhancedBookingFlow
+            car={selectedCarForBooking}
+            onClose={() => {
+              setShouldOpenBooking(false);
+              setSelectedCarForBooking(null);
+              // Clear the pending booking from sessionStorage
+              sessionStorage.removeItem('pendingBooking');
+            }}
+            onBookingSuccess={() => {
+              setShouldOpenBooking(false);
+              setSelectedCarForBooking(null);
+              sessionStorage.removeItem('pendingBooking');
+              toast({
+                title: "Booking Complete",
+                description: "Your booking has been successfully completed!",
+              });
+              // Reload bookings to show the new one
+              if (user?.id) {
+                window.location.reload();
+              }
+            }}
+          />
+        )}
+      </div>
+    </SidebarProvider>
   );
 };
 
