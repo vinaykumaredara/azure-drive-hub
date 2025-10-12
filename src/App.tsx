@@ -47,6 +47,24 @@ const NotFound = React.lazy(() => {
   return import("./pages/NotFound");
 });
 
+// PHASE E: Dev-only event listeners for debugging
+if (import.meta.env.DEV) {
+  window.addEventListener('bookingIntentSaved', (e: any) => {
+    console.debug('[DEV] bookingIntentSaved event', e.detail);
+  });
+
+  // Optional: Track all button clicks for debugging
+  window.addEventListener('click', (ev) => {
+    const target = ev.target as HTMLElement;
+    if (target.textContent?.includes('Book Now')) {
+      console.debug('[DEV] Book Now button clicked', {
+        target,
+        timestamp: Date.now()
+      });
+    }
+  }, true);
+}
+
 const App = () => (
   <GlobalErrorBoundary>
     <QueryClientProvider client={queryClient}>

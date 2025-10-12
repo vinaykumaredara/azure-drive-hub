@@ -277,4 +277,37 @@ describe('Book Now Button - P0 Reliability Tests', () => {
       expect(bookNowBtn).toBeDisabled();
     });
   });
+
+  describe('Loading State Timeout - PHASE F', () => {
+    it('should reset loading state after 5 seconds if modal fails to open', async () => {
+      vi.mocked(AuthProvider.useAuth).mockReturnValue({
+        user: { id: 'user-1' } as any,
+        profile: { id: 'user-1', phone: '+911234567890' } as any,
+        profileLoading: false,
+        signOut: vi.fn(),
+        isAdmin: false,
+      } as any);
+
+      // Mock modal to NOT open (simulate failure)
+      vi.mock('@/components/EnhancedBookingFlow', () => ({
+        EnhancedBookingFlow: () => null,
+      }));
+
+      render(<CarCardModern car={mockCar} />);
+      
+      const bookNowBtn = screen.getByText('Book Now');
+      fireEvent.click(bookNowBtn);
+      
+      // Should show "Opening..." immediately
+      await waitFor(() => {
+        expect(screen.getByText('Opening...')).toBeInTheDocument();
+      });
+      
+      // After 5+ seconds, should reset to "Book Now"
+      await waitFor(() => {
+        expect(screen.getByText('Book Now')).toBeInTheDocument();
+        expect(screen.queryByText('Opening...')).not.toBeInTheDocument();
+      }, { timeout: 6000 });
+    }, 10000); // Extend test timeout to 10s
+  });
 });

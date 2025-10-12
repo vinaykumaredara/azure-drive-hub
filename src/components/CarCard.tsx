@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -44,6 +44,8 @@ export interface CarCardProps {
 
 export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps) => { // Add the new prop
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
+  const [isBookingLoading, setIsBookingLoading] = useState(false); // PHASE C: Add loading state
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null); // PHASE C: Add timeout ref
   const { user, profile, profileLoading } = useAuth();
   const { saveDraftAndRedirect } = useBooking();
 
@@ -54,14 +56,35 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
   const notBooked = !bookingStatus || !['booked', 'reserved', 'held'].includes(bookingStatus);
   const computedIsAvailable = isPublished && notBooked && !isArchived;
 
-  // Replace the memoized handler with a fresh function that reads current values at click time
+  // PHASE C: Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // PHASE C+E: Enhanced handler with timeout, cleanup, and logging
   function handleBookNow(e?: React.MouseEvent) {
-    console.debug('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
+    // PHASE E: Structured logging
+    const logBookingEvent = (event: string, data?: any) => {
+      const timestamp = new Date().toISOString();
+      console.debug(`[BookNow][${timestamp}] ${event}`, data);
+    };
+
+    // Prevent concurrent attempts
+    if (isBookingLoading) {
+      logBookingEvent('Concurrent click blocked', { carId: car.id });
+      return;
+    }
+    logBookingEvent('Button clicked', { carId: car.id, user: !!user, profile: !!profile });
     
     try {
       e?.stopPropagation();
       e?.preventDefault();
-      console.debug('[handleBookNow] ENTRY', { 
+      
+      logBookingEvent('ENTRY', { 
         carId: car.id, 
         user: !!user, 
         profile: !!profile, 
@@ -124,14 +147,41 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         return;
       }
 
-      // All checks passed -> open booking flow
-      console.debug('[handleBookNow] Opening booking flow');
-      setIsBookingFlowOpen(true);
+      // PHASE C: Set loading with 5-second timeout
+      setIsBookingLoading(true);
+      logBookingEvent('Setting loading state', { carId: car.id });
+      
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.error('[handleBookNow] Timeout: Modal failed to open within 5 seconds');
+        setIsBookingLoading(false);
+        toast({
+          title: "Booking Flow Error",
+          description: "Failed to open booking form. Please try again.",
+          variant: "destructive",
+        });
+      }, 5000);
+
+      // Open modal after small delay
+      setTimeout(() => {
+        logBookingEvent('Opening booking flow', { carId: car.id });
+        setIsBookingFlowOpen(true);
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
+        setIsBookingLoading(false);
+      }, 100);
+      
     } catch (err) {
       console.error('[handleBookNow] ERROR', err);
+      setIsBookingLoading(false);
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
       toast({
         title: "Unexpected Error",
-        description: "An unexpected error occurred. Please check the console or contact support.",
+        description: "An unexpected error occurred.",
         variant: "destructive",
       });
     }
@@ -304,17 +354,24 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                   <span className="text-2xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}</span>
                   <span className="text-sm text-muted-foreground">/day</span>
                 </div>
-                <div className="flex gap-2 sm:gap-3 relative z-10">
+                {/* PHASE A+B: Flex container for buttons - NO OVERLAP */}
+                <div 
+                  className="flex gap-2 sm:gap-3 items-center flex-shrink-0" 
+                  style={{ display: 'flex' }}
+                >
                   <Button 
                     type="button"
                     size="sm" 
                     onClick={(e) => {
                       e.stopPropagation();
+                      e.preventDefault();
                       console.debug('[Contact] Button clicked', { carId: car.id });
                       handleWhatsAppContact();
                     }} 
                     variant="outline"
-                    className="min-w-[80px]"
+                    className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
+                    disabled={isBookingLoading}
+                    style={{ position: 'relative', zIndex: 1 }}
                   >
                     Contact
                   </Button>
@@ -326,13 +383,18 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                       e.preventDefault();
                       handleBookNow(e);
                     }}
-                    disabled={!computedIsAvailable}
-                    aria-disabled={!computedIsAvailable}
+                    disabled={!computedIsAvailable || isBookingLoading}
+                    aria-disabled={!computedIsAvailable || isBookingLoading}
                     data-testid={`book-now-${car.id}`}
                     id={`book-now-btn-${car.id}`}
-                    className={`min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                    className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 10000,  // Emergency override - Phase A
+                      pointerEvents: 'auto' 
+                    }}
                   >
-                    Book Now
+                    {isBookingLoading ? 'Opening...' : 'Book Now'}
                   </Button>
                 </div>
               </div>
@@ -340,6 +402,16 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* PHASE C: Loading overlay */}
+      {isBookingLoading && !isBookingFlowOpen && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-[9998]">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-sm text-muted-foreground">Opening booking flow...</p>
+          </div>
+        </div>
+      )}
 
       {isBookingFlowOpen && (
         <EnhancedBookingFlow 

@@ -45,6 +45,10 @@ export const useBookingResume = () => {
       setIsResuming(true);
       
       try {
+        // PHASE D: Prefetch booking modal before resume
+        console.debug('[BookingResume] Prefetching booking modal...');
+        await import('@/components/EnhancedBookingFlow');
+        
         // Fetch car details with timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout

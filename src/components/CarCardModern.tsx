@@ -290,7 +290,11 @@ const CarCardModernComponent = ({
 
           <div className="flex items-center justify-between mt-3 sm:mt-4">
             <div className="text-lg sm:text-xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
-            <div className="flex gap-2 sm:gap-3 relative z-20 flex-shrink-0">
+            {/* PHASE A+B: Flex container for buttons - NO OVERLAP */}
+            <div 
+              className="flex gap-2 sm:gap-3 items-center flex-shrink-0" 
+              style={{ display: 'flex' }}
+            >
               <Button 
                 type="button"
                 size="sm" 
@@ -301,8 +305,9 @@ const CarCardModernComponent = ({
                   console.debug('[Contact] Button clicked', { carId: car.id });
                   handleWhatsAppContact();
                 }}
-                className="text-xs sm:text-sm px-3 py-2 min-w-[80px] relative z-10"
+                className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
                 disabled={isBookingLoading}
+                style={{ position: 'relative', zIndex: 1 }}
               >
                 Contact
               </Button>
@@ -319,7 +324,12 @@ const CarCardModernComponent = ({
                 aria-disabled={!computedIsAvailable || isBookingLoading}
                 data-testid={`book-now-${car.id}`}
                 id={`book-now-btn-${car.id}`}
-                className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] relative z-20 ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                style={{ 
+                  position: 'relative', 
+                  zIndex: 10000,  // Emergency override - Phase A
+                  pointerEvents: 'auto' 
+                }}
               >
                 {isBookingLoading ? 'Opening...' : 'Book Now'}
               </Button>
