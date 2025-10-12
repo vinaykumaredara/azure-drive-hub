@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,22 @@ const ConfirmPaymentSchema = z.object({
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limiting: 15 confirmation attempts per minute per IP
+  const clientId = getClientIdentifier(req);
+  const isAllowed = checkRateLimit(clientId, {
+    tokensPerInterval: 15,
+    interval: 'minute'
+  });
+
+  if (!isAllowed) {
+    return new Response(JSON.stringify({ 
+      error: "Rate limit exceeded. Please try again later." 
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 429,
+    });
   }
 
   try {

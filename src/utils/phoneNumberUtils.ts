@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logError, logDebug } from './logger';
 
 /**
  * Utility function to save/update user phone number in database
@@ -27,14 +28,14 @@ export const savePhoneNumber = async (phoneNumber: string, userId?: string): Pro
       .select();
       
     if (error) {
-      console.error('[phoneNumberUtils] Error updating phone:', error);
+      logError('phone_update_failed', error);
       return { success: false, error: error.message };
     }
 
-    console.debug('[phoneNumberUtils] Phone number updated successfully');
+    logDebug('phone_update_success');
     return { success: true };
   } catch (error: any) {
-    console.error('[phoneNumberUtils] Exception updating phone:', error);
+    logError('phone_update_exception', error);
     return { success: false, error: error?.message || 'Failed to update phone number' };
   }
 };

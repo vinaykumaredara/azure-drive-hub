@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +29,22 @@ const CreateHoldSchema = z.object({
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limiting: 20 booking attempts per minute per IP
+  const clientId = getClientIdentifier(req);
+  const isAllowed = checkRateLimit(clientId, {
+    tokensPerInterval: 20,
+    interval: 'minute'
+  });
+
+  if (!isAllowed) {
+    return new Response(JSON.stringify({ 
+      error: "Rate limit exceeded. Please try again later." 
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 429,
+    });
   }
 
   try {
@@ -125,7 +142,7 @@ serve(async (req) => {
       payment = paymentData;
     }
 
-    console.log(`Created ${payMode} booking ${booking.id} for user ${user.id}`);
+    // Booking created successfully
 
     return new Response(JSON.stringify({
       success: true,
@@ -139,8 +156,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Create hold error:", error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: false, 
       error: error.message || "Failed to create booking hold" 
     }), {

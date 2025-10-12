@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { clearAuthCache } from './AuthProvider.utils';
+import { logInfo, logError } from '@/utils/logger';
 
 export const signIn = async (email: string, password: string) => {
   const { error } = await supabase.auth.signInWithPassword({
@@ -67,11 +68,11 @@ export const signInWithGoogle = async () => {
 
 export const signOut = async () => {
   try {
-    console.log('Starting sign out process...');
+    logInfo('sign_out_initiated');
     const { error } = await supabase.auth.signOut();
     
     if (error) {
-      console.error('Sign out error:', error);
+      logError('sign_out_failed', error);
       toast({
         title: "Sign Out Failed",
         description: error.message,
@@ -88,9 +89,9 @@ export const signOut = async () => {
       description: "You have been successfully signed out.",
     });
     
-    console.log('Sign out successful, redirecting to auth page');
+    logInfo('sign_out_success');
   } catch (error) {
-    console.error('Error during sign out:', error);
+    logError('sign_out_exception', error);
     // The auth listener will handle updating the state
   }
 };

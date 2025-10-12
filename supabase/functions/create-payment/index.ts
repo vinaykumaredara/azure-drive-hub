@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { checkRateLimit, getClientIdentifier } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +18,22 @@ const CreatePaymentSchema = z.object({
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
+  }
+
+  // Rate limiting: 10 payment creations per minute per IP
+  const clientId = getClientIdentifier(req);
+  const isAllowed = checkRateLimit(clientId, {
+    tokensPerInterval: 10,
+    interval: 'minute'
+  });
+
+  if (!isAllowed) {
+    return new Response(JSON.stringify({ 
+      error: "Rate limit exceeded. Please try again later." 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 429,
+    });
   }
 
   try {
@@ -40,8 +57,6 @@ serve(async (req) => {
     }
 
     const { bookingId, gateway, amount } = validation.data;
-    
-    console.log('Creating payment session', { bookingId, gateway, amount })
 
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
@@ -81,7 +96,6 @@ serve(async (req) => {
       .single()
 
     if (paymentError) {
-      console.error('Payment creation error:', paymentError)
       throw paymentError
     }
 
@@ -100,7 +114,6 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Payment creation error:', error)
     return new Response(
       JSON.stringify({ 
         success: false, 
