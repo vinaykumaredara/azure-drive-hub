@@ -113,7 +113,8 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   const contentRef = useRef<HTMLDivElement | null>(null);
   const { profile, profileLoading } = useAuth();
 
-  const steps: Step[] = ['dates', 'phone', 'extras', 'terms', 'license', 'payment', 'confirmation'];
+  // Reordered steps: phone first, then dates, terms, license, payment (no extras)
+  const steps: Step[] = ['phone', 'dates', 'terms', 'license', 'payment', 'confirmation'];
   const currentStepIndex = steps.indexOf(currentStep);
 
   // Handle body scroll locking for mobile and focus management

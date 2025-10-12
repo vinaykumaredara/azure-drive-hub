@@ -119,23 +119,26 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
               ref={fileInputRef}
               type="file"
               accept="image/*,.pdf"
+              capture="environment"
               onChange={handleFileChange}
               className="hidden"
             />
             <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">Upload Your License</h3>
             <p className="text-muted-foreground mb-4">
-              Take a clear photo of your driver's license or upload a PDF. We'll verify it before your booking.
+              Take a clear photo with your camera or upload from your device. We'll verify it before your booking.
             </p>
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="mb-2"
-            >
-              {isUploading ? "Processing..." : "Choose File"}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Supports: JPG, PNG, PDF (max 5MB)
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                variant="default"
+              >
+                {isUploading ? "Processing..." : "Take Photo / Choose File"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Supports: JPG, PNG, PDF (max 5MB) • Camera or file upload
             </p>
           </div>
 

@@ -13,6 +13,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { LicenseUpload } from '@/components/LicenseUpload';
+import { EnhancedBookingFlow } from '@/components/EnhancedBookingFlow';
 
 import { errorLogger } from '@/utils/errorLogger';
 import ImageCarousel from '@/components/ImageCarousel';
@@ -76,55 +77,93 @@ const UserDashboard: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState<any>(null);
+  const [shouldOpenBooking, setShouldOpenBooking] = useState(false);
+  const [selectedCarForBooking, setSelectedCarForBooking] = useState<any>(null);
   const bookingsRef = useRef<Booking[]>([]);
 
-  // Handle booking restoration and phone collection after login
+  // Handle booking restoration and phone collection after login - NON-BLOCKING VERSION
   useEffect(() => {
-    // Add debug logging
-    console.log('UserDashboard useEffect triggered:', { user, profile, profileLoading });
+    console.log('UserDashboard booking restoration effect:', { 
+      userId: user?.id, 
+      hasPhone: !!profile?.phone, 
+      profileLoading 
+    });
     
-    if (!user?.id) return;
+    if (!user?.id || profileLoading) return;
 
-    // Check if we need to restore a booking
     const pendingBooking = sessionStorage.getItem('pendingBooking');
     if (pendingBooking) {
       try {
         const draft = JSON.parse(pendingBooking);
+        console.log('Found pending booking draft:', draft);
         setRestoredDraft(draft);
         
-        // Wait for profile to load
-        const checkProfile = async () => {
-          // Wait for profile to load (max 5 seconds)
-          let attempts = 0;
-          while (profileLoading && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-          
-          // Check if profile has phone number
-          if (!profile?.phone) {
-            console.log('Showing phone modal to collect phone number');
-            setShowPhoneModal(true);
-          } else {
-            // Phone exists, we can proceed with booking
-            console.log('Phone exists, booking can proceed');
-            // The actual booking restoration will be handled by the CarCard components
+        // Fetch car details
+        const fetchCarForBooking = async () => {
+          try {
+            const { data: carData, error } = await supabase
+              .from('cars')
+              .select('*')
+              .eq('id', draft.carId)
+              .single();
+            
+            if (error) throw error;
+            
+            if (carData) {
+              // Transform car data to match EnhancedBookingFlow props
+              const carForBooking = {
+                id: (carData as any).id,
+                title: (carData as any).title,
+                image: (carData as any).image_urls?.[0] || (carData as any).image_paths?.[0] || '',
+                pricePerDay: (carData as any).price_per_day,
+                price_in_paise: (carData as any).price_in_paise,
+                seats: (carData as any).seats,
+                fuel: (carData as any).fuel_type,
+                transmission: (carData as any).transmission,
+              };
+              
+              // Check if profile has phone number
+              if (!profile?.phone) {
+                console.log('No phone number - showing phone modal');
+                setShowPhoneModal(true);
+                setSelectedCarForBooking(carForBooking);
+              } else {
+                // Phone exists, open booking flow immediately
+                console.log('Phone exists - opening booking flow');
+                setSelectedCarForBooking(carForBooking);
+                setShouldOpenBooking(true);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to fetch car for booking:', error);
+            toast({
+              title: "Error",
+              description: "Failed to restore your booking. Please try again.",
+              variant: "destructive",
+            });
+            sessionStorage.removeItem('pendingBooking');
           }
         };
         
-        checkProfile();
+        fetchCarForBooking();
       } catch (error) {
         console.error('Failed to parse pending booking:', error);
         sessionStorage.removeItem('pendingBooking');
       }
     }
-  }, [user?.id, profile, profileLoading]);
+  }, [user?.id, profile?.phone, profileLoading]);
 
   // Handle phone modal completion
-  const handlePhoneModalComplete = () => {
-    console.log('Phone modal completed, booking can proceed');
+  const handlePhoneModalComplete = async () => {
+    console.log('Phone modal completed, refreshing profile and opening booking');
     setShowPhoneModal(false);
-    // The actual booking restoration will be handled by the CarCard components
+    
+    // Wait a moment for profile to refresh, then open booking flow
+    setTimeout(() => {
+      if (selectedCarForBooking) {
+        setShouldOpenBooking(true);
+      }
+    }, 500);
   };
 
   // Move fetchNotifications outside useEffect so it can be called from other places
@@ -1442,6 +1481,32 @@ const UserDashboard: React.FC = () => {
         <PhoneModal 
           onClose={() => setShowPhoneModal(false)} 
           onComplete={handlePhoneModalComplete} 
+        />
+      )}
+      
+      {/* Booking Modal */}
+      {shouldOpenBooking && selectedCarForBooking && (
+        <EnhancedBookingFlow
+          car={selectedCarForBooking}
+          onClose={() => {
+            setShouldOpenBooking(false);
+            setSelectedCarForBooking(null);
+            // Clear the pending booking from sessionStorage
+            sessionStorage.removeItem('pendingBooking');
+          }}
+          onBookingSuccess={() => {
+            setShouldOpenBooking(false);
+            setSelectedCarForBooking(null);
+            sessionStorage.removeItem('pendingBooking');
+            toast({
+              title: "Booking Complete",
+              description: "Your booking has been successfully completed!",
+            });
+            // Reload bookings to show the new one
+            if (user?.id) {
+              window.location.reload();
+            }
+          }}
         />
       )}
       

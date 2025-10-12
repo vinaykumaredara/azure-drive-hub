@@ -21,73 +21,34 @@ const Auth: React.FC = () => {
   const location = useLocation();
   const { signIn, signUp, signInWithGoogle, user, isAdmin, profile, profileLoading } = useAuth();
 
-  // Handle post-login redirect logic
+  // Handle post-login redirect logic - NON-BLOCKING VERSION
   useEffect(() => {
-    if (user && !isLoading) {
-      // Add debug logging
-      console.log('Auth useEffect triggered:', { user, profile, profileLoading });
+    if (user && !isLoading && !profileLoading) {
+      console.log('Auth redirect logic triggered:', { user, profile, hasPhone: !!profile?.phone });
       
-      // Check for redirect URL in query parameters
       const searchParams = new URLSearchParams(location.search);
       const nextUrl = searchParams.get('next');
+      const redirectToProfile = sessionStorage.getItem('redirectToProfileAfterLogin');
       
-      // Check if we need to redirect to profile after login
-      const redirectToProfileAfterLogin = sessionStorage.getItem('redirectToProfileAfterLogin');
-      
-      if (redirectToProfileAfterLogin === 'true') {
-        // Remove the flag
+      if (redirectToProfile === 'true') {
         sessionStorage.removeItem('redirectToProfileAfterLogin');
         
-        // Wait for profile to load
-        const checkProfile = async () => {
-          // Wait for profile to load (max 5 seconds)
-          let attempts = 0;
-          while (profileLoading && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-          
-          // Check if profile has phone number
-          if (!profile?.phone) {
-            // Redirect to user dashboard profile section
-            console.log('Redirecting to profile section to collect phone number');
-            navigate('/dashboard?tab=profile', { replace: true });
-            return;
-          }
-          
-          // If phone exists, restore booking
-          const pendingBooking = sessionStorage.getItem('pendingBooking');
-          if (pendingBooking) {
-            console.log('Restoring booking after login');
-            // We'll handle this in the UserDashboard or a dedicated restore component
-            navigate('/dashboard', { replace: true });
-            return;
-          }
-          
-          // Default redirect
-          if (nextUrl) {
-            navigate(nextUrl, { replace: true });
-          } else if (isAdmin) {
-            navigate('/admin', { replace: true });
-          } else {
-            navigate('/dashboard', { replace: true });
-          }
-        };
-        
-        checkProfile();
+        // Always redirect to dashboard - phone modal will show there if needed
+        console.log('Redirecting to dashboard for phone collection/booking restoration');
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      
+      // Normal redirect logic
+      if (nextUrl && nextUrl.startsWith('/')) {
+        navigate(nextUrl, { replace: true });
+      } else if (isAdmin) {
+        navigate('/admin', { replace: true });
       } else {
-        // Normal redirect logic - use client-side navigation only
-        if (nextUrl && nextUrl.startsWith('/')) {
-          // Only navigate to relative paths to avoid 404s
-          navigate(nextUrl, { replace: true });
-        } else if (isAdmin) {
-          navigate('/admin', { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
+        navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, isAdmin, navigate, isLoading, location.search, profile, profileLoading]);
+  }, [user, isAdmin, navigate, isLoading, profileLoading, profile, location.search]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
