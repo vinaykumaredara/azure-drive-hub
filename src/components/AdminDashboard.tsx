@@ -45,26 +45,26 @@ interface DashboardStats {
 interface CarData {
   id: string;
   title: string;
-  model: string;
-  make: string;
-  location_city: string;
+  model: string | null;
+  make: string | null;
+  location_city: string | null;
   price_per_day: number;
-  status: string;
+  status: string | null;
 }
 
 interface BookingData {
   id: string;
   status: string;
-  total_amount: number;
+  total_amount: number | null;
   start_datetime: string;
   end_datetime: string;
-  hold_expires_at: string;
+  hold_expires_at: string | null;
   cars?: {
     title: string;
-  };
+  } | null;
   users?: {
-    full_name: string;
-  };
+    full_name: string | null;
+  } | null;
 }
 
 const initialStats: DashboardStats = {

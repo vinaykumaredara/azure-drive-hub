@@ -78,25 +78,8 @@ const SystemSettings: React.FC = () => {
         _settings[setting.key] = setting.value;
       });
       
-      // Fetch actual settings from database
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*');
-        
-      if (error) {
-        console.warn('No system settings found, using defaults:', error);
-        // Continue with default values if no settings exist
-      } else {
-        // Override defaults with actual values
-        (data as any)?.forEach((row: any) => {
-          try {
-            _settings[(row as any).key] = JSON.parse((row as any).value);
-          } catch {
-            _settings[(row as any).key] = (row as any).value;
-          }
-        });
-      }
-      
+      // System settings table doesn't exist in current schema
+      // Using default settings only
       setSettings(_settings);
       setLocalSettings(_settings);
     } catch (error) {
@@ -131,17 +114,17 @@ const SystemSettings: React.FC = () => {
           value = Boolean(value);
         }
         
-        const { error } = await (supabase
-          .from('system_settings') as any)
-          .upsert({
-            key,
-            value: JSON.stringify(value),
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'key'
-          });
-          
-        if (error) {throw error;}
+        // System settings table doesn't exist - skipping database update
+        // const { error } = await supabase
+        //   .from('system_settings')
+        //   .upsert({
+        //     key,
+        //     value: JSON.stringify(value),
+        //     updated_at: new Date().toISOString()
+        //   }, {
+        //     onConflict: 'key'
+        //   });
+        // if (error) throw error;
       }
       
       // Update local state

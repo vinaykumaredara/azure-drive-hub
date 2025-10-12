@@ -21,20 +21,26 @@ import { HoldNotice } from "@/components/HoldNotice";
 interface Car {
   id: string;
   title: string;
-  make: string;
-  model: string;
-  year: number;
-  seats: number;
-  fuel_type: string;
-  transmission: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  seats: number | null;
+  fuel_type: string | null;
+  transmission: string | null;
   price_per_day: number;
-  price_per_hour?: number;
-  service_charge?: number;
-  description?: string;
-  location_city?: string;
-  status: string;
-  image_urls: string[];
-  created_at: string;
+  price_per_hour: number | null;
+  service_charge: number | null;
+  description: string | null;
+  location_city: string | null;
+  status: string | null;
+  image_urls: string[] | null;
+  image_paths: string[] | null;
+  created_at: string | null;
+  booked_at: string | null;
+  booked_by: string | null;
+  booking_status: string | null;
+  currency: string | null;
+  price_in_paise: number | null;
 }
 
 const BookingPage: React.FC = () => {
@@ -318,8 +324,8 @@ const BookingPage: React.FC = () => {
               <CardContent className="space-y-6">
                 <div className="space-y-6">
                   <LazyCarImageGallery
-                    images={car.image_urls}
-                    carTitle={`${car.make} ${car.model}`}
+                    images={car.image_urls || []}
+                    carTitle={`${car.make || ''} ${car.model || ''}`}
                     aspectRatio="video"
                     showThumbnails={true}
                     interactive={true}

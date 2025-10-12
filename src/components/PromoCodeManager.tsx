@@ -17,13 +17,15 @@ import { useNavigate } from "react-router-dom";
 interface PromoCode {
   id: string;
   code: string;
-  discount_percent?: number;
-  discount_flat?: number;
-  valid_from?: string;
-  valid_to?: string;
-  active: boolean;
-  usage_limit?: number;
-  created_at: string;
+  discount_percent: number | null;
+  discount_flat: number | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  active: boolean | null;
+  usage_limit: number | null;
+  times_used: number | null;
+  last_used_at: string | null;
+  created_at: string | null;
 }
 
 export const PromoCodeManager: React.FC = () => {
@@ -175,7 +177,7 @@ export const PromoCodeManager: React.FC = () => {
     setValidFrom(promo.valid_from ? new Date(promo.valid_from) : undefined);
     setValidTo(promo.valid_to ? new Date(promo.valid_to) : undefined);
     setUsageLimit(String(promo.usage_limit || ""));
-    setIsActive(promo.active);
+    setIsActive(promo.active !== null ? promo.active : true);
     setIsDialogOpen(true);
   };
 

@@ -11,7 +11,7 @@ type AuthContextType = {
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
-  profile: { id?: string; phone?: string; full_name?: string } | null;
+  profile: { id: string; phone: string | null; full_name: string | null } | null;
   profileLoading: boolean;
   refreshProfile: () => Promise<void>;
   signIn: typeof signIn;
