@@ -303,7 +303,7 @@ const CarCardModernComponent = ({
         </div>
       )}
 
-      {isBookingFlowOpen && (
+      {isBookingFlowOpen && carForBooking && (
         <EnhancedBookingFlow
           car={carForBooking} 
           onClose={() => {

@@ -693,7 +693,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     <div className="booking-flow-portal">
       <motion.div 
         {...modalAnimations}
-        className={`fixed inset-0 bg-black/60 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-50 ${!isMobileDevice() ? 'sm:backdrop-blur-sm' : ''}`}
+        className="fixed inset-0 bg-black/60 modal-overlay flex items-center justify-center p-0 sm:p-6 overflow-hidden booking-flow-modal z-50 backdrop-blur-sm"
         onClick={onClose}
         role="dialog"
         aria-modal="true"
@@ -716,7 +716,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           role="document"
         >
           {/* Header */}
-          <div className="p-3 sm:p-5 md:p-6 border-b flex-shrink-0">
+          <div className="p-4 sm:p-6 border-b flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <h2 id="booking-flow-title" className="text-base sm:text-lg md:text-xl font-bold">{stepTitles[currentStep]}</h2>
@@ -768,9 +768,9 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           {/* Scrollable Content Area */}
           <div 
             ref={contentRef}
-            className="p-3 sm:p-5 md:p-6 lg:p-8 overflow-y-auto flex-grow"
+            className="p-4 sm:p-6 overflow-y-auto flex-grow"
             style={{
-              maxHeight: 'calc(100vh - 160px)',
+              maxHeight: 'calc(100vh - 200px)',
               WebkitOverflowScrolling: 'touch',
             }}
             id={`step-${currentStep}-panel`}
@@ -791,7 +791,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
           {/* Sticky Footer - Always Visible */}
           {currentStep !== 'confirmation' && (
-            <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-3 py-2.5 sm:px-5 sm:py-3.5 md:px-6 md:py-4 flex justify-between items-center flex-shrink-0">
+            <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 p-4 sm:p-6 flex justify-between items-center flex-shrink-0">
               <div>
                 {currentStep !== 'dates' && (
                   <Button 
