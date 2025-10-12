@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { toast } from "@/hooks/use-toast";
+import { debugLog, errorLog } from "@/utils/logger";
 
 interface BookingDraft {
   carId: string;
@@ -39,7 +40,7 @@ export const useBooking = () => {
         const draft = JSON.parse(draftRaw);
         setPendingBooking(draft);
       } catch (error) {
-        console.error("Failed to parse pending booking:", error);
+        errorLog("Failed to parse pending booking:", error);
         sessionStorage.removeItem('pendingBooking');
       }
     }
@@ -48,7 +49,7 @@ export const useBooking = () => {
   const saveDraftAndRedirect = (draft: BookingDraft, options: SaveDraftOptions = {}) => {
     // Save booking draft to session storage
     sessionStorage.setItem('pendingBooking', JSON.stringify(draft));
-    console.debug('[useBooking] Draft saved and redirecting', { draft, options });
+    debugLog('[useBooking] Draft saved and redirecting', { draft, options });
     
     // Set flags in sessionStorage for post-login handling
     if (options.redirectToProfile) {
@@ -82,7 +83,7 @@ export const useBooking = () => {
       // Return true if user has at least one verified license
       return licenses && licenses.length > 0 && (licenses[0] as any).verified;
     } catch (error) {
-      console.error("License check error:", error);
+      errorLog("License check error:", error);
       toast({
         title: "Error",
         description: "Failed to check license status",
@@ -93,7 +94,7 @@ export const useBooking = () => {
   };
 
   const createBookingHold = async (draft: BookingDraft, payMode: "full" | "hold") => {
-    console.debug('[useBooking] createBookingHold called', { draft, payMode, user: !!user });
+    debugLog('[useBooking] createBookingHold called', { draft, payMode, user: !!user });
     
     if (!user) {
       saveDraftAndRedirect(draft);
@@ -102,7 +103,7 @@ export const useBooking = () => {
 
     // Add defensive validation client-side before calling server
     if (!draft.carId || !draft.pickup?.date || !draft.pickup?.time || !draft.return?.date || !draft.return?.time) {
-      console.debug('[useBooking] Validation failed - missing fields', draft);
+      debugLog('[useBooking] Validation failed - missing fields', draft);
       toast({
         title: "Validation Error",
         description: "Missing required booking information. Please fill in all date and time fields.",
@@ -112,7 +113,7 @@ export const useBooking = () => {
     }
 
     try {
-      console.debug('[useBooking] Calling create-hold edge function');
+      debugLog('[useBooking] Calling create-hold edge function');
       // Call Edge Function to create booking hold
       const { data, error } = await supabase.functions.invoke('create-hold', {
         body: {
@@ -126,16 +127,16 @@ export const useBooking = () => {
       });
 
       if (error) {
-        console.error('[useBooking] Edge function error', error);
+        errorLog('[useBooking] Edge function error', error);
         throw error;
       }
 
       if (!data.success) {
-        console.error('[useBooking] Booking hold failed', data);
+        errorLog('[useBooking] Booking hold failed', data);
         throw new Error(data.error || "Failed to create booking hold");
       }
 
-      console.debug('[useBooking] Booking hold created successfully', data);
+      debugLog('[useBooking] Booking hold created successfully', data);
       toast({
         title: "Booking Hold Created",
         description: payMode === "hold" 
@@ -145,7 +146,7 @@ export const useBooking = () => {
 
       return data;
     } catch (error: any) {
-      console.error('[useBooking] createBookingHold error', error);
+      errorLog('[useBooking] createBookingHold error', error);
       const errorMessage = error?.message || "Failed to create booking. Please try again.";
       toast({
         title: "Booking Failed",

@@ -1,16 +1,19 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, lazy, Suspense } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Star, Users, Fuel, Settings, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
-import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
 import { RatingsSummary } from "@/components/RatingsSummary";
 import ImageCarousel from '@/components/ImageCarousel';
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
 import { bookingIntentStorage } from "@/utils/bookingIntent";
+import { isMobileDevice } from "@/utils/deviceOptimizations";
+import { debugLog, errorLog } from "@/utils/logger";
+
+const EnhancedBookingFlow = lazy(() => import("@/components/EnhancedBookingFlow").then(m => ({ default: m.EnhancedBookingFlow })));
 
 export interface CarCardProps {
   car: {
@@ -56,12 +59,12 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
-    console.debug('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
+    debugLog('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
     
     try {
       e?.stopPropagation();
       e?.preventDefault();
-      console.debug('[handleBookNow] ENTRY', { 
+      debugLog('[handleBookNow] ENTRY', {
         carId: car.id, 
         user: !!user, 
         profile: !!profile, 
@@ -125,10 +128,10 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
       }
 
       // All checks passed -> open booking flow
-      console.debug('[handleBookNow] Opening booking flow');
+      debugLog('[handleBookNow] Opening booking flow');
       setIsBookingFlowOpen(true);
     } catch (err) {
-      console.error('[handleBookNow] ERROR', err);
+      errorLog('[handleBookNow] ERROR', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -179,7 +182,7 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
   return (
     <>
       <motion.div
-        whileHover={{ 
+        whileHover={isMobileDevice() ? {} : { 
           y: -8, 
           scale: 1.03,
           transition: { duration: 0.3, ease: "easeOut" }
@@ -310,11 +313,11 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                     size="sm" 
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.debug('[Contact] Button clicked', { carId: car.id });
+                      debugLog('[Contact] Button clicked', { carId: car.id });
                       handleWhatsAppContact();
                     }} 
                     variant="outline"
-                    className="min-w-[80px]"
+                    className="text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[100px] sm:min-w-[110px]"
                   >
                     Contact
                   </Button>
@@ -330,7 +333,7 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                     aria-disabled={!computedIsAvailable}
                     data-testid={`book-now-${car.id}`}
                     id={`book-now-btn-${car.id}`}
-                    className={`min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                    className={`text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[110px] sm:min-w-[130px] md:min-w-[140px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
                   >
                     Book Now
                   </Button>
@@ -342,11 +345,17 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
       </motion.div>
 
       {isBookingFlowOpen && (
-        <EnhancedBookingFlow 
-          car={carForBooking} 
-          onClose={() => setIsBookingFlowOpen(false)}
-          onBookingSuccess={handleBookingSuccess}
-        />
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        }>
+          <EnhancedBookingFlow 
+            car={carForBooking} 
+            onClose={() => setIsBookingFlowOpen(false)}
+            onBookingSuccess={handleBookingSuccess}
+          />
+        </Suspense>
       )}
     </>
   );

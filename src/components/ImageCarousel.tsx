@@ -68,16 +68,16 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
           <button 
             onClick={prev} 
             aria-label="Previous" 
-            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 rounded-full p-2 shadow-md hover:bg-white transition-all active:scale-95 sm:p-1"
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 rounded-full p-2.5 sm:p-2 shadow-lg hover:bg-white transition-all active:scale-95 z-10"
           >
-            <span className="text-gray-800 text-lg font-bold sm:text-base">‹</span>
+            <span className="text-gray-800 text-xl font-bold sm:text-lg">‹</span>
           </button>
           <button 
             onClick={next} 
             aria-label="Next" 
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 rounded-full p-2 shadow-md hover:bg-white transition-all active:scale-95 sm:p-1"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 rounded-full p-2.5 sm:p-2 shadow-lg hover:bg-white transition-all active:scale-95 z-10"
           >
-            <span className="text-gray-800 text-lg font-bold sm:text-base">›</span>
+            <span className="text-gray-800 text-xl font-bold sm:text-lg">›</span>
           </button>
           <div className="flex gap-1 sm:gap-2 justify-center mt-2">
             {validImages.map((_, i) => (

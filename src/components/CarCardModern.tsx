@@ -1,14 +1,17 @@
-import React, { useState, memo, useCallback, useEffect } from "react";
+import React, { useState, memo, useCallback, useEffect, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Heart } from "lucide-react";
-import SimpleImage from "@/components/SimpleImage";
-import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow"; // Changed from AtomicBookingFlow to EnhancedBookingFlow
+import ImageCarousel from "@/components/ImageCarousel";
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
 import { bookingIntentStorage } from "@/utils/bookingIntent";
+import { isMobileDevice } from "@/utils/deviceOptimizations";
+import { debugLog, errorLog } from "@/utils/logger";
+
+const EnhancedBookingFlow = lazy(() => import("@/components/EnhancedBookingFlow").then(m => ({ default: m.EnhancedBookingFlow })));
 
 // Define the car interface
 interface Car {
@@ -71,17 +74,17 @@ const CarCardModernComponent = ({
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
-    console.debug('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
+    debugLog('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
     
     if (isBookingLoading) {
-      console.debug('[BookNow] Already loading, ignoring');
+      debugLog('[BookNow] Already loading, ignoring');
       return;
     }
     
     try {
       e?.stopPropagation();
       e?.preventDefault();
-      console.debug('[handleBookNow] ENTRY', { 
+      debugLog('[handleBookNow] ENTRY', {
         carId: car.id, 
         user: !!user, 
         profile: !!profile, 
@@ -145,11 +148,11 @@ const CarCardModernComponent = ({
       }
 
       // All checks passed -> open booking flow
-      console.debug('[handleBookNow] Opening booking flow');
+      debugLog('[handleBookNow] Opening booking flow');
       setIsBookingLoading(true);
       setIsBookingFlowOpen(true);
     } catch (err) {
-      console.error('[handleBookNow] ERROR', err);
+      errorLog('[handleBookNow] ERROR', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -184,26 +187,34 @@ const CarCardModernComponent = ({
   return (
     <>
       <motion.article
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -4 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        whileHover={isMobileDevice() ? {} : { y: -4 }}
+        transition={{ duration: 0.2 }}
         className={`group grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-4 p-4 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 bg-white ${className}`}
         role="article"
         aria-label={`${car.make} ${car.model}`}
       >
         {/* Image Section */}
         <div className="relative w-full aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden rounded-xl bg-muted">
-          <SimpleImage 
-            src={car.thumbnail || car.image} 
-            alt={`${car.make} ${car.model}`} 
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            lazy={true}
-          />
+          {car.images && car.images.length > 0 ? (
+            <ImageCarousel 
+              images={car.images} 
+              className="w-full h-full"
+              debug={false}
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <svg className="w-12 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+          )}
           
           {/* Save Button */}
           <button
             onClick={() => setIsSaved(!isSaved)}
-            className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shadow-sm hover:bg-white transition-colors"
+            className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shadow-sm hover:bg-white transition-colors z-10"
             aria-label={isSaved ? "Remove from saved" : "Save car"}
           >
             <Heart 
@@ -212,7 +223,7 @@ const CarCardModernComponent = ({
           </button>
           
           {/* Badges */}
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-wrap gap-1">
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-wrap gap-1 z-10">
             {car.badges?.map((badge, index) => (
               <Badge 
                 key={`${car.id}-badge-${index}`} 
@@ -253,10 +264,10 @@ const CarCardModernComponent = ({
                 variant="outline" 
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.debug('[Contact] Button clicked', { carId: car.id });
+                  debugLog('[Contact] Button clicked', { carId: car.id });
                   handleWhatsAppContact();
                 }}
-                className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
+                className="text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[100px] sm:min-w-[110px]"
               >
                 Contact
               </Button>
@@ -272,7 +283,7 @@ const CarCardModernComponent = ({
                 aria-disabled={!computedIsAvailable}
                 data-testid={`book-now-${car.id}`}
                 id={`book-now-btn-${car.id}`}
-                className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                className={`text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[110px] sm:min-w-[130px] md:min-w-[140px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
               >
                 Book Now
               </Button>
@@ -282,14 +293,20 @@ const CarCardModernComponent = ({
       </motion.article>
 
       {isBookingFlowOpen && (
-        <EnhancedBookingFlow // Changed from AtomicBookingFlow to EnhancedBookingFlow
-          car={carForBooking} 
-          onClose={() => {
-            setIsBookingFlowOpen(false);
-            setIsBookingLoading(false);
-          }}
-          onBookingSuccess={handleBookingSuccess}
-        />
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        }>
+          <EnhancedBookingFlow
+            car={carForBooking} 
+            onClose={() => {
+              setIsBookingFlowOpen(false);
+              setIsBookingLoading(false);
+            }}
+            onBookingSuccess={handleBookingSuccess}
+          />
+        </Suspense>
       )}
     </>
   );
