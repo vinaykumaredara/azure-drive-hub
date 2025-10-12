@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { bookingIntentManager } from '@/utils/bookingIntentManager';
-import { bookingDebugger } from '@/utils/bookingDebugger';
+import { bookingIntentStorage } from '@/utils/bookingIntent';
 import { toast } from '@/hooks/use-toast';
 
 export const useBookingResume = () => {
@@ -11,34 +10,22 @@ export const useBookingResume = () => {
   const [resumedCar, setResumedCar] = useState<any>(null);
   
   const attemptResume = useCallback(async () => {
-    if (!user || profileLoading) return;
+    if (!user || profileLoading || isResuming) return;
     
-    // Acquire lock to prevent duplicate processing
-    if (bookingIntentManager.isLocked()) {
-      console.debug('[BookingResume] Already processing, skipping');
+    const intent = bookingIntentStorage.get();
+    if (!intent || intent.type !== 'BOOK_CAR') return;
+    
+    console.debug('[BookingResume] Attempting resume', intent);
+    
+    if (bookingIntentStorage.isExpired(intent)) {
+      console.debug('[BookingResume] Intent expired');
+      bookingIntentStorage.clear();
       return;
     }
     
-    const releaseLock = await bookingIntentManager.acquireLock();
+    setIsResuming(true);
     
     try {
-      const intent = bookingIntentManager.getIntent();
-      if (!intent || intent.type !== 'BOOK_CAR') {
-        releaseLock();
-        return;
-      }
-      
-      console.debug('[BookingResume] Attempting resume', intent);
-      
-      if (bookingIntentManager.isExpired(intent)) {
-        console.debug('[BookingResume] Intent expired');
-        bookingIntentManager.clearIntent();
-        releaseLock();
-        return;
-      }
-      
-      setIsResuming(true);
-      
       // Fetch car details
       const { data: car, error } = await supabase
         .from('cars')
@@ -67,12 +54,10 @@ export const useBookingResume = () => {
       console.debug('[BookingResume] Car fetched, opening flow', carForBooking);
       
       // Clear intent BEFORE opening modal to prevent loops
-      bookingIntentManager.clearIntent();
+      bookingIntentStorage.clear();
       
       // Set car and let parent component handle modal opening
       setResumedCar(carForBooking);
-      
-      bookingDebugger.logIntentResumed(intent.carId);
       
       toast({
         title: "Booking Resumed",
@@ -81,18 +66,16 @@ export const useBookingResume = () => {
       
     } catch (error) {
       console.error('[BookingResume] ERROR', error);
-      bookingDebugger.logError('attemptResume', error);
-      bookingIntentManager.clearIntent();
+      bookingIntentStorage.clear();
       toast({
         title: "Resume Failed",
         description: "Could not resume your booking. Please try again.",
         variant: "destructive",
       });
     } finally {
-      releaseLock();
       setIsResuming(false);
     }
-  }, [user, profileLoading]);
+  }, [user, profileLoading, isResuming]);
   
   // Auto-attempt resume on auth change
   useEffect(() => {

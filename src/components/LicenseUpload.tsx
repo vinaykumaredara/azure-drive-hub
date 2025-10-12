@@ -49,28 +49,16 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
     setIsUploading(true);
 
     try {
-      console.debug('[LicenseUpload] Upload started', { fileName: file.name, size: file.size });
-      
-      // Upload file to Supabase Storage - Fix RLS policy match
+      // Upload file to Supabase Storage
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`; // Match RLS policy: {user_id}/{filename}
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const filePath = `licenses/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('license-uploads')
         .upload(filePath, file, { upsert: false });
 
-      if (uploadError) {
-        console.error('[LicenseUpload] Upload failed:', uploadError);
-        toast({
-          title: "Upload Failed",
-          description: uploadError.message || "Failed to upload license. Please check your connection and try again.",
-          variant: "destructive",
-        });
-        throw uploadError;
-      }
-      
-      console.debug('[LicenseUpload] Upload successful', { filePath });
+      if (uploadError) {throw uploadError;}
 
       // Create license record in database
       const { data: license, error: insertError } = await (supabase
@@ -89,8 +77,6 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
         throw insertError;
       }
 
-      console.debug('[LicenseUpload] License record created', { licenseId: (license as any).id });
-      
       toast({
         title: "License Uploaded Successfully!",
         description: "Your license has been uploaded and is awaiting admin verification.",
@@ -126,9 +112,9 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
             Driver's License Verification
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-6">
+        <CardContent className="space-y-6">
           {/* Upload Section */}
-          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-5 md:p-6 text-center">
+          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
             <input
               ref={fileInputRef}
               type="file"
@@ -137,9 +123,9 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
               onChange={handleFileChange}
               className="hidden"
             />
-            <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
-            <h3 className="text-base sm:text-lg font-medium mb-2">Upload Your License</h3>
-            <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4 px-2">
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">Upload Your License</h3>
+            <p className="text-muted-foreground mb-4">
               Take a clear photo with your camera or upload from your device. We'll verify it before your booking.
             </p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
@@ -147,7 +133,6 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
                 variant="default"
-                className="w-full sm:w-auto min-w-[200px] sm:min-w-[240px] px-4 py-2 text-sm sm:text-base"
               >
                 {isUploading ? "Processing..." : "Take Photo / Choose File"}
               </Button>
@@ -159,10 +144,10 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
 
           {/* Upload Button */}
           {file && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <FileText className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                <span className="text-sm font-medium truncate max-w-[180px] sm:max-w-[250px] md:max-w-[350px]">
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm font-medium truncate max-w-[200px]">
                   {file.name}
                 </span>
               </div>
@@ -170,7 +155,6 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
                 onClick={handleUpload}
                 disabled={isUploading}
                 size="sm"
-                className="w-full sm:w-auto min-w-[140px] sm:min-w-[160px] px-4 py-2 text-sm sm:text-base"
               >
                 {isUploading ? (
                   <>

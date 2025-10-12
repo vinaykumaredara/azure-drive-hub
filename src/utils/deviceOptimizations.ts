@@ -93,37 +93,6 @@ export function getDeviceAnimationSettings() {
 }
 
 /**
- * Get modal-specific animation settings optimized for each device
- * @returns Framer Motion animation configuration
- */
-export function getModalAnimationSettings() {
-  if (shouldReduceMotion()) {
-    return {
-      initial: { opacity: 0 },
-      animate: { opacity: 1 },
-      exit: { opacity: 0 },
-      transition: { duration: 0 }
-    };
-  }
-  
-  if (isMobileDevice()) {
-    return {
-      initial: { opacity: 0, scale: 0.98 },
-      animate: { opacity: 1, scale: 1 },
-      exit: { opacity: 0, scale: 0.98 },
-      transition: { duration: 0.15 }
-    };
-  }
-  
-  return {
-    initial: { opacity: 0, scale: 0.95 },
-    animate: { opacity: 1, scale: 1 },
-    exit: { opacity: 0, scale: 0.95 },
-    transition: { duration: 0.2 }
-  };
-}
-
-/**
  * Optimize rendering based on device type
  * @returns object with rendering optimizations
  */

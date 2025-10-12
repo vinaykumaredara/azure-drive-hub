@@ -1,16 +1,14 @@
-import React, { useState, memo, useCallback } from "react";
+import React, { useState, memo, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Heart } from "lucide-react";
-import ImageCarousel from "@/components/ImageCarousel";
+import SimpleImage from "@/components/SimpleImage";
+import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow"; // Changed from AtomicBookingFlow to EnhancedBookingFlow
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
-import { bookingIntentManager } from "@/utils/bookingIntentManager";
-import { isMobileDevice } from "@/utils/deviceOptimizations";
-import { bookingDebugger } from "@/utils/bookingDebugger";
-import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
+import { bookingIntentStorage } from "@/utils/bookingIntent";
 
 // Define the car interface
 interface Car {
@@ -73,15 +71,23 @@ const CarCardModernComponent = ({
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
+    console.debug('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
+    
     if (isBookingLoading) {
+      console.debug('[BookNow] Already loading, ignoring');
       return;
     }
     
     try {
       e?.stopPropagation();
       e?.preventDefault();
-      
-      bookingDebugger.logButtonClick(car.id, user, profile);
+      console.debug('[handleBookNow] ENTRY', { 
+        carId: car.id, 
+        user: !!user, 
+        profile: !!profile, 
+        profileLoading,
+        computedIsAvailable 
+      });
 
       if (!computedIsAvailable) {
         toast({
@@ -94,8 +100,11 @@ const CarCardModernComponent = ({
 
       // If user is not logged in -> save intent & redirect to auth
       if (!user) {
-        bookingIntentManager.saveIntent(car.id);
-        bookingDebugger.logIntentSaved(car.id);
+        bookingIntentStorage.save({
+          type: 'BOOK_CAR',
+          carId: car.id,
+          timestamp: Date.now(),
+        });
         
         const draft = {
           carId: car.id,
@@ -136,23 +145,14 @@ const CarCardModernComponent = ({
       }
 
       // All checks passed -> open booking flow
+      console.debug('[handleBookNow] Opening booking flow');
       setIsBookingLoading(true);
-      
-      toast({
-        title: "Opening Booking...",
-        description: "Please wait a moment",
-      });
-      
-      // Small delay to ensure UI updates
-      setTimeout(() => {
-        setIsBookingFlowOpen(true);
-        bookingDebugger.logModalOpen(car.id);
-      }, 100);
+      setIsBookingFlowOpen(true);
     } catch (err) {
-      bookingDebugger.logError('handleBookNow', err);
+      console.error('[handleBookNow] ERROR', err);
       toast({
         title: "Unexpected Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: "An unexpected error occurred. Please check the console or contact support.",
         variant: "destructive",
       });
     }
@@ -184,41 +184,26 @@ const CarCardModernComponent = ({
   return (
     <>
       <motion.article
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        whileHover={isMobileDevice() ? {} : { y: -4 }}
-        transition={{ duration: 0.2 }}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -4 }}
         className={`group grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-4 p-4 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 bg-white ${className}`}
         role="article"
         aria-label={`${car.make} ${car.model}`}
-        onClick={(e) => {
-          // Prevent card-level clicks from interfering with buttons
-          const target = e.target as HTMLElement;
-          if (target.closest('button') || target.closest('a')) {
-            return;
-          }
-        }}
       >
         {/* Image Section */}
         <div className="relative w-full aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden rounded-xl bg-muted">
-          {car.images && car.images.length > 0 ? (
-            <ImageCarousel 
-              images={car.images} 
-              className="w-full h-full"
-              debug={false}
-            />
-          ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center">
-              <svg className="w-12 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-              </svg>
-            </div>
-          )}
+          <SimpleImage 
+            src={car.thumbnail || car.image} 
+            alt={`${car.make} ${car.model}`} 
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            lazy={true}
+          />
           
           {/* Save Button */}
           <button
             onClick={() => setIsSaved(!isSaved)}
-            className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shadow-sm hover:bg-white transition-colors z-10"
+            className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-white/90 backdrop-blur-sm rounded-full p-1.5 sm:p-2 shadow-sm hover:bg-white transition-colors"
             aria-label={isSaved ? "Remove from saved" : "Save car"}
           >
             <Heart 
@@ -227,7 +212,7 @@ const CarCardModernComponent = ({
           </button>
           
           {/* Badges */}
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-wrap gap-1 z-10">
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-wrap gap-1">
             {car.badges?.map((badge, index) => (
               <Badge 
                 key={`${car.id}-badge-${index}`} 
@@ -261,17 +246,17 @@ const CarCardModernComponent = ({
 
           <div className="flex items-center justify-between mt-3 sm:mt-4">
             <div className="text-lg sm:text-xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
-            <div className="flex gap-2 sm:gap-3 relative z-20 flex-shrink-0">
+            <div className="flex gap-2 sm:gap-3 relative z-10">
               <Button 
                 type="button"
                 size="sm" 
                 variant="outline" 
                 onClick={(e) => {
                   e.stopPropagation();
-                  e.preventDefault();
+                  console.debug('[Contact] Button clicked', { carId: car.id });
                   handleWhatsAppContact();
                 }}
-                className="text-xs sm:text-sm whitespace-nowrap relative z-10 pointer-events-auto"
+                className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
               >
                 Contact
               </Button>
@@ -284,8 +269,10 @@ const CarCardModernComponent = ({
                   handleBookNow(e);
                 }}
                 disabled={!computedIsAvailable}
+                aria-disabled={!computedIsAvailable}
                 data-testid={`book-now-${car.id}`}
-                className="text-xs sm:text-sm whitespace-nowrap relative z-20 pointer-events-auto"
+                id={`book-now-btn-${car.id}`}
+                className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
               >
                 Book Now
               </Button>
@@ -294,22 +281,12 @@ const CarCardModernComponent = ({
         </div>
       </motion.article>
 
-      {isBookingLoading && !isBookingFlowOpen && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-40">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-sm text-muted-foreground">Loading booking form...</p>
-          </div>
-        </div>
-      )}
-
-      {isBookingFlowOpen && carForBooking && (
-        <EnhancedBookingFlow
+      {isBookingFlowOpen && (
+        <EnhancedBookingFlow // Changed from AtomicBookingFlow to EnhancedBookingFlow
           car={carForBooking} 
           onClose={() => {
             setIsBookingFlowOpen(false);
             setIsBookingLoading(false);
-            bookingDebugger.logModalClose();
           }}
           onBookingSuccess={handleBookingSuccess}
         />
