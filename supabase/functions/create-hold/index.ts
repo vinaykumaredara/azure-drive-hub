@@ -1,10 +1,29 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const CreateHoldSchema = z.object({
+  carId: z.string().uuid("Invalid car ID"),
+  pickup: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)"),
+    time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format (HH:MM)")
+  }),
+  return: z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)"),
+    time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format (HH:MM)")
+  }),
+  addons: z.any().optional(),
+  totals: z.object({
+    total: z.number().positive("Total must be positive").max(10000000, "Amount too large")
+  }),
+  payMode: z.enum(["hold", "full"], { errorMap: () => ({ message: "Payment mode must be 'hold' or 'full'" }) })
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -25,11 +44,21 @@ serve(async (req) => {
     
     if (!user) throw new Error("User not authenticated");
 
-    const { carId, pickup, return: returnDate, addons, totals, payMode } = await req.json();
-
-    if (!carId || !pickup || !returnDate) {
-      throw new Error("Missing required booking data");
+    // Parse and validate input
+    const body = await req.json();
+    const validation = CreateHoldSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return new Response(JSON.stringify({ 
+        error: "Invalid input data", 
+        details: validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
     }
+
+    const { carId, pickup, return: returnDate, addons, totals, payMode } = validation.data;
 
     // Parse dates
     const startDateTime = new Date(pickup.date + "T" + pickup.time);

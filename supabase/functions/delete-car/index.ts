@@ -27,6 +27,49 @@ serve(async (req) => {
       );
     }
 
+    // SECURITY: Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { 
+          status: 401, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { 
+          status: 401, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // SECURITY: Verify admin role
+    const { data: roleData } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (!roleData) {
+      return new Response(
+        JSON.stringify({ error: 'Admin access required' }),
+        { 
+          status: 403, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     // Parse request body
     const { carId } = await req.json();
     
@@ -41,7 +84,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[DELETE-CAR] Starting deletion process for car ID: ${carId}`);
+    console.log(`[DELETE-CAR] Admin ${user.id} starting deletion process for car ID: ${carId}`);
 
     // 1. Fetch car data to get image paths
     const { data: car, error: fetchError } = await supabaseAdmin

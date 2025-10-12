@@ -1,10 +1,18 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Input validation schema
+const CreatePaymentSchema = z.object({
+  bookingId: z.string().uuid("Invalid booking ID"),
+  gateway: z.enum(["stripe", "razorpay"], { errorMap: () => ({ message: "Gateway must be 'stripe' or 'razorpay'" }) }),
+  amount: z.number().positive("Amount must be positive").max(10000000, "Amount too large")
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,7 +25,21 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { bookingId, gateway, amount } = await req.json()
+    // Parse and validate input
+    const body = await req.json();
+    const validation = CreatePaymentSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return new Response(JSON.stringify({ 
+        error: "Invalid input data", 
+        details: validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
+    const { bookingId, gateway, amount } = validation.data;
     
     console.log('Creating payment session', { bookingId, gateway, amount })
 
@@ -43,8 +65,6 @@ serve(async (req) => {
       // Mock Razorpay order creation
       sessionId = `order_mock_${Date.now()}`
       paymentUrl = `https://api.razorpay.com/v1/checkout/embedded?order_id=${sessionId}`
-    } else {
-      throw new Error('Unsupported payment gateway')
     }
 
     // Create payment record

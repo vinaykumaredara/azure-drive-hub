@@ -1,10 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const CompletePaymentSchema = z.object({
+  payment_intent_id: z.string().min(1, "Payment intent ID is required"),
+  status: z.enum(["succeeded", "failed"], { errorMap: () => ({ message: "Status must be 'succeeded' or 'failed'" }) }).default("succeeded"),
+  metadata: z.record(z.any()).optional().default({})
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -18,11 +26,21 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { payment_intent_id, status = "succeeded", metadata = {} } = await req.json();
-
-    if (!payment_intent_id) {
-      throw new Error("Payment intent ID is required");
+    // Parse and validate input
+    const body = await req.json();
+    const validation = CompletePaymentSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return new Response(JSON.stringify({ 
+        error: "Invalid input data", 
+        details: validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
     }
+
+    const { payment_intent_id, status, metadata } = validation.data;
 
     // Find payment by transaction ID
     const { data: payment, error: paymentError } = await supabaseClient
