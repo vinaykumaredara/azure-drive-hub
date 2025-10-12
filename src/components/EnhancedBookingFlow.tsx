@@ -25,6 +25,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatINRFromPaise } from '@/utils/currency';
 import { LicenseUpload } from '@/components/LicenseUpload';
 import { isMobileDevice, getModalAnimationSettings } from '@/utils/deviceOptimizations';
+import { modalManager } from '@/utils/modalManager';
+import { bookingDebugger } from '@/utils/bookingDebugger';
 import { PaymentGateway } from '@/components/PaymentGateway';
 import { useAuth } from '@/hooks/use-auth';
 import { DatesStep } from '@/components/booking-steps/DatesStep';
@@ -120,7 +122,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
   // Handle body scroll locking for mobile and focus management
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
+    modalManager.openModal();
     
     // Focus the first focusable element in the modal when it opens
     const focusableElements = document.querySelectorAll(
@@ -131,7 +133,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     }
     
     return () => {
-      document.body.style.overflow = '';
+      modalManager.closeModal();
     };
   }, []);
 
@@ -691,7 +693,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     <div className="booking-flow-portal">
       <motion.div 
         {...modalAnimations}
-        className={`fixed inset-0 bg-black/60 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[100] ${!isMobileDevice() ? 'sm:backdrop-blur-sm' : ''}`}
+        className={`fixed inset-0 bg-black/60 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-50 ${!isMobileDevice() ? 'sm:backdrop-blur-sm' : ''}`}
         onClick={onClose}
         role="dialog"
         aria-modal="true"
@@ -705,7 +707,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       >
         <motion.div 
           {...contentAnimations}
-          className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[95vh] flex flex-col modal-content relative sm:rounded-2xl shadow-2xl"
+          className="bg-white w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[95vh] flex flex-col modal-content relative sm:rounded-2xl shadow-2xl z-[51]"
           onClick={(e) => e.stopPropagation()}
           style={{ 
             maxHeight: '100vh',

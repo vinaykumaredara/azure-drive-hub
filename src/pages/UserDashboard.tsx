@@ -21,6 +21,7 @@ import { resolveCarImageUrl } from '@/utils/carImageUtils';
 import { formatINRFromPaise } from '@/utils/currency';
 import { PhoneModal } from '@/components/PhoneModal';
 import { useBookingResume } from '@/hooks/useBookingResume';
+import { bookingIntentManager } from '@/utils/bookingIntentManager';
 
 interface Booking {
   id: string;
@@ -100,75 +101,6 @@ const UserDashboard: React.FC = () => {
       }
     }
   }, [resumedCar, profile?.phone, showPhoneModal, profileLoading, clearResumedCar]);
-  
-  // Legacy: Handle booking restoration from sessionStorage (fallback)
-  useEffect(() => {
-    if (!user?.id || profileLoading) return;
-
-    const pendingBooking = sessionStorage.getItem('pendingBooking');
-    if (pendingBooking) {
-      console.debug('[UserDashboard] Legacy sessionStorage booking detected');
-      try {
-        const draft = JSON.parse(pendingBooking);
-        setRestoredDraft(draft);
-        
-        // Fetch car details
-        const fetchCarForBooking = async () => {
-          try {
-            const { data: carData, error } = await supabase
-              .from('cars')
-              .select('*')
-              .eq('id', draft.carId)
-              .single();
-            
-            if (error) throw error;
-            
-            if (carData) {
-              // Transform car data to match EnhancedBookingFlow props
-              const carForBooking = {
-                id: (carData as any).id,
-                title: (carData as any).title,
-                image: (carData as any).image_urls?.[0] || (carData as any).image_paths?.[0] || '',
-                pricePerDay: (carData as any).price_per_day,
-                price_in_paise: (carData as any).price_in_paise,
-                seats: (carData as any).seats,
-                fuel: (carData as any).fuel_type,
-                transmission: (carData as any).transmission,
-              };
-              
-              // Check if profile has phone number
-              if (!profile?.phone) {
-                console.debug('[UserDashboard] Legacy: No phone - showing phone modal');
-                setShowPhoneModal(true);
-                setSelectedCarForBooking(carForBooking);
-              } else {
-                // Phone exists, open booking flow immediately
-                console.debug('[UserDashboard] Legacy: Phone exists - opening booking flow');
-                setSelectedCarForBooking(carForBooking);
-                setShouldOpenBooking(true);
-              }
-              
-              // Clear legacy sessionStorage after processing
-              sessionStorage.removeItem('pendingBooking');
-            }
-          } catch (error) {
-            console.error('[UserDashboard] Failed to fetch car for booking:', error);
-            toast({
-              title: "Error",
-              description: "Failed to restore your booking. Please try again.",
-              variant: "destructive",
-            });
-            sessionStorage.removeItem('pendingBooking');
-          }
-        };
-        
-        fetchCarForBooking();
-      } catch (error) {
-        console.error('[UserDashboard] Failed to parse pending booking:', error);
-        sessionStorage.removeItem('pendingBooking');
-      }
-    }
-  }, [user?.id, profile?.phone, profileLoading]);
 
   // Handle phone modal completion
   const handlePhoneModalComplete = async () => {

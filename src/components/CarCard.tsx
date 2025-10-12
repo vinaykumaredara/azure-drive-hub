@@ -9,9 +9,9 @@ import ImageCarousel from '@/components/ImageCarousel';
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
-import { bookingIntentStorage } from "@/utils/bookingIntent";
+import { bookingIntentManager } from "@/utils/bookingIntentManager";
 import { isMobileDevice } from "@/utils/deviceOptimizations";
-import { debugLog, errorLog } from "@/utils/logger";
+import { bookingDebugger } from "@/utils/bookingDebugger";
 import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
 
 export interface CarCardProps {
@@ -58,18 +58,11 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
 
   // Replace the memoized handler with a fresh function that reads current values at click time
   function handleBookNow(e?: React.MouseEvent) {
-    debugLog('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
-    
     try {
       e?.stopPropagation();
       e?.preventDefault();
-      debugLog('[handleBookNow] ENTRY', {
-        carId: car.id, 
-        user: !!user, 
-        profile: !!profile, 
-        profileLoading,
-        computedIsAvailable 
-      });
+      
+      bookingDebugger.logButtonClick(car.id, user, profile);
 
       if (!computedIsAvailable) {
         toast({
@@ -82,11 +75,8 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
 
       // If user is not logged in -> save intent & redirect to auth
       if (!user) {
-        bookingIntentStorage.save({
-          type: 'BOOK_CAR',
-          carId: car.id,
-          timestamp: Date.now(),
-        });
+        bookingIntentManager.saveIntent(car.id);
+        bookingDebugger.logIntentSaved(car.id);
         
         const draft = {
           carId: car.id,
@@ -127,10 +117,10 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
       }
 
       // All checks passed -> open booking flow
-      debugLog('[handleBookNow] Opening booking flow');
       setIsBookingFlowOpen(true);
+      bookingDebugger.logModalOpen(car.id);
     } catch (err) {
-      errorLog('[handleBookNow] ERROR', err);
+      bookingDebugger.logError('handleBookNow', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -306,17 +296,17 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                   <span className="text-2xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}</span>
                   <span className="text-sm text-muted-foreground">/day</span>
                 </div>
-                <div className="flex gap-2 sm:gap-3 relative z-10">
+                <div className="flex gap-2 sm:gap-3 relative z-20">
                   <Button 
                     type="button"
                     size="sm" 
                     onClick={(e) => {
                       e.stopPropagation();
-                      debugLog('[Contact] Button clicked', { carId: car.id });
+                      e.preventDefault();
                       handleWhatsAppContact();
                     }} 
                     variant="outline"
-                    className="text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[100px] sm:min-w-[110px]"
+                    className="text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[100px] sm:min-w-[110px] relative z-10 pointer-events-auto"
                   >
                     Contact
                   </Button>
@@ -332,7 +322,7 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                     aria-disabled={!computedIsAvailable}
                     data-testid={`book-now-${car.id}`}
                     id={`book-now-btn-${car.id}`}
-                    className={`text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[110px] sm:min-w-[130px] md:min-w-[140px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                    className={`text-xs sm:text-sm px-4 sm:px-5 md:px-6 py-2 min-w-[110px] sm:min-w-[130px] md:min-w-[140px] relative z-20 pointer-events-auto ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
                   >
                     Book Now
                   </Button>
@@ -346,7 +336,10 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
       {isBookingFlowOpen && (
         <EnhancedBookingFlow 
           car={carForBooking} 
-          onClose={() => setIsBookingFlowOpen(false)}
+          onClose={() => {
+            setIsBookingFlowOpen(false);
+            bookingDebugger.logModalClose();
+          }}
           onBookingSuccess={handleBookingSuccess}
         />
       )}

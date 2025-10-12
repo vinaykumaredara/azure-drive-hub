@@ -7,9 +7,9 @@ import ImageCarousel from "@/components/ImageCarousel";
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
-import { bookingIntentStorage } from "@/utils/bookingIntent";
+import { bookingIntentManager } from "@/utils/bookingIntentManager";
 import { isMobileDevice } from "@/utils/deviceOptimizations";
-import { debugLog, errorLog } from "@/utils/logger";
+import { bookingDebugger } from "@/utils/bookingDebugger";
 import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
 
 // Define the car interface
@@ -80,6 +80,8 @@ const CarCardModernComponent = ({
     try {
       e?.stopPropagation();
       e?.preventDefault();
+      
+      bookingDebugger.logButtonClick(car.id, user, profile);
 
       if (!computedIsAvailable) {
         toast({
@@ -92,11 +94,8 @@ const CarCardModernComponent = ({
 
       // If user is not logged in -> save intent & redirect to auth
       if (!user) {
-        bookingIntentStorage.save({
-          type: 'BOOK_CAR',
-          carId: car.id,
-          timestamp: Date.now(),
-        });
+        bookingIntentManager.saveIntent(car.id);
+        bookingDebugger.logIntentSaved(car.id);
         
         const draft = {
           carId: car.id,
@@ -138,9 +137,19 @@ const CarCardModernComponent = ({
 
       // All checks passed -> open booking flow
       setIsBookingLoading(true);
-      setIsBookingFlowOpen(true);
+      
+      toast({
+        title: "Opening Booking...",
+        description: "Please wait a moment",
+      });
+      
+      // Small delay to ensure UI updates
+      setTimeout(() => {
+        setIsBookingFlowOpen(true);
+        bookingDebugger.logModalOpen(car.id);
+      }, 100);
     } catch (err) {
-      errorLog('[handleBookNow] ERROR', err);
+      bookingDebugger.logError('handleBookNow', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please try again.",
@@ -182,6 +191,13 @@ const CarCardModernComponent = ({
         className={`group grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-4 p-4 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 bg-white ${className}`}
         role="article"
         aria-label={`${car.make} ${car.model}`}
+        onClick={(e) => {
+          // Prevent card-level clicks from interfering with buttons
+          const target = e.target as HTMLElement;
+          if (target.closest('button') || target.closest('a')) {
+            return;
+          }
+        }}
       >
         {/* Image Section */}
         <div className="relative w-full aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden rounded-xl bg-muted">
@@ -245,16 +261,17 @@ const CarCardModernComponent = ({
 
           <div className="flex items-center justify-between mt-3 sm:mt-4">
             <div className="text-lg sm:text-xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2 sm:gap-3 relative z-20 flex-shrink-0">
               <Button 
                 type="button"
                 size="sm" 
                 variant="outline" 
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   handleWhatsAppContact();
                 }}
-                className="text-xs sm:text-sm whitespace-nowrap"
+                className="text-xs sm:text-sm whitespace-nowrap relative z-10 pointer-events-auto"
               >
                 Contact
               </Button>
@@ -268,7 +285,7 @@ const CarCardModernComponent = ({
                 }}
                 disabled={!computedIsAvailable}
                 data-testid={`book-now-${car.id}`}
-                className="text-xs sm:text-sm whitespace-nowrap"
+                className="text-xs sm:text-sm whitespace-nowrap relative z-20 pointer-events-auto"
               >
                 Book Now
               </Button>
@@ -277,12 +294,22 @@ const CarCardModernComponent = ({
         </div>
       </motion.article>
 
+      {isBookingLoading && !isBookingFlowOpen && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-40">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-sm text-muted-foreground">Loading booking form...</p>
+          </div>
+        </div>
+      )}
+
       {isBookingFlowOpen && (
         <EnhancedBookingFlow
           car={carForBooking} 
           onClose={() => {
             setIsBookingFlowOpen(false);
             setIsBookingLoading(false);
+            bookingDebugger.logModalClose();
           }}
           onBookingSuccess={handleBookingSuccess}
         />
