@@ -46,11 +46,11 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
   const { user, profile, profileLoading } = useAuth();
   const { saveDraftAndRedirect } = useBooking();
 
-  // Compute isAvailable defensively - make the logic match backend values and handle undefined gracefully
-  const bookingStatus = (car.bookingStatus || '').toString().toLowerCase();
+  // Compute availability based on status and booking_status
+  const bookingStatus = car.bookingStatus?.toString().toLowerCase() || '';
   const isPublished = car.status ? ['published', 'active', 'available'].includes(String(car.status).toLowerCase()) : true;
-  const isArchived = !!(car as any).isArchived || false;
-  const notBooked = !(bookingStatus === 'booked' || bookingStatus === 'reserved' || bookingStatus === 'held');
+  const isArchived = !!(car as any).isArchived;
+  const notBooked = !bookingStatus || !['booked', 'reserved', 'held'].includes(bookingStatus);
   const computedIsAvailable = isPublished && notBooked && !isArchived;
 
   // Replace the memoized handler with a fresh function that reads current values at click time
@@ -172,15 +172,15 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         className={`group ${className}`}
       >
         <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
-          <div className="relative aspect-video overflow-hidden">
+          <div className="relative aspect-video overflow-hidden w-full">
             {/* Use ImageCarousel with standardized images */}
             {car.images && car.images.length > 0 ? (
-              <ImageCarousel images={car.images} className="h-full" />
+              <ImageCarousel images={car.images} className="w-full h-full object-cover" />
             ) : car.image_urls && car.image_urls.length > 0 ? (
-              <ImageCarousel images={car.image_urls} className="h-full" />
+              <ImageCarousel images={car.image_urls} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <svg className="w-12 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
               </div>

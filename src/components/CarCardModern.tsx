@@ -59,11 +59,11 @@ const CarCardModernComponent = ({
   const [isSaved, setIsSaved] = useState(false);
   const { user, profile, profileLoading } = useAuth();
 
-  // Compute isAvailable defensively - make the logic match backend values and handle undefined gracefully
-  const bookingStatus = (car.bookingStatus || '').toString().toLowerCase();
+  // Compute availability based on status and booking_status
+  const bookingStatus = car.bookingStatus?.toString().toLowerCase() || '';
   const isPublished = car.status ? ['published', 'active', 'available'].includes(String(car.status).toLowerCase()) : true;
-  const isArchived = !!(car.isArchived || false);
-  const notBooked = !(bookingStatus === 'booked' || bookingStatus === 'reserved' || bookingStatus === 'held');
+  const isArchived = !!(car.isArchived);
+  const notBooked = !bookingStatus || !['booked', 'reserved', 'held'].includes(bookingStatus);
   const computedIsAvailable = isPublished && notBooked && !isArchived;
 
   const handleWhatsAppContact = useCallback(() => {
