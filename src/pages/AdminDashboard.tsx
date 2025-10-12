@@ -472,6 +472,9 @@ const AdminDashboard: React.FC = () => {
       
       const today = new Date();
       const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const startOfWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+      const weekEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
       
       // Fetch all stats in parallel
       const [
@@ -479,18 +482,32 @@ const AdminDashboard: React.FC = () => {
         { count: activeBookings },
         { count: totalCustomers },
         { count: pendingLicenses },
+        { count: verifiedLicenses },
         { count: activePromos },
-        { data: todayRevenue }
+        { data: todayRevenue },
+        { data: monthRevenue },
+        { data: promoUsage },
+        { count: maintenanceDueWeek },
+        { count: maintenanceScheduled },
+        { count: newCustomersWeek }
       ] = await Promise.all([
         supabase.from('cars').select('*', { count: 'planned', head: true }),
         supabase.from('bookings').select('*', { count: 'planned', head: true }).in('status', ['confirmed', 'active']),
         supabase.from('users').select('*', { count: 'planned', head: true }).eq('is_admin', false),
-        supabase.from('licenses').select('*', { count: 'planned', head: true }).is('verified', null),
+        supabase.from('licenses').select('*', { count: 'planned', head: true }).eq('verification_status', 'pending'),
+        supabase.from('licenses').select('*', { count: 'planned', head: true }).eq('verification_status', 'verified'),
         supabase.from('promo_codes').select('*', { count: 'planned', head: true }).eq('active', true),
-        supabase.from('payments').select('amount').eq('status', 'completed').gte('created_at', startOfToday)
+        supabase.from('payments').select('amount_in_paise').eq('status', 'completed').gte('created_at', startOfToday),
+        supabase.from('payments').select('amount_in_paise').eq('status', 'completed').gte('created_at', startOfMonth),
+        supabase.from('promo_codes').select('times_used'),
+        supabase.from('maintenance').select('*', { count: 'planned', head: true }).lte('start_date', weekEnd).gte('end_date', startOfToday),
+        supabase.from('maintenance').select('*', { count: 'planned', head: true }).gte('start_date', startOfToday),
+        supabase.from('users').select('*', { count: 'planned', head: true }).gte('created_at', startOfWeek)
       ]);
 
-      const revenueToday = (todayRevenue as any)?.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0) || 0;
+      const revenueToday = (todayRevenue || []).reduce((sum: number, payment: any) => sum + (payment.amount_in_paise || 0), 0);
+      const revenueMonth = (monthRevenue || []).reduce((sum: number, payment: any) => sum + (payment.amount_in_paise || 0), 0);
+      const totalPromoUsage = (promoUsage || []).reduce((sum: number, promo: any) => sum + (promo.times_used || 0), 0);
 
       setDashboardStats({
         totalCars: totalCars || 0,
@@ -498,8 +515,14 @@ const AdminDashboard: React.FC = () => {
         revenueToday,
         totalCustomers: totalCustomers || 0,
         pendingLicenses: pendingLicenses || 0,
-        activePromos: activePromos || 0
-      });
+        activePromos: activePromos || 0,
+        verifiedLicenses: verifiedLicenses || 0,
+        revenueMonth,
+        totalPromoUsage,
+        maintenanceDueWeek: maintenanceDueWeek || 0,
+        maintenanceScheduled: maintenanceScheduled || 0,
+        newCustomersWeek: newCustomersWeek || 0
+      } as any);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       toast({
@@ -657,9 +680,9 @@ const AdminDashboard: React.FC = () => {
                     <CardContent>
                       <p className="text-muted-foreground mb-3">Revenue reports, performance analytics, and business insights.</p>
                       <div className="flex items-center text-sm text-muted-foreground">
-                        <span>$12,450 this month</span>
+                        <span>₹{((dashboardStats as any).revenueMonth / 100 || 0).toLocaleString('en-IN')} this month</span>
                         <span className="mx-2">•</span>
-                        <span className="text-green-600">+18% growth</span>
+                        <span className="text-green-600">{dashboardStats.activeBookings} bookings</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -678,9 +701,9 @@ const AdminDashboard: React.FC = () => {
                     <CardContent>
                       <p className="text-muted-foreground mb-3">Review and verify customer driver's licenses with AI assistance.</p>
                       <div className="flex items-center text-sm text-muted-foreground">
-                        <span>156 verified licenses</span>
+                        <span>{(dashboardStats as any).verifiedLicenses || 0} verified</span>
                         <span className="mx-2">•</span>
-                        <span className="text-orange-600">3 pending review</span>
+                        <span className="text-orange-600">{dashboardStats.pendingLicenses} pending</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -699,9 +722,9 @@ const AdminDashboard: React.FC = () => {
                     <CardContent>
                       <p className="text-muted-foreground mb-3">Create and manage promotional discount codes and campaigns.</p>
                       <div className="flex items-center text-sm text-muted-foreground">
-                        <span>5 active campaigns</span>
+                        <span>{dashboardStats.activePromos} active codes</span>
                         <span className="mx-2">•</span>
-                        <span className="text-green-600">127 redeemed</span>
+                        <span className="text-green-600">{(dashboardStats as any).totalPromoUsage || 0} used</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -720,9 +743,9 @@ const AdminDashboard: React.FC = () => {
                     <CardContent>
                       <p className="text-muted-foreground mb-3">Schedule and track vehicle maintenance, inspections, and repairs.</p>
                       <div className="flex items-center text-sm text-muted-foreground">
-                        <span>2 due this week</span>
+                        <span>{(dashboardStats as any).maintenanceDueWeek || 0} due this week</span>
                         <span className="mx-2">•</span>
-                        <span className="text-blue-600">5 scheduled</span>
+                        <span className="text-blue-600">{(dashboardStats as any).maintenanceScheduled || 0} scheduled</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -742,9 +765,9 @@ const AdminDashboard: React.FC = () => {
                     <CardContent>
                       <p className="text-muted-foreground mb-3">Manage customer accounts, support tickets, and communication.</p>
                       <div className="flex items-center text-sm text-muted-foreground">
-                        <span>156 total customers</span>
+                        <span>{dashboardStats.totalCustomers} total</span>
                         <span className="mx-2">•</span>
-                        <span className="text-green-600">12 new this week</span>
+                        <span className="text-green-600">{(dashboardStats as any).newCustomersWeek || 0} new this week</span>
                       </div>
                     </CardContent>
                   </Card>

@@ -19,6 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface License {
   id: string;
@@ -46,81 +48,57 @@ const LicenseVerification: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedLicense, setSelectedLicense] = useState<License | null>(null);
 
-  // Mock data for demonstration
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockLicenses: License[] = [
-        {
-          id: '1',
-          user_id: 'user1',
-          user_name: 'Rajesh Kumar',
-          user_email: 'rajesh@example.com',
-          storage_path: 'license-uploads/user1/license.jpg',
-          ocr_text: 'DL-0420110149647\nRajesh Kumar\nDOB: 15/06/1990\nValid: 15/06/2030\nAddress: 123 Main St, Mumbai',
-          ocr_confidence: 92,
-          expires_at: '2030-06-15',
-          verified: true,
-          verification_status: 'verified',
-          verification_notes: 'License verified successfully',
-          submitted_at: '2025-09-25T10:30:00Z',
-          verified_at: '2025-09-25T11:15:00Z',
-          verified_by: 'admin1'
-        },
-        {
-          id: '2',
-          user_id: 'user2',
-          user_name: 'Priya Sharma',
-          user_email: 'priya@example.com',
-          storage_path: 'license-uploads/user2/license.png',
-          ocr_text: 'DL-0720150234567\nPriya Sharma\nDOB: 22/11/1988\nValid: 22/11/2028\nAddress: 456 Park Ave, Delhi',
-          ocr_confidence: 87,
-          expires_at: '2028-11-22',
-          verified: false,
-          verification_status: 'pending',
-          verification_notes: null,
-          submitted_at: '2025-09-27T14:20:00Z',
-          verified_at: null,
-          verified_by: null
-        },
-        {
-          id: '3',
-          user_id: 'user3',
-          user_name: 'Amit Patel',
-          user_email: 'amit@example.com',
-          storage_path: 'license-uploads/user3/license.jpg',
-          ocr_text: 'DL-1220180345678\nAmit Patel\nDOB: 05/03/1995\nValid: 05/03/2027\nAddress: 789 Beach Rd, Goa',
-          ocr_confidence: 78,
-          expires_at: '2027-03-05',
-          verified: false,
-          verification_status: 'rejected',
-          verification_notes: 'License appears to be expired',
-          submitted_at: '2025-09-20T09:45:00Z',
-          verified_at: '2025-09-21T10:30:00Z',
-          verified_by: 'admin2'
-        },
-        {
-          id: '4',
-          user_id: 'user4',
-          user_name: 'Sneha Reddy',
-          user_email: 'sneha@example.com',
-          storage_path: 'license-uploads/user4/license.png',
-          ocr_text: 'DL-1520200456789\nSneha Reddy\nDOB: 18/09/1992\nValid: 18/09/2032\nAddress: 321 Hill St, Bangalore',
-          ocr_confidence: 95,
-          expires_at: '2032-09-18',
-          verified: true,
-          verification_status: 'verified',
-          verification_notes: 'License verified with high confidence',
-          submitted_at: '2025-09-28T08:15:00Z',
-          verified_at: '2025-09-28T09:00:00Z',
-          verified_by: 'admin1'
-        }
-      ];
-
-      setLicenses(mockLicenses);
+  // Fetch licenses from database
+  const fetchLicenses = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('licenses')
+        .select(`
+          *,
+          users (id, full_name, email)
+        `)
+        .order('submitted_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Map to License interface
+      const mappedLicenses: License[] = (data || []).map((license: any) => ({
+        id: license.id,
+        user_id: license.user_id,
+        user_name: license.users?.full_name || 'Unknown',
+        user_email: license.users?.email || '',
+        storage_path: license.storage_path || '',
+        ocr_text: license.ocr_text || '',
+        ocr_confidence: license.ocr_confidence || 0,
+        expires_at: license.expires_at || '',
+        verified: license.verified || false,
+        verification_status: license.verification_status || 'pending',
+        verification_notes: license.verification_notes || null,
+        submitted_at: license.submitted_at,
+        verified_at: license.verified_at || null,
+        verified_by: license.verified_by || null
+      }));
+      
+      setLicenses(mappedLicenses);
+    } catch (error) {
+      console.error('Error fetching licenses:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load licenses",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    fetchLicenses();
   }, []);
+  
+  // Real-time subscription
+  useRealtimeTable('licenses', fetchLicenses);
 
   // Filter and sort licenses
   const filteredAndSortedLicenses = useMemo(() => {
@@ -189,14 +167,42 @@ const LicenseVerification: React.FC = () => {
   };
 
   // Handle verification action
-  const handleVerify = async (licenseId: string, status: 'verified' | 'rejected', _notes: string) => {
-    // In a real app, this would update the database
-    toast({
-      title: `License ${status}`,
-      description: `License verification status updated to ${status}`,
-    });
-    
-    setSelectedLicense(null);
+  const handleVerify = async (licenseId: string, status: 'verified' | 'rejected', notes: string) => {
+    try {
+      const { error } = await supabase
+        .from('licenses')
+        .update({ 
+          verification_status: status,
+          verified: status === 'verified',
+          verification_notes: notes,
+          verified_at: new Date().toISOString()
+        })
+        .eq('id', licenseId);
+      
+      if (error) throw error;
+      
+      // Log audit action
+      await supabase.from('audit_logs').insert({
+        action: `license_${status}`,
+        description: `License ${licenseId} ${status}`,
+        metadata: { license_id: licenseId, notes }
+      });
+      
+      toast({
+        title: `License ${status}`,
+        description: `License verification status updated to ${status}`,
+      });
+      
+      setSelectedLicense(null);
+      fetchLicenses(); // Refresh data
+    } catch (error) {
+      console.error('Error updating license:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${status} license`,
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {

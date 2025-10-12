@@ -21,6 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { formatINRFromPaise } from '@/utils/currency';
+import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface Booking {
   id: string;
@@ -53,97 +55,62 @@ const BookingManagement: React.FC = () => {
   const [_sortOrder, _setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  // Mock data for demonstration
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockBookings: Booking[] = [
-        {
-          id: 'BK001',
-          user_id: 'user1',
-          user_name: 'Rajesh Kumar',
-          user_email: 'rajesh@example.com',
-          user_phone: '+91 98765 43210',
-          car_id: 'car1',
-          car_title: 'Honda City 2023',
-          car_make: 'Honda',
-          car_model: 'City',
-          start_datetime: '2025-10-01T10:00:00Z',
-          end_datetime: '2025-10-03T18:00:00Z',
-          status: 'confirmed',
-          payment_status: 'paid',
-          hold_amount: null,
-          total_amount: 640000, // in paise
-          hold_until: null,
-          created_at: '2025-09-25T10:30:00Z',
-          notes: 'Customer requested child seat'
-        },
-        {
-          id: 'BK002',
-          user_id: 'user2',
-          user_name: 'Priya Sharma',
-          user_email: 'priya@example.com',
-          user_phone: '+91 98765 43211',
-          car_id: 'car2',
-          car_title: 'Hyundai Creta 2022',
-          car_make: 'Hyundai',
-          car_model: 'Creta',
-          start_datetime: '2025-10-02T09:00:00Z',
-          end_datetime: '2025-10-04T20:00:00Z',
-          status: 'pending',
-          payment_status: 'partial_hold',
-          hold_amount: 35000, // in paise
-          total_amount: 700000, // in paise
-          hold_until: '2025-09-30T15:00:00Z',
-          created_at: '2025-09-28T14:20:00Z',
-          notes: null
-        },
-        {
-          id: 'BK003',
-          user_id: 'user3',
-          user_name: 'Amit Patel',
-          user_email: 'amit@example.com',
-          user_phone: '+91 98765 43212',
-          car_id: 'car3',
-          car_title: 'Maruti Swift 2023',
-          car_make: 'Maruti',
-          car_model: 'Swift',
-          start_datetime: '2025-09-25T08:00:00Z',
-          end_datetime: '2025-09-27T20:00:00Z',
-          status: 'completed',
-          payment_status: 'paid',
-          hold_amount: null,
-          total_amount: 500000, // in paise
-          hold_until: null,
-          created_at: '2025-09-20T09:15:00Z',
-          notes: 'Returned with minor scratches'
-        },
-        {
-          id: 'BK004',
-          user_id: 'user4',
-          user_name: 'Sneha Reddy',
-          user_email: 'sneha@example.com',
-          user_phone: '+91 98765 43213',
-          car_id: 'car4',
-          car_title: 'Toyota Innova 2021',
-          car_make: 'Toyota',
-          car_model: 'Innova',
-          start_datetime: '2025-09-30T07:00:00Z',
-          end_datetime: '2025-10-05T22:00:00Z',
-          status: 'cancelled',
-          payment_status: 'cancelled',
-          hold_amount: null,
-          total_amount: 2600000, // in paise
-          hold_until: null,
-          created_at: '2025-09-22T16:45:00Z',
-          notes: 'Cancelled due to travel changes'
-        }
-      ];
-
-      setBookings(mockBookings);
+  // Fetch bookings from database
+  const fetchBookings = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          cars (id, title, make, model, image_urls),
+          users (id, full_name, phone)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Map to Booking interface
+      const mappedBookings: Booking[] = (data || []).map((booking: any) => ({
+        id: booking.id,
+        user_id: booking.user_id,
+        user_name: booking.users?.full_name || 'Unknown',
+        user_email: '', // Not in schema, would need to fetch separately
+        user_phone: booking.users?.phone || '',
+        car_id: booking.car_id,
+        car_title: booking.cars?.title || 'Unknown Car',
+        car_make: booking.cars?.make || null,
+        car_model: booking.cars?.model || null,
+        start_datetime: booking.start_datetime,
+        end_datetime: booking.end_datetime,
+        status: booking.status,
+        payment_status: booking.payment_status,
+        hold_amount: booking.hold_amount_paise,
+        total_amount: booking.total_amount_paise || 0,
+        hold_until: booking.hold_expires_at,
+        created_at: booking.created_at,
+        notes: booking.notes || null
+      }));
+      
+      setBookings(mappedBookings);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load bookings",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
   }, []);
+  
+  // Real-time subscription
+  useRealtimeTable('bookings', fetchBookings);
 
   // Filter and sort bookings
   const filteredAndSortedBookings = useMemo(() => {
@@ -245,13 +212,41 @@ const BookingManagement: React.FC = () => {
 
   // Handle booking action
   const handleBookingAction = async (bookingId: string, action: 'approve' | 'cancel' | 'complete') => {
-    // In a real app, this would update the database
-    toast({
-      title: `Booking ${action.charAt(0).toUpperCase() + action.slice(1)}d`,
-      description: `Booking has been ${action}d successfully`,
-    });
-    
-    setSelectedBooking(null);
+    try {
+      let newStatus: string;
+      if (action === 'approve') newStatus = 'confirmed';
+      else if (action === 'cancel') newStatus = 'cancelled';
+      else newStatus = 'completed';
+      
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: newStatus })
+        .eq('id', bookingId);
+      
+      if (error) throw error;
+      
+      // Log audit action
+      await supabase.from('audit_logs').insert({
+        action: `booking_${action}`,
+        description: `Booking ${bookingId} ${action}d`,
+        metadata: { booking_id: bookingId, new_status: newStatus }
+      });
+      
+      toast({
+        title: `Booking ${action.charAt(0).toUpperCase() + action.slice(1)}d`,
+        description: `Booking has been ${action}d successfully`,
+      });
+      
+      setSelectedBooking(null);
+      fetchBookings(); // Refresh data
+    } catch (error) {
+      console.error('Error updating booking:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${action} booking`,
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {

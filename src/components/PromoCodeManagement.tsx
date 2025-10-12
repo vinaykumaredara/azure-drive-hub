@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { formatINRFromPaise } from '@/utils/currency';
+import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface PromoCode {
   id: string;
@@ -59,73 +61,52 @@ const PromoCodeManagement: React.FC = () => {
     description: ''
   });
 
-  // Mock data for demonstration
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockPromoCodes: PromoCode[] = [
-        {
-          id: '1',
-          code: 'WELCOME20',
-          discount_percent: 20,
-          discount_flat: null,
-          valid_from: '2025-09-01',
-          valid_to: '2025-10-01',
-          active: true,
-          usage_limit: 100,
-          usage_count: 42,
-          created_at: '2025-09-01T10:30:00Z',
-          description: 'Welcome discount for new users',
-          target_audience: 'new_users'
-        },
-        {
-          id: '2',
-          code: 'SUMMER15',
-          discount_percent: 15,
-          discount_flat: null,
-          valid_from: '2025-09-15',
-          valid_to: '2025-11-15',
-          active: true,
-          usage_limit: 50,
-          usage_count: 28,
-          created_at: '2025-09-10T14:20:00Z',
-          description: 'Summer sale discount',
-          target_audience: 'all'
-        },
-        {
-          id: '3',
-          code: 'VIP25',
-          discount_percent: 25,
-          discount_flat: null,
-          valid_from: '2025-09-01',
-          valid_to: '2025-12-31',
-          active: true,
-          usage_limit: 200,
-          usage_count: 187,
-          created_at: '2025-08-25T09:15:00Z',
-          description: 'Exclusive discount for VIP customers',
-          target_audience: 'vip'
-        },
-        {
-          id: '4',
-          code: 'FALL10',
-          discount_percent: null,
-          discount_flat: 100000, // in paise
-          valid_from: '2025-09-20',
-          valid_to: '2025-10-20',
-          active: false,
-          usage_limit: 75,
-          usage_count: 0,
-          created_at: '2025-09-15T16:45:00Z',
-          description: 'Flat discount for fall season',
-          target_audience: 'all'
-        }
-      ];
-
-      setPromoCodes(mockPromoCodes);
+  // Fetch promo codes from database
+  const fetchPromoCodes = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Map to PromoCode interface
+      const mappedPromos: PromoCode[] = (data || []).map((promo: any) => ({
+        id: promo.id,
+        code: promo.code,
+        discount_percent: promo.discount_percentage || null,
+        discount_flat: promo.discount_amount_paise || null,
+        valid_from: promo.valid_from,
+        valid_to: promo.valid_to,
+        active: promo.active,
+        usage_limit: promo.max_uses,
+        usage_count: promo.times_used || 0,
+        created_at: promo.created_at,
+        description: promo.description || null,
+        target_audience: 'all' // Not in schema, defaulting to 'all'
+      }));
+      
+      setPromoCodes(mappedPromos);
+    } catch (error) {
+      console.error('Error fetching promo codes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load promo codes",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    fetchPromoCodes();
   }, []);
+  
+  // Real-time subscription
+  useRealtimeTable('promo_codes', fetchPromoCodes);
 
   // Filter and sort promo codes
   const filteredAndSortedPromos = useMemo(() => {
@@ -217,19 +198,61 @@ const PromoCodeManagement: React.FC = () => {
   };
 
   // Handle form submit
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // In a real app, this would save to the database
-    toast({
-      title: editingPromo ? "Promo Code Updated" : "Promo Code Created",
-      description: editingPromo 
-        ? "Promo code has been updated successfully" 
-        : "New promo code has been created successfully",
-    });
-    
-    setShowAddModal(false);
-    resetForm();
+    try {
+      const promoData = {
+        code: formData.code.toUpperCase(),
+        discount_percentage: formData.discount_type === 'percent' ? formData.discount_percent : null,
+        discount_amount_paise: formData.discount_type === 'flat' ? formData.discount_flat : null,
+        valid_from: formData.valid_from,
+        valid_to: formData.valid_to,
+        max_uses: formData.usage_limit,
+        description: formData.description,
+        active: true
+      };
+      
+      if (editingPromo) {
+        const { error } = await supabase
+          .from('promo_codes')
+          .update(promoData)
+          .eq('id', editingPromo.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('promo_codes')
+          .insert(promoData);
+        
+        if (error) throw error;
+      }
+      
+      // Log audit action
+      await supabase.from('audit_logs').insert({
+        action: editingPromo ? 'promo_updated' : 'promo_created',
+        description: `Promo code ${formData.code} ${editingPromo ? 'updated' : 'created'}`,
+        metadata: { promo_code: formData.code }
+      });
+      
+      toast({
+        title: editingPromo ? "Promo Code Updated" : "Promo Code Created",
+        description: editingPromo 
+          ? "Promo code has been updated successfully" 
+          : "New promo code has been created successfully",
+      });
+      
+      setShowAddModal(false);
+      resetForm();
+      fetchPromoCodes(); // Refresh data
+    } catch (error) {
+      console.error('Error saving promo code:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${editingPromo ? 'update' : 'create'} promo code`,
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle edit
@@ -250,13 +273,37 @@ const PromoCodeManagement: React.FC = () => {
   };
 
   // Handle delete
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this promo code?')) {
-      // In a real app, this would delete from the database
-      toast({
-        title: "Promo Code Deleted",
-        description: `Promo code ${id} has been deleted successfully`,
-      });
+      try {
+        const { error } = await supabase
+          .from('promo_codes')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        // Log audit action
+        await supabase.from('audit_logs').insert({
+          action: 'promo_deleted',
+          description: `Promo code ${id} deleted`,
+          metadata: { promo_id: id }
+        });
+        
+        toast({
+          title: "Promo Code Deleted",
+          description: "Promo code has been deleted successfully",
+        });
+        
+        fetchPromoCodes(); // Refresh data
+      } catch (error) {
+        console.error('Error deleting promo code:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete promo code",
+          variant: "destructive",
+        });
+      }
     }
   };
 
