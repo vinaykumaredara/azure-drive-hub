@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Heart } from "lucide-react";
 import ImageCarousel from "@/components/ImageCarousel";
 import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
+import { BookingModalErrorBoundary } from "@/components/BookingModalErrorBoundary";
 import { useAuth } from "@/components/AuthProvider";
 import { useBooking } from "@/hooks/useBooking";
 import { toast } from "@/hooks/use-toast";
@@ -79,27 +80,49 @@ const CarCardModernComponent = ({
     };
   }, []);
 
-  // Replace the memoized handler with a fresh function that reads current values at click time
+  // FIXED: Enhanced handler with race condition guards and comprehensive logging
   function handleBookNow(e?: React.MouseEvent) {
-    console.debug('[BookNow] Button clicked', { carId: car.id, user: !!user, profile: !!profile });
+    const timestamp = new Date().toISOString();
+    const logPrefix = `[BookNow][${timestamp}][CarModern:${car.id}]`;
     
+    console.debug(`${logPrefix} 🎯 Button clicked`, { 
+      carId: car.id,
+      hasUser: !!user,
+      hasProfile: !!profile,
+      profileLoading,
+      isBookingLoading,
+      computedIsAvailable
+    });
+    
+    // GUARD 1: Prevent concurrent attempts
     if (isBookingLoading) {
-      console.debug('[BookNow] Already loading, ignoring');
+      console.warn(`${logPrefix} ⚠️ Already loading, blocking concurrent click`);
+      return;
+    }
+    
+    // GUARD 2: Check if context is still loading
+    if (profileLoading) {
+      console.warn(`${logPrefix} ⚠️ Profile still loading, blocking click`);
+      toast({
+        title: "Please Wait",
+        description: "Loading your profile...",
+      });
       return;
     }
     
     try {
       e?.stopPropagation();
       e?.preventDefault();
-      console.debug('[handleBookNow] ENTRY', { 
-        carId: car.id, 
-        user: !!user, 
-        profile: !!profile, 
-        profileLoading,
-        computedIsAvailable 
+      
+      console.debug(`${logPrefix} 📋 Context state`, { 
+        user: user ? { id: user.id, email: user.email } : null,
+        profile: profile ? { id: profile.id, hasPhone: !!profile.phone } : null,
+        car: { id: car.id, title: car.title, available: computedIsAvailable }
       });
 
+      // GUARD 3: Validate availability
       if (!computedIsAvailable) {
+        console.warn(`${logPrefix} ⚠️ Car not available`);
         toast({
           title: "Car Not Available",
           description: "This car is not available for booking.",
@@ -108,8 +131,9 @@ const CarCardModernComponent = ({
         return;
       }
 
-      // If user is not logged in -> save intent & redirect to auth
+      // GUARD 4: Check authentication
       if (!user) {
+        console.debug(`${logPrefix} 🔐 No user, saving intent and redirecting to auth`);
         bookingIntentStorage.save({
           type: 'BOOK_CAR',
           carId: car.id,
@@ -127,22 +151,13 @@ const CarCardModernComponent = ({
         return;
       }
 
-      // If profile still loading, show toast and do nothing
-      if (profileLoading) {
-        toast({
-          title: "Finishing Sign-in",
-          description: "Please wait a second while we finish loading your profile...",
-        });
-        return;
-      }
-
-      // canonical phone check: profile.phone is primary; fallback to user metadata
+      // GUARD 5: Check phone number (read fresh values to avoid stale closure)
       const phone =
         (profile && profile.phone) ||
         (user && (user.phone || user.user_metadata?.phone || user.user_metadata?.mobile));
 
       if (!phone) {
-        // Navigate to profile page to collect phone (preserve a draft)
+        console.debug(`${logPrefix} 📞 No phone, redirecting to profile`);
         const draft = {
           carId: car.id,
           pickup: { date: '', time: '' },
@@ -154,7 +169,7 @@ const CarCardModernComponent = ({
         return;
       }
 
-      // Validate car data before opening modal
+      // GUARD 6: Validate car data
       const carData = {
         ...car,
         title: car.title || car.model || 'Car'
@@ -164,13 +179,13 @@ const CarCardModernComponent = ({
         throw new Error('Invalid car data: missing ID');
       }
 
-      // All checks passed -> open booking flow immediately
-      console.debug('[handleBookNow] Opening booking flow');
+      // All guards passed -> proceed to open modal
+      console.debug(`${logPrefix} ✅ All guards passed, opening modal`);
       setIsBookingLoading(true);
       
       // Safety timeout: reset loading state after 3 seconds if modal hasn't opened
       loadingTimeoutRef.current = setTimeout(() => {
-        console.error('[handleBookNow] Timeout: Modal failed to open within 3 seconds');
+        console.error(`${logPrefix} ⏱️ TIMEOUT: Modal failed to open within 3 seconds`);
         setIsBookingLoading(false);
         toast({
           title: "Booking Flow Error",
@@ -183,14 +198,16 @@ const CarCardModernComponent = ({
       setIsBookingFlowOpen(true);
       setIsBookingLoading(false);
       
-      // Clear timeout once component confirms render
+      // Clear timeout once we confirm modal opened
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
       }
       
+      console.debug(`${logPrefix} 🚀 Modal opened successfully`);
+      
     } catch (err) {
-      console.error('[handleBookNow] ERROR', err);
+      console.error(`${logPrefix} ❌ ERROR`, err);
       setIsBookingLoading(false);
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
@@ -198,7 +215,7 @@ const CarCardModernComponent = ({
       }
       toast({
         title: "Unexpected Error",
-        description: "An unexpected error occurred. Please check the console or contact support.",
+        description: err instanceof Error ? err.message : "An unexpected error occurred.",
         variant: "destructive",
       });
     }
@@ -311,28 +328,29 @@ const CarCardModernComponent = ({
               >
                 Contact
               </Button>
-              <Button 
-                type="button"
-                size="sm" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  console.debug('[BookNow] Button clicked', { carId: car.id, available: computedIsAvailable });
-                  handleBookNow(e);
-                }}
-                disabled={!computedIsAvailable || isBookingLoading}
-                aria-disabled={!computedIsAvailable || isBookingLoading}
-                data-testid={`book-now-${car.id}`}
-                id={`book-now-btn-${car.id}`}
-                className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
-                style={{ 
-                  position: 'relative', 
-                  zIndex: 10000,  // Emergency override - Phase A
-                  pointerEvents: 'auto' 
-                }}
-              >
-                {isBookingLoading ? 'Opening...' : 'Book Now'}
-              </Button>
+                  <Button 
+                    type="button"
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.debug('[BookNow] Button clicked', { carId: car.id, available: computedIsAvailable });
+                      handleBookNow(e);
+                    }}
+                    disabled={!computedIsAvailable || isBookingLoading || profileLoading}
+                    aria-disabled={!computedIsAvailable || isBookingLoading || profileLoading}
+                    aria-busy={isBookingLoading || profileLoading}
+                    data-testid={`book-now-${car.id}`}
+                    id={`book-now-btn-${car.id}`}
+                    className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 10000,
+                      pointerEvents: 'auto' 
+                    }}
+                  >
+                    {isBookingLoading ? 'Opening...' : profileLoading ? 'Loading...' : 'Book Now'}
+                  </Button>
             </div>
           </div>
         </div>
@@ -348,17 +366,26 @@ const CarCardModernComponent = ({
         </div>
       )}
 
-      {/* Booking modal */}
+      {/* Booking modal with error boundary */}
       {isBookingFlowOpen && carForBooking && (
-        <EnhancedBookingFlow
-          car={carForBooking} 
-          onClose={() => {
-            console.debug('[CarCardModern] Closing booking flow');
+        <BookingModalErrorBoundary 
+          carId={car.id}
+          onReset={() => {
+            console.debug('[CarCardModern] Resetting booking flow after error');
             setIsBookingFlowOpen(false);
             setIsBookingLoading(false);
           }}
-          onBookingSuccess={handleBookingSuccess}
-        />
+        >
+          <EnhancedBookingFlow
+            car={carForBooking} 
+            onClose={() => {
+              console.debug('[CarCardModern] Closing booking flow');
+              setIsBookingFlowOpen(false);
+              setIsBookingLoading(false);
+            }}
+            onBookingSuccess={handleBookingSuccess}
+          />
+        </BookingModalErrorBoundary>
       )}
     </>
   );

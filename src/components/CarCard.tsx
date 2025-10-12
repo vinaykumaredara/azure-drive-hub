@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { Star, Users, Fuel, Settings, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import { EnhancedBookingFlow } from "@/components/EnhancedBookingFlow";
+import { BookingModalErrorBoundary } from "@/components/BookingModalErrorBoundary";
 import { RatingsSummary } from "@/components/RatingsSummary";
 import ImageCarousel from '@/components/ImageCarousel';
 import { useAuth } from "@/components/AuthProvider";
@@ -65,34 +66,49 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
     };
   }, []);
 
-  // PHASE C+E: Enhanced handler with timeout, cleanup, and logging
+  // FIXED: Enhanced handler with race condition guards and comprehensive logging
   function handleBookNow(e?: React.MouseEvent) {
-    // PHASE E: Structured logging
-    const logBookingEvent = (event: string, data?: any) => {
-      const timestamp = new Date().toISOString();
-      console.debug(`[BookNow][${timestamp}] ${event}`, data);
-    };
+    const timestamp = new Date().toISOString();
+    const logPrefix = `[BookNow][${timestamp}][CarCard:${car.id}]`;
+    
+    console.debug(`${logPrefix} 🎯 Button clicked`, { 
+      carId: car.id,
+      hasUser: !!user,
+      hasProfile: !!profile,
+      profileLoading,
+      isBookingLoading,
+      computedIsAvailable
+    });
 
-    // Prevent concurrent attempts
+    // GUARD 1: Prevent concurrent attempts
     if (isBookingLoading) {
-      logBookingEvent('Concurrent click blocked', { carId: car.id });
+      console.warn(`${logPrefix} ⚠️ Already loading, blocking concurrent click`);
       return;
     }
-    logBookingEvent('Button clicked', { carId: car.id, user: !!user, profile: !!profile });
+    
+    // GUARD 2: Check if context is still loading
+    if (profileLoading) {
+      console.warn(`${logPrefix} ⚠️ Profile still loading, blocking click`);
+      toast({
+        title: "Please Wait",
+        description: "Loading your profile...",
+      });
+      return;
+    }
     
     try {
       e?.stopPropagation();
       e?.preventDefault();
       
-      logBookingEvent('ENTRY', { 
-        carId: car.id, 
-        user: !!user, 
-        profile: !!profile, 
-        profileLoading,
-        computedIsAvailable 
+      console.debug(`${logPrefix} 📋 Context state`, { 
+        user: user ? { id: user.id, email: user.email } : null,
+        profile: profile ? { id: profile.id, hasPhone: !!profile.phone } : null,
+        car: { id: car.id, model: car.model, available: computedIsAvailable }
       });
 
+      // GUARD 3: Validate availability
       if (!computedIsAvailable) {
+        console.warn(`${logPrefix} ⚠️ Car not available`);
         toast({
           title: "Car Not Available",
           description: "This car is not available for booking.",
@@ -101,8 +117,9 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         return;
       }
 
-      // If user is not logged in -> save intent & redirect to auth
+      // GUARD 4: Check authentication
       if (!user) {
+        console.debug(`${logPrefix} 🔐 No user, saving intent and redirecting to auth`);
         bookingIntentStorage.save({
           type: 'BOOK_CAR',
           carId: car.id,
@@ -120,22 +137,13 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         return;
       }
 
-      // If profile still loading, show toast and do nothing
-      if (profileLoading) {
-        toast({
-          title: "Finishing Sign-in",
-          description: "Please wait a second while we finish loading your profile...",
-        });
-        return;
-      }
-
-      // canonical phone check: profile.phone is primary; fallback to user metadata
+      // GUARD 5: Check phone number (read fresh values to avoid stale closure)
       const phone =
         (profile && profile.phone) ||
         (user && (user.phone || user.user_metadata?.phone || user.user_metadata?.mobile));
 
       if (!phone) {
-        // Navigate to profile page to collect phone (preserve a draft)
+        console.debug(`${logPrefix} 📞 No phone, redirecting to profile`);
         const draft = {
           carId: car.id,
           pickup: { date: '', time: '' },
@@ -147,13 +155,13 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         return;
       }
 
-      // Open modal immediately - no unnecessary delay
+      // All guards passed -> proceed to open modal
+      console.debug(`${logPrefix} ✅ All guards passed, opening modal`);
       setIsBookingLoading(true);
-      logBookingEvent('Opening booking flow', { carId: car.id });
       
       // Safety timeout: reset if modal doesn't render within 3 seconds
       loadingTimeoutRef.current = setTimeout(() => {
-        console.error('[handleBookNow] Timeout: Modal failed to open within 3 seconds');
+        console.error(`${logPrefix} ⏱️ TIMEOUT: Modal failed to open within 3 seconds`);
         setIsBookingLoading(false);
         toast({
           title: "Booking Flow Error",
@@ -166,14 +174,16 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
       setIsBookingFlowOpen(true);
       setIsBookingLoading(false);
       
-      // Clear timeout once component confirms render
+      // Clear timeout once we confirm modal opened
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
       }
       
+      console.debug(`${logPrefix} 🚀 Modal opened successfully`);
+      
     } catch (err) {
-      console.error('[handleBookNow] ERROR', err);
+      console.error(`${logPrefix} ❌ ERROR`, err);
       setIsBookingLoading(false);
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
@@ -181,7 +191,7 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
       }
       toast({
         title: "Unexpected Error",
-        description: "An unexpected error occurred.",
+        description: err instanceof Error ? err.message : "An unexpected error occurred.",
         variant: "destructive",
       });
     }
@@ -383,18 +393,19 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                       e.preventDefault();
                       handleBookNow(e);
                     }}
-                    disabled={!computedIsAvailable || isBookingLoading}
-                    aria-disabled={!computedIsAvailable || isBookingLoading}
+                    disabled={!computedIsAvailable || isBookingLoading || profileLoading}
+                    aria-disabled={!computedIsAvailable || isBookingLoading || profileLoading}
+                    aria-busy={isBookingLoading || profileLoading}
                     data-testid={`book-now-${car.id}`}
                     id={`book-now-btn-${car.id}`}
                     className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
                     style={{ 
                       position: 'relative', 
-                      zIndex: 10000,  // Emergency override - Phase A
+                      zIndex: 10000,
                       pointerEvents: 'auto' 
                     }}
                   >
-                    {isBookingLoading ? 'Opening...' : 'Book Now'}
+                    {isBookingLoading ? 'Opening...' : profileLoading ? 'Loading...' : 'Book Now'}
                   </Button>
                 </div>
               </div>
@@ -413,12 +424,26 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         </div>
       )}
 
+      {/* Booking modal with error boundary */}
       {isBookingFlowOpen && (
-        <EnhancedBookingFlow 
-          car={carForBooking} 
-          onClose={() => setIsBookingFlowOpen(false)}
-          onBookingSuccess={handleBookingSuccess}
-        />
+        <BookingModalErrorBoundary 
+          carId={car.id}
+          onReset={() => {
+            console.debug('[CarCard] Resetting booking flow after error');
+            setIsBookingFlowOpen(false);
+            setIsBookingLoading(false);
+          }}
+        >
+          <EnhancedBookingFlow 
+            car={carForBooking} 
+            onClose={() => {
+              console.debug('[CarCard] Closing booking flow');
+              setIsBookingFlowOpen(false);
+              setIsBookingLoading(false);
+            }}
+            onBookingSuccess={handleBookingSuccess}
+          />
+        </BookingModalErrorBoundary>
       )}
     </>
   );

@@ -81,13 +81,35 @@ interface License {
 }
 
 export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, onClose, onBookingSuccess }) => {
+  // Debug logging on mount
+  console.debug('[BookingFlow] Component mounting', { 
+    carId: car?.id, 
+    carTitle: car?.title,
+    hasOnClose: !!onClose,
+    hasOnBookingSuccess: !!onBookingSuccess
+  });
+  
   const { user, profile, profileLoading } = useAuth();
   
-  // Smart initial step: skip phone if already collected
+  // Debug auth state changes
+  console.debug('[BookingFlow] Auth state', { 
+    hasUser: !!user, 
+    hasProfile: !!profile, 
+    profileLoading,
+    profilePhone: profile?.phone
+  });
+  
+  // FIXED: Reactive initial step calculation to avoid stale closure
   const getInitialStep = (): Step => {
+    // If still loading, default to phone to be safe
+    if (profileLoading) {
+      console.debug('[BookingFlow] Profile loading, defaulting to phone step');
+      return 'phone';
+    }
+    
     const phone = profile?.phone || user?.phone || user?.user_metadata?.phone;
     if (phone) {
-      console.debug('[BookingFlow] Phone exists, starting at dates');
+      console.debug('[BookingFlow] Phone exists, starting at dates', { phone: phone.substring(0, 3) + '***' });
       return 'dates';
     }
     console.debug('[BookingFlow] No phone, starting at phone step');
@@ -132,25 +154,48 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
   // Removed duplicate body scroll lock - see line 696 for robust implementation
 
-  // Handle booking restoration on component mount - ALWAYS start at phone step
+  // FIXED: Added user to dependencies and corrected step initialization logic
   useEffect(() => {
+    console.debug('[BookingFlow] Restoration effect triggered', { 
+      profileLoading, 
+      hasProfile: !!profile,
+      hasUser: !!user 
+    });
+    
     // Only restore if profile is loaded (not loading)
-    if (profileLoading) return;
+    if (profileLoading) {
+      console.debug('[BookingFlow] Skipping restoration - profile still loading');
+      return;
+    }
     
     const pendingBookingRaw = sessionStorage.getItem('pendingBooking');
     
     // Pre-fill phone number from profile if available
     if (profile?.phone && !bookingData.phoneNumber) {
+      console.debug('[BookingFlow] Pre-filling phone from profile');
       setBookingData(prev => ({
         ...prev,
         phoneNumber: profile.phone || null
       }));
+      
+      // If phone exists, update step to dates
+      if (currentStep === 'phone') {
+        console.debug('[BookingFlow] Phone found, advancing to dates step');
+        setCurrentStep('dates');
+      }
     }
     
-    if (!pendingBookingRaw) return;
+    if (!pendingBookingRaw) {
+      console.debug('[BookingFlow] No pending booking to restore');
+      return;
+    }
     
     try {
       const pendingBooking = JSON.parse(pendingBookingRaw);
+      console.debug('[BookingFlow] Restoring pending booking', { 
+        hasPickupDate: !!pendingBooking.pickup?.date,
+        hasReturnDate: !!pendingBooking.return?.date
+      });
       
       // If draft has dates, restore them (but don't change step)
       if (pendingBooking.pickup?.date && pendingBooking.return?.date) {
@@ -165,10 +210,12 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       
       // Clear the pending booking from sessionStorage after restoration
       sessionStorage.removeItem('pendingBooking');
+      console.debug('[BookingFlow] Pending booking restored and cleared');
     } catch (error) {
+      console.error('[BookingFlow] Failed to restore pending booking', error);
       sessionStorage.removeItem('pendingBooking');
     }
-  }, [profileLoading, profile?.phone, bookingData.phoneNumber]);
+  }, [profileLoading, profile, user, bookingData.phoneNumber, currentStep]);
 
 
   // Fetch existing licenses on component mount
@@ -646,9 +693,17 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     />
   );
 
-  // Body scroll lock effect
+  // Body scroll lock effect with enhanced logging
   useEffect(() => {
-    console.debug('[BookingFlow] Modal mounted, locking body scroll');
+    const mountTime = Date.now();
+    console.debug('[BookingFlow] ✅ Modal mounted successfully', { 
+      timestamp: new Date().toISOString(),
+      carId: car.id,
+      currentStep,
+      hasUser: !!user,
+      hasProfile: !!profile
+    });
+    
     const originalOverflow = document.body.style.overflow;
     const originalPaddingRight = document.body.style.paddingRight;
     
@@ -660,11 +715,16 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     }
     
     return () => {
-      console.debug('[BookingFlow] Modal unmounted, restoring body scroll');
+      const unmountTime = Date.now();
+      console.debug('[BookingFlow] ❌ Modal unmounted', { 
+        timestamp: new Date().toISOString(),
+        duration: `${unmountTime - mountTime}ms`,
+        finalStep: currentStep
+      });
       document.body.style.overflow = originalOverflow;
       document.body.style.paddingRight = originalPaddingRight;
     };
-  }, []);
+  }, [car.id, currentStep, user, profile]);
 
   return createPortal(
     <div className="booking-flow-portal">
