@@ -71,7 +71,7 @@ export const LicenseStep: React.FC<LicenseStepProps> = ({
         </Card>
       )}
 
-      <LicenseUpload onUploaded={onLicenseUploaded} />
+      <LicenseUpload onLicenseUpload={onLicenseUploaded} />
 
       {licenseId && (
         <div className="p-4 bg-success/10 border border-success/20 rounded-lg" role="status" aria-live="polite">

@@ -52,32 +52,17 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
   const notBooked = !(bookingStatus === 'booked' || bookingStatus === 'reserved' || bookingStatus === 'held');
   const computedIsAvailable = isPublished && notBooked && !isArchived;
 
-  // Check for pending intent on component mount
+  // Prefetch the booking modal module to avoid lazy loading delays
   useEffect(() => {
-    // This is a defensive check - the main resume logic is in App.tsx
-    // But we'll show a toast if there's a pending intent
-    const checkPendingIntent = () => {
-      try {
-        const raw = localStorage.getItem('pendingIntent');
-        if (raw) {
-          const payload = JSON.parse(raw);
-          if (payload?.type === 'BOOK_CAR' && payload.carId === car.id) {
-            toast({
-              title: "Resuming your booking",
-              description: "We're resuming your booking for this car...",
-            });
-          }
-        }
-      } catch (err) {
-        console.error('[NewBookNowButton] Error checking pending intent:', err);
-      }
-    };
-    
-    checkPendingIntent();
-  }, [car.id]);
+    // Start loading the booking modal module in the background
+    import('@/components/BookingModal/BookingModal').catch(err => {
+      console.warn('[NewBookNowButton] Failed to prefetch booking modal:', err);
+    });
+  }, []);
 
   const handleBookNow = async (e: React.MouseEvent<HTMLButtonElement>) => {
     try {
+      // Ensure proper event handling
       e.stopPropagation();
       e.preventDefault();
       
@@ -88,8 +73,9 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
         computedIsAvailable 
       });
 
+      // Defensive check for button availability
       if (!computedIsAvailable) {
-        // Use toast instead of alert for better UX
+        console.warn('[NewBookNowButton] Car not available for booking', { carId: car.id, bookingStatus });
         toast({
           title: "Car Not Available",
           description: "This car is not available for booking.",
@@ -100,8 +86,14 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
 
       // If user is not logged in, save pending intent and redirect to auth
       if (!user) {
-        // Save the booking intent
-        savePendingIntent({ type: 'BOOK_CAR', carId: car.id });
+        console.debug('[NewBookNowButton] User not authenticated, saving intent and redirecting to auth');
+        
+        // Save the booking intent with timestamp
+        const payload = { type: 'BOOK_CAR' as const, carId: car.id, ts: Date.now() };
+        savePendingIntent(payload);
+        
+        // Dispatch custom event for same-tab immediate resume
+        window.dispatchEvent(new CustomEvent('bookingIntentSaved', { detail: payload }));
         
         // Show a toast to inform user
         toast({
@@ -110,12 +102,15 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
         });
         
         // Redirect to auth page with next parameter
-        window.location.href = `/auth?next=${encodeURIComponent(window.location.pathname)}`;
+        const redirectUrl = `/auth?next=${encodeURIComponent(window.location.pathname)}`;
+        console.debug('[NewBookNowButton] Redirecting to auth:', redirectUrl);
+        window.location.href = redirectUrl;
         return;
       }
 
       // If profile still loading, show toast and do nothing
       if (profileLoading) {
+        console.debug('[NewBookNowButton] Profile still loading, showing wait message');
         toast({
           title: "Finishing Sign-in",
           description: "Please wait a second while we finish loading your profile...",
@@ -127,15 +122,17 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
       const phone = profile?.phone || (user && (user.phone || user.user_metadata?.phone || user.user_metadata?.mobile));
 
       if (!phone) {
+        console.debug('[NewBookNowButton] User has no phone number, opening phone collection modal');
         // Open phone collection modal
         setIsPhoneModalOpen(true);
         return;
       }
 
       // All checks passed -> open booking modal
+      console.debug('[NewBookNowButton] All checks passed, opening booking modal');
       openBookingModal(car);
     } catch (err) {
-      console.error('[NewBookNowButton] unexpected error', err);
+      console.error('[NewBookNowButton] Unexpected error in handleBookNow:', err);
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred. Please check the console or contact support.",
@@ -145,6 +142,7 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
   };
 
   const handlePhoneModalComplete = () => {
+    console.debug('[NewBookNowButton] Phone collection complete, opening booking modal');
     setIsPhoneModalOpen(false);
     // After phone is collected, open booking modal
     openBookingModal(car);
@@ -175,7 +173,7 @@ export const NewBookNowButton: React.FC<NewBookNowButtonProps> = ({ car }) => {
       {/* Lazy-loaded booking modal */}
       {isBookingModalOpen && (
         <Suspense fallback={
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
             <Loader2 className="w-8 h-8 animate-spin text-white" />
           </div>
         }>

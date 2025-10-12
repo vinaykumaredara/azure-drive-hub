@@ -4,6 +4,7 @@ import {
   clearPendingIntent, 
   resumePendingIntent 
 } from '@/utils/bookingIntentUtils';
+import { vi } from 'vitest';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -27,9 +28,20 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
+// Mock Supabase client
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: null, error: null })
+  }
+}));
+
 describe('bookingIntentUtils', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
   });
 
   describe('savePendingIntent', () => {
@@ -83,7 +95,7 @@ describe('bookingIntentUtils', () => {
 
   describe('resumePendingIntent', () => {
     it('should return false if no pending intent exists', async () => {
-      const mockOpenBookingModal = jest.fn();
+      const mockOpenBookingModal = vi.fn();
       
       const result = await resumePendingIntent(mockOpenBookingModal);
       expect(result).toBe(false);

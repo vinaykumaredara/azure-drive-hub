@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useAuthStatus } from '@/hooks/useAuthStatus';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Update session when user changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
       // Create a minimal session object
       setSession({
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, refreshProfile]);
 
   // Show error toast if auth initialization fails
-  React.useEffect(() => {
+  useEffect(() => {
     if (error) {
       toast({
         title: "Authentication Error",

@@ -3,7 +3,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Car {
+export interface Car {
   id: string;
   title: string;
   model: string;

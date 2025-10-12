@@ -41,7 +41,7 @@ interface EnhancedBookingFlowProps {
   onBookingSuccess: () => void;
 }
 
-type Step = 'dates' | 'phone' | 'extras' | 'terms' | 'license' | 'payment' | 'confirmation';
+type Step = 'phone' | 'dates' | 'terms' | 'license' | 'payment' | 'confirmation';
 
 const stepIcons = {
   dates: Calendar,
@@ -76,12 +76,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     startTime: '10:00',
     endTime: '18:00',
     phoneNumber: '' as string | null,
-    extras: {
-      driver: false,
-      gps: false,
-      childSeat: false,
-      insurance: true
-    },
     totalDays: 1,
     holdId: null as string | null,
     holdExpiry: null as string | null,
@@ -97,7 +91,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   const contentRef = useRef<HTMLDivElement | null>(null);
   const { profile, profileLoading } = useAuth();
 
-  const steps: Step[] = ['dates', 'phone', 'extras', 'terms', 'license', 'payment', 'confirmation'];
+  const steps: Step[] = ['phone', 'dates', 'terms', 'license', 'payment', 'confirmation'];
   const currentStepIndex = steps.indexOf(currentStep);
 
   // Handle body scroll locking for mobile and focus management
@@ -117,20 +111,13 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     };
   }, []);
 
-  // Handle booking restoration on component mount
+  // Handle booking restoration on component mount with non-blocking approach
   useEffect(() => {
     const restoreBooking = async () => {
       const pendingBookingRaw = sessionStorage.getItem('pendingBooking');
       if (pendingBookingRaw) {
         try {
           const pendingBooking = JSON.parse(pendingBookingRaw);
-          
-          // Wait for profile to load
-          let attempts = 0;
-          while (profileLoading && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
           
           // Check if profile has phone number
           if (!profile?.phone) {
@@ -179,7 +166,10 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       }
     };
     
-    restoreBooking();
+    // Only run restoration when profile is loaded
+    if (!profileLoading) {
+      restoreBooking();
+    }
   }, [profile, profileLoading, currentStep]);
 
   // Fetch user phone number and existing licenses on component mount
@@ -230,12 +220,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
   const calculateTotal = () => {
     const basePrice = (car.price_in_paise ? car.price_in_paise / 100 : car.pricePerDay) * bookingData.totalDays;
-    const extrasPrice = Object.entries(bookingData.extras).reduce((acc, [key, enabled]) => {
-      if (!enabled) {return acc;}
-      const prices = { driver: 500, gps: 200, childSeat: 150, insurance: 300 };
-      return acc + (prices[key as keyof typeof prices] || 0);
-    }, 0);
-    return basePrice + extrasPrice;
+    return basePrice;
   };
 
   const calculateAdvanceAmount = () => {
@@ -373,17 +358,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       setCurrentStep('confirmation');
       onBookingSuccess();
       
-      // Reset add-ons state after successful booking
-      setBookingData(prev => ({
-        ...prev,
-        extras: {
-          driver: false,
-          gps: false,
-          childSeat: false,
-          insurance: true
-        }
-      }));
-      
       toast({
         title: "Success",
         description: "Car booked successfully!",
@@ -513,8 +487,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         phoneNumber: cleanedPhone
       }));
       
-      setCurrentStep('extras');
-    } else if (currentStep === 'extras') {
       setCurrentStep('terms');
     } else if (currentStep === 'terms') {
       if (!bookingData.termsAccepted) {
@@ -599,29 +571,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     />
   );
 
-  const renderExtrasSelection = () => (
-    <ExtrasStep
-      extras={bookingData.extras}
-      advanceBooking={bookingData.advanceBooking}
-      advanceAmount={bookingData.advanceAmount}
-      totalDays={bookingData.totalDays}
-      pricePerDay={car.pricePerDay}
-      price_in_paise={car.price_in_paise}
-      onExtraToggle={(extra) => setBookingData(prev => ({
-        ...prev,
-        extras: {
-          ...prev.extras,
-          [extra]: !prev.extras[extra]
-        }
-      }))}
-      onAdvanceBookingToggle={(isAdvance, amount) => setBookingData(prev => ({
-        ...prev,
-        advanceBooking: isAdvance,
-        advanceAmount: amount
-      }))}
-    />
-  );
-
   const renderTermsAndConditions = () => (
     <TermsStep
       termsAccepted={bookingData.termsAccepted}
@@ -653,7 +602,12 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       advanceBooking={bookingData.advanceBooking}
       advanceAmount={bookingData.advanceAmount}
       totalAmount={calculateTotal()}
-      extras={bookingData.extras}
+      extras={{
+        driver: false,
+        gps: false,
+        childSeat: false,
+        insurance: false
+      }}
       onPaymentOptionChange={(isAdvance) => setBookingData(prev => ({ ...prev, advanceBooking: isAdvance }))}
     />
   );
@@ -677,7 +631,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[100] sm:backdrop-blur-sm"
+          className="fixed inset-0 bg-black/50 modal-overlay flex items-center justify-center p-0 sm:p-4 overflow-hidden booking-flow-modal z-[9999] sm:backdrop-blur-sm"
           onClick={onClose}
           role="dialog"
           aria-modal="true"
@@ -767,7 +721,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
               <AnimatePresence mode="wait">
                 {currentStep === 'dates' && renderDateSelection()}
                 {currentStep === 'phone' && renderPhoneCollection()}
-                {currentStep === 'extras' && renderExtrasSelection()}
                 {currentStep === 'terms' && renderTermsAndConditions()}
                 {currentStep === 'license' && renderLicenseUpload()}
                 {currentStep === 'payment' && renderPayment()}

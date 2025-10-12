@@ -96,12 +96,11 @@ export default function LazyImage({
   const containerStyle: React.CSSProperties = {
     position: 'relative',
     overflow: 'hidden',
+    width: '100%',
     ...(aspectRatio ? {
       aspectRatio: aspectRatio,
-    } : {
-      width: '100%',
-      height: 'auto',
-    })
+    } : {}),
+    display: 'block'
   };
 
   // Handle image load error

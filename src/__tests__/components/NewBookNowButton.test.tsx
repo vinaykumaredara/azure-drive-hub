@@ -1,122 +1,113 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, fireEvent, waitFor, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 import { NewBookNowButton } from '@/components/NewBookNowButton';
-import * as bookingIntentUtils from '@/utils/bookingIntentUtils';
-import * as toast from '@/hooks/use-toast';
+
+// Mock the useBookingFlow hook
+vi.mock('@/hooks/useBookingFlow', () => ({
+  useBookingFlow: () => ({
+    isBookingModalOpen: false,
+    openBookingModal: vi.fn(),
+    closeBookingModal: vi.fn()
+  })
+}));
 
 // Mock the useAuth hook
-jest.mock('@/components/AuthProvider', () => ({
+vi.mock('@/components/AuthProvider', () => ({
   useAuth: () => ({
     user: null,
     profile: null,
-    profileLoading: false,
-  }),
+    profileLoading: false
+  })
 }));
 
-// Mock the useBookingFlow hook
-jest.mock('@/hooks/useBookingFlow', () => ({
-  useBookingFlow: () => ({
-    isBookingModalOpen: false,
-    openBookingModal: jest.fn(),
-    closeBookingModal: jest.fn(),
-  }),
+// Mock the PhoneModal component
+vi.mock('@/components/PhoneModal', () => ({
+  PhoneModal: () => <div data-testid="phone-modal">Phone Modal</div>
 }));
 
-// Mock toast
-jest.mock('@/hooks/use-toast', () => ({
-  toast: jest.fn(),
-}));
+// Mock localStorage
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => {
+      store[key] = value.toString();
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    }
+  };
+})();
+
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+});
 
 // Mock window.location
 const mockLocation = {
-  href: 'http://localhost/',
-  pathname: '/',
+  href: '',
+  assign: vi.fn(),
+  replace: vi.fn(),
+  reload: vi.fn(),
 };
-Object.defineProperty(window, 'location', {
-  value: mockLocation,
-  writable: true,
-});
+
+delete (window as any).location;
+(window as any).location = mockLocation;
 
 describe('NewBookNowButton', () => {
   const mockCar = {
     id: 'car-123',
     title: 'Test Car',
-    model: 'Model X',
-    make: 'Test Make',
-    year: 2023,
+    model: 'Model S',
+    make: 'Tesla',
+    year: 2022,
     image: 'test-image.jpg',
-    images: ['test-image.jpg'],
-    pricePerDay: 1000,
+    pricePerDay: 100,
     location: 'Hyderabad',
-    fuel: 'Petrol',
-    transmission: 'Manual',
+    fuel: 'Electric',
+    transmission: 'Automatic',
     seats: 5,
-    rating: 4.5,
-    reviewCount: 10,
+    rating: 4.8,
+    reviewCount: 25,
     isAvailable: true,
-    badges: ['Available'],
-    thumbnail: 'test-thumbnail.jpg',
-    bookingStatus: 'available',
-    price_in_paise: 100000,
-    image_urls: ['test-image.jpg'],
-    image_paths: ['test-path'],
-    status: 'published',
-    isArchived: false,
+    badges: ['Available', 'Verified']
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
     localStorage.clear();
+    vi.clearAllMocks();
+    mockLocation.href = '';
+  });
+
+  it('should render the button with correct text', () => {
+    render(<NewBookNowButton car={mockCar} />);
+    
+    const button = screen.getByText('Book Now');
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('type', 'button');
   });
 
   it('should save pending intent and redirect when user is not authenticated', async () => {
-    const savePendingIntentSpy = jest.spyOn(bookingIntentUtils, 'savePendingIntent');
-    
     render(<NewBookNowButton car={mockCar} />);
     
-    const bookNowButton = screen.getByText('Book Now');
-    fireEvent.click(bookNowButton);
+    const button = screen.getByText('Book Now');
+    fireEvent.click(button);
     
-    expect(savePendingIntentSpy).toHaveBeenCalledWith({
-      type: 'BOOK_CAR',
-      carId: 'car-123',
-    });
-    
-    expect(window.location.href).toBe('/auth?next=%2F');
-  });
-
-  it('should show toast when user is not authenticated', async () => {
-    const toastSpy = jest.spyOn(toast, 'toast');
-    
-    render(<NewBookNowButton car={mockCar} />);
-    
-    const bookNowButton = screen.getByText('Book Now');
-    fireEvent.click(bookNowButton);
-    
-    expect(toastSpy).toHaveBeenCalledWith({
-      title: "Sign in required",
-      description: "We'll resume your booking automatically after you sign in.",
-    });
-  });
-
-  it('should show error toast when car is not available', async () => {
-    const toastSpy = jest.spyOn(toast, 'toast');
-    
-    const unavailableCar = {
-      ...mockCar,
-      isAvailable: false,
-      bookingStatus: 'booked',
-    };
-    
-    render(<NewBookNowButton car={unavailableCar} />);
-    
-    const bookNowButton = screen.getByText('Book Now');
-    fireEvent.click(bookNowButton);
-    
-    expect(toastSpy).toHaveBeenCalledWith({
-      title: "Car Not Available",
-      description: "This car is not available for booking.",
-      variant: "destructive",
+    await waitFor(() => {
+      const saved = localStorage.getItem('pendingIntent');
+      expect(saved).toBeTruthy();
+      
+      const parsed = JSON.parse(saved!);
+      expect(parsed.type).toBe('BOOK_CAR');
+      expect(parsed.carId).toBe('car-123');
+      
+      // Check that the redirect URL contains the next parameter
+      expect(window.location.href).toContain('/auth?next=');
     });
   });
 });

@@ -7,6 +7,7 @@ import { MapPin, Heart } from "lucide-react";
 import ImageCarousel from '@/components/ImageCarousel';
 import { useAuth } from "@/components/AuthProvider";
 import { toast } from "@/hooks/use-toast";
+import { NewBookNowButton } from '@/components/NewBookNowButton';
 
 // Define the car interface
 interface Car {
@@ -172,7 +173,9 @@ const CarCardModernComponent = ({
               >
                 Contact
               </Button>
-              {/* Book Now button will be implemented in the new component */}
+              <NewBookNowButton 
+                car={carForBooking}
+              />
             </div>
           </div>
         </div>

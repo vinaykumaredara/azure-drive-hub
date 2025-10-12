@@ -79,7 +79,8 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
       <SimpleImage 
         src={validImages[idx]} 
         alt={`Car image ${idx + 1}`} 
-        className="w-full aspect-video object-cover rounded" 
+        className="w-full h-full object-cover rounded" 
+        aspectRatio="16/9"
       />
       {validImages.length > 1 && (
         <>

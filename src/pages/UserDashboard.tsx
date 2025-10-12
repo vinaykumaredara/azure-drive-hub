@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/components/AuthProvider';
+import { useBookingFlow } from '@/hooks/useBookingFlow';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { LicenseUpload } from '@/components/LicenseUpload';
@@ -64,7 +65,8 @@ interface LicenseData {
 }
 
 const UserDashboard: React.FC = () => {
-  const { user, signOut, profile, profileLoading } = useAuth();
+  const { user, signOut, profile, profileLoading, refreshProfile } = useAuth();
+  const { openBookingModal } = useBookingFlow();
   const navigate = useNavigate();
   const _location = useLocation();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -75,57 +77,121 @@ const UserDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showPhoneModal, setShowPhoneModal] = useState(false);
-  const [_restoredDraft, setRestoredDraft] = useState<any>(null);
+  const [restoredDraft, setRestoredDraft] = useState<any>(null);
+  const [shouldOpenBooking, setShouldOpenBooking] = useState(false);
+  const [selectedCarForBooking, setSelectedCarForBooking] = useState<string | null>(null);
 
-  // Handle booking restoration and phone collection after login
+  // Render the booking modal if we should open it
+  useEffect(() => {
+    const openBookingForCar = async () => {
+      if (shouldOpenBooking && selectedCarForBooking) {
+        // Reset the flag
+        setShouldOpenBooking(false);
+        
+        // Fetch car data
+        try {
+          const { data, error } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('id', selectedCarForBooking)
+            .single();
+          
+          if (error) throw error;
+          
+          // Type assertion for the car data
+          const car = data as any;
+          
+          if (car) {
+            // Open the booking modal for the selected car
+            openBookingModal({
+              id: car.id,
+              title: car.title,
+              model: car.model,
+              make: car.make,
+              year: car.year,
+              image: car.image_urls?.[0] || car.image || '',
+              images: car.image_urls || [],
+              pricePerDay: car.price_per_day || (car.price_in_paise ? (car.price_in_paise || 0) / 100 : 0),
+              location: car.location,
+              fuel: car.fuel_type || car.fuel,
+              transmission: car.transmission,
+              seats: car.seats,
+              rating: car.rating || 0,
+              reviewCount: car.review_count || 0,
+              isAvailable: car.status === 'available',
+              badges: car.badges || [],
+              thumbnail: car.image_urls?.[0] || car.image || '',
+              bookingStatus: car.status,
+              price_in_paise: car.price_in_paise,
+              image_urls: car.image_urls,
+              image_paths: car.image_paths,
+              status: car.status,
+              isArchived: car.is_archived || false
+            } as any);
+          }
+        } catch (error) {
+          console.error('Failed to fetch car for booking:', error);
+          toast({
+            title: "Error",
+            description: "Failed to open booking flow. Please try again.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+    
+    openBookingForCar();
+  }, [shouldOpenBooking, selectedCarForBooking, openBookingModal]);
+
+  // Handle booking restoration with non-blocking approach
   useEffect(() => {
     // Add debug logging
     console.log('UserDashboard useEffect triggered:', { user, profile, profileLoading });
     
-    if (!user?.id) {
-      return;
-    }
+    if (!user?.id || profileLoading) return;
 
-    // Check if we need to restore a booking
     const pendingBooking = sessionStorage.getItem('pendingBooking');
     if (pendingBooking) {
       try {
         const draft = JSON.parse(pendingBooking);
         setRestoredDraft(draft);
         
-        // Wait for profile to load
-        const checkProfile = async () => {
-          // Wait for profile to load (max 5 seconds)
-          let attempts = 0;
-          while (profileLoading && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-          
-          // Check if profile has phone number
-          if (!profile?.phone) {
-            console.log('Showing phone modal to collect phone number');
-            setShowPhoneModal(true);
-          } else {
-            // Phone exists, we can proceed with booking
-            console.log('Phone exists, booking can proceed');
-            // The actual booking restoration will be handled by the CarCard components
-          }
-        };
-        
-        checkProfile();
+        // Check if profile has phone number
+        if (!profile?.phone) {
+          console.log('Showing phone modal to collect phone number');
+          setShowPhoneModal(true);
+        } else {
+          // Phone exists, open booking flow
+          console.log('Phone exists, booking can proceed');
+          setSelectedCarForBooking(draft.carId);
+          setShouldOpenBooking(true);
+        }
       } catch (error) {
         console.error('Failed to parse pending booking:', error);
         sessionStorage.removeItem('pendingBooking');
       }
     }
-  }, [user?.id, profile, profileLoading]);
+  }, [user?.id, profile?.phone, profileLoading]);
 
   // Handle phone modal completion
-  const handlePhoneModalComplete = () => {
+  const handlePhoneModalComplete = async () => {
     console.log('Phone modal completed, booking can proceed');
     setShowPhoneModal(false);
-    // The actual booking restoration will be handled by the CarCard components
+    
+    // Refresh profile to get updated phone number
+    await refreshProfile();
+    
+    // Open booking flow if draft exists
+    const pendingBooking = sessionStorage.getItem('pendingBooking');
+    if (pendingBooking) {
+      try {
+        const draft = JSON.parse(pendingBooking);
+        setSelectedCarForBooking(draft.carId);
+        setShouldOpenBooking(true);
+      } catch (error) {
+        console.error('Failed to restore booking:', error);
+      }
+    }
   };
 
   // Move fetchNotifications outside useEffect so it can be called from other places
@@ -1354,8 +1420,8 @@ const UserDashboard: React.FC = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <LicenseUpload onUploaded={(licenseId) => {
-                        console.log('License uploaded with ID:', licenseId);
+                      <LicenseUpload onLicenseUpload={(filePath: string) => {
+                        console.log('License uploaded with file path:', filePath);
                         toast({
                           title: "License Uploaded",
                           description: "Your license has been uploaded successfully.",
