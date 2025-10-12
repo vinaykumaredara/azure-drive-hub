@@ -602,8 +602,8 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   const renderExtrasSelection = () => (
     <ExtrasStep
       extras={bookingData.extras}
-      _advanceBooking={bookingData.advanceBooking}
-      _advanceAmount={bookingData.advanceAmount}
+      advanceBooking={bookingData.advanceBooking}
+      advanceAmount={bookingData.advanceAmount}
       totalDays={bookingData.totalDays}
       pricePerDay={car.pricePerDay}
       price_in_paise={car.price_in_paise}

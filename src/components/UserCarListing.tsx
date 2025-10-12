@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { mapCarForUI } from '@/utils/carImageUtils';
 import { performanceMonitor } from '@/utils/performanceMonitor';
 import { isMobileDevice } from '@/utils/deviceOptimizations';
+import { NewBookNowButton } from "@/components/NewBookNowButton";
 
 // Interface for the data we receive from Supabase (allows null values)
 interface SupabaseCar {
@@ -517,32 +518,38 @@ export const UserCarListing = () => {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
                   >
-                    <CarCardModern 
-                      car={{
-                        id: car.id,
-                        title: car.title,
-                        model: car.model || 'Unknown Model',
-                        make: car.make || undefined,
-                        year: car.year || undefined,
-                        image: car.image,
-                        images: car.images,
-                        pricePerDay: car.pricePerDay,
-                        location: car.location,
-                        fuel: car.fuel || 'Unknown',
-                        transmission: car.transmission || 'Unknown',
-                        seats: car.seats || 0,
-                        rating: car.rating,
-                        reviewCount: car.reviewCount,
-                        isAvailable: car.isAvailable,
-                        badges: car.badges,
-                        thumbnail: car.thumbnail,
-                        bookingStatus: car.bookingStatus || undefined,
-                        price_in_paise: car.pricePerDay * 100,
-                        image_urls: car.image_urls,
-                        image_paths: car.image_paths
-                      }} 
-                      onBookingSuccess={handleBookingSuccess} // Pass the callback
-                    />
+                    <div className="relative">
+                      <CarCardModern 
+                        car={{
+                          id: car.id,
+                          title: car.title,
+                          model: car.model || 'Unknown Model',
+                          make: car.make || undefined,
+                          year: car.year || undefined,
+                          image: car.image,
+                          images: car.images,
+                          pricePerDay: car.pricePerDay,
+                          location: car.location,
+                          fuel: car.fuel || 'Unknown',
+                          transmission: car.transmission || 'Unknown',
+                          seats: car.seats || 0,
+                          rating: car.rating,
+                          reviewCount: car.reviewCount,
+                          isAvailable: car.isAvailable,
+                          badges: car.badges,
+                          thumbnail: car.thumbnail,
+                          bookingStatus: car.bookingStatus || undefined,
+                          price_in_paise: car.pricePerDay * 100,
+                          image_urls: car.image_urls,
+                          image_paths: car.image_paths
+                        }} 
+                        onBookingSuccess={handleBookingSuccess} // Pass the callback
+                      />
+                      {/* Add the new Book Now button here */}
+                      <div className="absolute bottom-4 right-4">
+                        <NewBookNowButton car={car} />
+                      </div>
+                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>

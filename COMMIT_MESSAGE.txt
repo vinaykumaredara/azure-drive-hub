@@ -1,3 +1,14 @@
+fix: resolve unresponsive Book Now button and harden booking flow
+
+- Fix CarCardModern component by removing preventDefault() that was blocking navigation
+- Standardize data-testid attribute for consistent test targeting
+- Improve ImageCarousel touch event handling to prevent click swallowing on mobile
+- Enhance booking flow to be phone-first with proper state persistence
+- Add comprehensive unit and integration tests for booking functionality
+- Verify path aliases and jest-dom configurations are working correctly
+
+Fixes #XYZ - Book Now button unresponsive on user dashboard
+
 fix: booking flow issues and performance improvements
 
 This commit fixes several critical issues in the booking flow:

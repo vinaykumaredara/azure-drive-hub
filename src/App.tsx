@@ -47,6 +47,10 @@ const NotFound = React.lazy(() => {
   return import("./pages/NotFound");
 });
 
+const MockPaymentSuccess = React.lazy(() => 
+  import("@/pages/MockPaymentSuccess").then(module => ({ default: module.MockPaymentSuccess }))
+);
+
 const App = () => (
   <GlobalErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -65,6 +69,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/booking/:carId" element={<Booking />} />
+                <Route path="/mock-pay-success" element={<MockPaymentSuccess />} />
                 <Route 
                   path="/dashboard" 
                   element={

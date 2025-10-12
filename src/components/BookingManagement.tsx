@@ -12,7 +12,8 @@ import {
   CreditCard,
   Phone,
   Bell,
-  TrendingUp
+  TrendingUp,
+  FileText
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { formatINRFromPaise } from '@/utils/currency';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Booking {
   id: string;
@@ -34,13 +36,14 @@ interface Booking {
   car_model: string | null;
   start_datetime: string;
   end_datetime: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'refunded';
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'refunded' | 'held' | 'expired';
   payment_status: 'unpaid' | 'partial_hold' | 'paid' | 'cancelled';
   hold_amount: number | null; // in paise
   total_amount: number; // in paise
   hold_until: string | null;
   created_at: string;
   notes: string | null;
+  license_path: string | null;
 }
 
 const BookingManagement: React.FC = () => {
@@ -53,96 +56,71 @@ const BookingManagement: React.FC = () => {
   const [_sortOrder, _setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  // Mock data for demonstration
+  // Fetch real booking data from database
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const mockBookings: Booking[] = [
-        {
-          id: 'BK001',
-          user_id: 'user1',
-          user_name: 'Rajesh Kumar',
-          user_email: 'rajesh@example.com',
-          user_phone: '+91 98765 43210',
-          car_id: 'car1',
-          car_title: 'Honda City 2023',
-          car_make: 'Honda',
-          car_model: 'City',
-          start_datetime: '2025-10-01T10:00:00Z',
-          end_datetime: '2025-10-03T18:00:00Z',
-          status: 'confirmed',
-          payment_status: 'paid',
-          hold_amount: null,
-          total_amount: 640000, // in paise
-          hold_until: null,
-          created_at: '2025-09-25T10:30:00Z',
-          notes: 'Customer requested child seat'
-        },
-        {
-          id: 'BK002',
-          user_id: 'user2',
-          user_name: 'Priya Sharma',
-          user_email: 'priya@example.com',
-          user_phone: '+91 98765 43211',
-          car_id: 'car2',
-          car_title: 'Hyundai Creta 2022',
-          car_make: 'Hyundai',
-          car_model: 'Creta',
-          start_datetime: '2025-10-02T09:00:00Z',
-          end_datetime: '2025-10-04T20:00:00Z',
-          status: 'pending',
-          payment_status: 'partial_hold',
-          hold_amount: 35000, // in paise
-          total_amount: 700000, // in paise
-          hold_until: '2025-09-30T15:00:00Z',
-          created_at: '2025-09-28T14:20:00Z',
-          notes: null
-        },
-        {
-          id: 'BK003',
-          user_id: 'user3',
-          user_name: 'Amit Patel',
-          user_email: 'amit@example.com',
-          user_phone: '+91 98765 43212',
-          car_id: 'car3',
-          car_title: 'Maruti Swift 2023',
-          car_make: 'Maruti',
-          car_model: 'Swift',
-          start_datetime: '2025-09-25T08:00:00Z',
-          end_datetime: '2025-09-27T20:00:00Z',
-          status: 'completed',
-          payment_status: 'paid',
-          hold_amount: null,
-          total_amount: 500000, // in paise
-          hold_until: null,
-          created_at: '2025-09-20T09:15:00Z',
-          notes: 'Returned with minor scratches'
-        },
-        {
-          id: 'BK004',
-          user_id: 'user4',
-          user_name: 'Sneha Reddy',
-          user_email: 'sneha@example.com',
-          user_phone: '+91 98765 43213',
-          car_id: 'car4',
-          car_title: 'Toyota Innova 2021',
-          car_make: 'Toyota',
-          car_model: 'Innova',
-          start_datetime: '2025-09-30T07:00:00Z',
-          end_datetime: '2025-10-05T22:00:00Z',
-          status: 'cancelled',
-          payment_status: 'cancelled',
-          hold_amount: null,
-          total_amount: 2600000, // in paise
-          hold_until: null,
-          created_at: '2025-09-22T16:45:00Z',
-          notes: 'Cancelled due to travel changes'
-        }
-      ];
+    const fetchBookings = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch bookings with user and car info
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            user_id,
+            start_datetime,
+            end_datetime,
+            status,
+            payment_status,
+            hold_amount,
+            total_amount,
+            hold_until,
+            created_at,
+            license_path,
+            users(full_name, email, phone),
+            cars(title, make, model)
+          `)
+          .order('created_at', { ascending: false });
 
-      setBookings(mockBookings);
-      setIsLoading(false);
-    }, 1000);
+        if (error) throw error;
+
+        // Transform data to match our interface
+        const transformedBookings: Booking[] = (data || []).map((booking: any) => ({
+          id: booking.id,
+          user_id: booking.user_id,
+          user_name: booking.users?.full_name || 'Unknown User',
+          user_email: booking.users?.email || 'No email',
+          user_phone: booking.users?.phone || 'No phone',
+          car_id: booking.cars?.id || '',
+          car_title: booking.cars?.title || 'Unknown Car',
+          car_make: booking.cars?.make || null,
+          car_model: booking.cars?.model || null,
+          start_datetime: booking.start_datetime,
+          end_datetime: booking.end_datetime,
+          status: booking.status,
+          payment_status: booking.payment_status,
+          hold_amount: booking.hold_amount,
+          total_amount: booking.total_amount,
+          hold_until: booking.hold_until,
+          created_at: booking.created_at,
+          notes: null, // We don't have notes in the current schema
+          license_path: booking.license_path
+        }));
+
+        setBookings(transformedBookings);
+      } catch (error: any) {
+        console.error('Error fetching bookings:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load bookings",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBookings();
   }, []);
 
   // Filter and sort bookings
@@ -205,6 +183,8 @@ const BookingManagement: React.FC = () => {
       case 'completed': return 'outline';
       case 'cancelled': return 'destructive';
       case 'refunded': return 'secondary';
+      case 'held': return 'secondary';
+      case 'expired': return 'destructive';
       default: return 'default';
     }
   };
@@ -217,6 +197,8 @@ const BookingManagement: React.FC = () => {
       case 'completed': return 'Completed';
       case 'cancelled': return 'Cancelled';
       case 'refunded': return 'Refunded';
+      case 'held': return 'Held';
+      case 'expired': return 'Expired';
       default: return status;
     }
   };
@@ -245,13 +227,47 @@ const BookingManagement: React.FC = () => {
 
   // Handle booking action
   const handleBookingAction = async (bookingId: string, action: 'approve' | 'cancel' | 'complete') => {
-    // In a real app, this would update the database
-    toast({
-      title: `Booking ${action.charAt(0).toUpperCase() + action.slice(1)}d`,
-      description: `Booking has been ${action}d successfully`,
-    });
-    
-    setSelectedBooking(null);
+    try {
+      let updateData: any = {};
+      
+      switch (action) {
+        case 'approve':
+          updateData = { status: 'confirmed' };
+          break;
+        case 'cancel':
+          updateData = { status: 'cancelled', payment_status: 'cancelled' };
+          break;
+        case 'complete':
+          updateData = { status: 'completed' };
+          break;
+      }
+      
+      const { error } = await supabase
+        .from('bookings')
+        .update(updateData)
+        .eq('id', bookingId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setBookings(prev => prev.map(booking => 
+        booking.id === bookingId ? { ...booking, ...updateData } : booking
+      ));
+      
+      toast({
+        title: `Booking ${action.charAt(0).toUpperCase() + action.slice(1)}d`,
+        description: `Booking has been ${action}d successfully`,
+      });
+      
+      setSelectedBooking(null);
+    } catch (error: any) {
+      console.error(`Error ${action}ing booking:`, error);
+      toast({
+        title: "Error",
+        description: error.message || `Failed to ${action} booking`,
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -373,6 +389,8 @@ const BookingManagement: React.FC = () => {
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                   <SelectItem value="refunded">Refunded</SelectItem>
+                  <SelectItem value="held">Held</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -464,13 +482,6 @@ const BookingManagement: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    
-                    {booking.notes && (
-                      <div className="mt-4 p-3 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Notes</p>
-                        <p className="text-sm">{booking.notes}</p>
-                      </div>
-                    )}
                     
                     <div className="mt-4 pt-4 border-t flex justify-between items-center">
                       <div className="flex items-center gap-2">
@@ -576,13 +587,98 @@ const BookingManagement: React.FC = () => {
 
                   <Card className="mt-6">
                     <CardHeader>
-                      <CardTitle>Booking Timeline</CardTitle>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="w-5 h-5" />
+                        License Information
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-center py-8">
-                        <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">Booking timeline visualization</p>
-                        <p className="text-sm text-muted-foreground mt-1">Interactive timeline coming soon</p>
+                      {selectedBooking.license_path ? (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">License Document</p>
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                            <a 
+                              href={selectedBooking.license_path} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              View License Document
+                            </a>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground">No license document uploaded</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Car className="w-5 h-5" />
+                        Booking Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Car</p>
+                          <p className="font-medium">
+                            {selectedBooking.car_title} {selectedBooking.car_make && `(${selectedBooking.car_make} ${selectedBooking.car_model})`}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Start Date</p>
+                          <p className="font-medium">{new Date(selectedBooking.start_datetime).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">End Date</p>
+                          <p className="font-medium">{new Date(selectedBooking.end_datetime).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Duration</p>
+                          <p className="font-medium">
+                            {Math.ceil(
+                              (new Date(selectedBooking.end_datetime).getTime() - 
+                               new Date(selectedBooking.start_datetime).getTime()) / 
+                              (1000 * 60 * 60 * 24)
+                            )} days
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Status</p>
+                          <Badge variant={getStatusVariant(selectedBooking.status)}>
+                            {getStatusText(selectedBooking.status)}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Payment Status</p>
+                          <Badge variant={getPaymentStatusVariant(selectedBooking.payment_status)}>
+                            {getPaymentStatusText(selectedBooking.payment_status)}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Total Amount</p>
+                          <p className="font-bold text-lg">{formatINRFromPaise(selectedBooking.total_amount)}</p>
+                        </div>
+                        {selectedBooking.hold_amount && (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Hold Amount</p>
+                            <p className="font-medium">{formatINRFromPaise(selectedBooking.hold_amount)}</p>
+                          </div>
+                        )}
+                        {selectedBooking.hold_until && (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Hold Expires</p>
+                            <p className="font-medium text-warning">
+                              {new Date(selectedBooking.hold_until).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

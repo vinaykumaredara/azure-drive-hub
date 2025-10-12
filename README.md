@@ -205,3 +205,143 @@ We've implemented a complete booking workflow with all required features:
 - **User Dashboard Updates**: Complete booking history with payment status
 
 For detailed information, see [FINAL_IMPLEMENTATION_REPORT.md](./FINAL_IMPLEMENTATION_REPORT.md)
+
+## 📋 How Booking Flow Works
+
+The new booking flow implementation provides a seamless user experience with the following steps:
+
+1. **User Authentication Flow**
+   - When a user clicks "Book Now" on any car card:
+     - If not signed in, a sign-in modal appears (or redirects to auth page)
+     - After successful authentication, check if phone number exists
+     - If no phone number, prompt user to enter phone number
+     - Save phone number to user profile before proceeding
+
+2. **Multi-Step Booking Modal**
+   - **Step 1: Date & Time Selection**
+     - Select start and end dates with validation
+     - Choose pickup and return times
+     - Dynamic cost calculation based on duration
+   - **Step 2: Terms & Conditions**
+     - Display comprehensive terms that must be accepted
+     - Checkbox validation to proceed
+   - **Step 3: License Upload**
+     - Camera capture support for mobile users
+     - File upload option for desktop users
+     - Validation for image files (JPG, PNG) under 5MB
+     - Upload to Supabase Storage and save URL to booking record
+   - **Step 4: Payment Options**
+     - Choice between 10% hold or full payment
+     - For 10% hold: Create booking with "held" status and hold_until timestamp
+     - For full payment: Process payment and create booking with "confirmed" status
+   - **Step 5: Confirmation**
+     - Display booking confirmation with all details
+     - Show license URL, user phone, times, status, and payment info
+
+3. **Database & Security**
+   - All booking creation happens via Edge Functions for transactional safety
+   - EXCLUDE constraint prevents overlapping bookings at database level
+   - License documents stored securely in Supabase Storage
+   - Phone numbers stored in user profiles for future bookings
+
+4. **Admin Dashboard Integration**
+   - Real-time display of all bookings with complete information
+   - View license documents, user phone numbers, booking times, and payment status
+   - Manage booking status (approve, cancel, complete)
+
+## 🧪 How to Test
+
+### Unit Tests
+Run the unit tests for the booking flow hooks:
+```bash
+npm run test:unit
+```
+
+Key test files:
+- `src/__tests__/hooks/useBookingFlow.test.ts` - Tests for booking flow state management
+- `src/__tests__/functions/createBooking.test.ts` - Tests for Edge Function integration
+
+### Integration Tests
+Run integration tests for the booking system:
+```bash
+npm run test:integration
+```
+
+### End-to-End Tests
+Run end-to-end tests for the complete booking flow:
+```bash
+npm run test:e2e
+```
+
+### Manual Testing Steps
+1. **Authentication Flow**
+   - Log out and click "Book Now" on any car
+   - Verify sign-in modal appears or redirection to auth page
+   - After login, if no phone number exists, verify phone collection modal appears
+   - Enter phone number and verify it's saved to profile
+
+2. **Booking Modal Flow**
+   - Click "Book Now" on any available car
+   - Complete Date & Time selection with valid dates
+   - Accept Terms & Conditions
+   - Upload a license image (test both camera and file upload)
+   - Choose payment option (10% hold or full payment)
+   - Verify booking confirmation appears
+
+3. **Validation Testing**
+   - Try to proceed without selecting dates (should show error)
+   - Try to proceed without accepting terms (should show error)
+   - Try to upload non-image files (should show error)
+   - Try to select end date before start date (should show error)
+
+4. **Admin Dashboard Verification**
+   - Log in as admin
+   - Navigate to Booking Management section
+   - Verify all booking details are displayed correctly:
+     - License URL with clickable link
+     - User phone number
+     - Booking times and duration
+     - Status and payment information
+
+5. **Database Verification**
+   - Check that bookings are created with correct status
+   - Verify license documents are stored in Supabase Storage
+   - Confirm phone numbers are saved in user profiles
+   - Test that overlapping bookings are prevented by database constraints
+
+## 📈 Performance & UX
+
+### Lazy Loading
+- Booking modal and heavy components are lazy-loaded for faster initial page load
+- Code splitting implemented for optimal bundle size
+
+### User Experience
+- Smooth animations and transitions between booking steps
+- Clear progress indicators showing current step
+- Disabled "Next" buttons until validations pass
+- Loading spinners during async operations
+- Toast notifications for errors and success messages
+- Mobile-friendly design with camera capture support
+
+### Error Handling
+- Defensive programming with comprehensive error handling
+- Visible error toasts for all user actions
+- No silent failures - every action shows feedback
+- Graceful degradation for network issues
+
+## 🔒 Security
+
+### Authentication
+- All booking operations require authenticated users
+- Phone number collection secured through Supabase Auth
+- Profile updates protected by RLS policies
+
+### Data Protection
+- License documents stored in private Supabase Storage bucket
+- Database constraints prevent data integrity issues
+- Edge Functions ensure server-side validation and transactional operations
+
+### Payment Security
+- Payment processing handled by trusted third-party providers
+- No sensitive payment data stored in application database
+- Edge Functions provide secure server-side booking creation
