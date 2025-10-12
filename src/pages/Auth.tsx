@@ -24,17 +24,12 @@ const Auth: React.FC = () => {
   // Handle post-login redirect logic - NON-BLOCKING VERSION
   useEffect(() => {
     if (user && !isLoading && !profileLoading) {
-      console.log('Auth redirect logic triggered:', { user, profile, hasPhone: !!profile?.phone });
-      
       const searchParams = new URLSearchParams(location.search);
       const nextUrl = searchParams.get('next');
       const redirectToProfile = sessionStorage.getItem('redirectToProfileAfterLogin');
       
       if (redirectToProfile === 'true') {
         sessionStorage.removeItem('redirectToProfileAfterLogin');
-        
-        // Always redirect to dashboard - phone modal will show there if needed
-        console.log('Redirecting to dashboard for phone collection/booking restoration');
         navigate('/dashboard', { replace: true });
         return;
       }

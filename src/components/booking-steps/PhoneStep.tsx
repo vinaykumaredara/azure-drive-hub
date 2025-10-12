@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Phone } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { phoneSchema } from '@/utils/validation';
 
 interface PhoneStepProps {
   phoneNumber: string | null;
@@ -13,6 +14,24 @@ export const PhoneStep: React.FC<PhoneStepProps> = ({
   phoneNumber,
   onPhoneNumberChange
 }) => {
+  const [validationError, setValidationError] = React.useState<string | null>(null);
+
+  const handlePhoneChange = (value: string) => {
+    onPhoneNumberChange(value);
+    
+    // Validate on blur or after typing stops
+    if (value.length >= 10) {
+      const validation = phoneSchema.safeParse('+91' + value);
+      if (!validation.success) {
+        setValidationError(validation.error.errors[0]?.message || 'Invalid phone number');
+      } else {
+        setValidationError(null);
+      }
+    } else {
+      setValidationError(null);
+    }
+  };
+
   return (
     <motion.div
       key="phone"
@@ -43,14 +62,17 @@ export const PhoneStep: React.FC<PhoneStepProps> = ({
               type="tel"
               placeholder="9876543210"
               value={phoneNumber || ''}
-              onChange={(e) => onPhoneNumberChange(e.target.value)}
-              className="pl-10 sm:pl-12 text-sm"
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              className={`pl-10 sm:pl-12 text-sm ${validationError ? 'border-destructive' : ''}`}
               maxLength={10}
               aria-describedby="phone-help"
               pattern="[6-9][0-9]{9}"
               inputMode="tel"
             />
           </div>
+          {validationError && (
+            <p className="text-xs text-destructive mt-1">{validationError}</p>
+          )}
           <p id="phone-help" className="text-xs text-muted-foreground mt-1">
             We'll use this for booking updates and verification
           </p>

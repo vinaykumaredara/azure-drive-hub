@@ -27,25 +27,25 @@ export const useAuthStatus = (): AuthStatus => {
         // Get current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (sessionError) {throw sessionError;}
+        if (sessionError) throw sessionError;
         
         if (session?.user && mounted) {
-          // Fetch user profile to check admin status
-          const { data: profile, error: profileError } = await supabase
-            .from('users')
-            .select('is_admin')
-            .eq('id', session.user.id)
-            .single();
+          // Check admin status using user_roles table
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .eq('role', 'admin')
+            .maybeSingle();
             
-          if (profileError) {
-            console.error('Profile fetch error:', profileError);
+          if (roleError && roleError.code !== 'PGRST116') {
             // Don't throw here, we can still proceed with basic auth
           }
           
           if (mounted) {
             setStatus({
               user: session.user,
-              isAdmin: (profile as any)?.is_admin || false,
+              isAdmin: !!roleData,
               isLoading: false,
               error: null
             });
@@ -59,7 +59,6 @@ export const useAuthStatus = (): AuthStatus => {
           });
         }
       } catch (error) {
-        console.error('Auth status check failed:', error);
         if (mounted) {
           setStatus({
             user: null,
@@ -80,21 +79,18 @@ export const useAuthStatus = (): AuthStatus => {
       
       // Only update state if there's a meaningful change
       if (session?.user) {
-        // Fetch user profile to check admin status
+        // Check admin status using user_roles table
         supabase
-          .from('users')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profile, error }) => {
-            if (error) {
-              console.error('Profile fetch error:', error);
-            }
-            
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .maybeSingle()
+          .then(({ data: roleData }) => {
             if (mounted) {
               // Only update if there's a real change
               setStatus(prev => {
-                const newIsAdmin = (profile as any)?.is_admin || false;
+                const newIsAdmin = !!roleData;
                 if (prev.user?.id === session.user.id && 
                     prev.isAdmin === newIsAdmin && 
                     !prev.error) {

@@ -83,19 +83,12 @@ const UserDashboard: React.FC = () => {
 
   // Handle booking restoration and phone collection after login - NON-BLOCKING VERSION
   useEffect(() => {
-    console.log('UserDashboard booking restoration effect:', { 
-      userId: user?.id, 
-      hasPhone: !!profile?.phone, 
-      profileLoading 
-    });
-    
     if (!user?.id || profileLoading) return;
 
     const pendingBooking = sessionStorage.getItem('pendingBooking');
     if (pendingBooking) {
       try {
         const draft = JSON.parse(pendingBooking);
-        console.log('Found pending booking draft:', draft);
         setRestoredDraft(draft);
         
         // Fetch car details

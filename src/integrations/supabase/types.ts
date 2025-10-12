@@ -3,505 +3,642 @@ export type Json =
   | number
   | boolean
   | null
-  | { [key: string]: Json }
+  | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.4"
+  }
   public: {
     Tables: {
       audit_logs: {
         Row: {
-          id: string
           action: string
           description: string | null
-          user_id: string | null
+          id: string
           metadata: Json | null
-          timestamp: string
+          timestamp: string | null
+          user_id: string | null
         }
         Insert: {
-          id?: string
           action: string
           description?: string | null
-          user_id?: string | null
+          id?: string
           metadata?: Json | null
-          timestamp?: string
+          timestamp?: string | null
+          user_id?: string | null
         }
         Update: {
-          id?: string
           action?: string
           description?: string | null
-          user_id?: string | null
+          id?: string
           metadata?: Json | null
-          timestamp?: string
+          timestamp?: string | null
+          user_id?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bookings: {
         Row: {
-          id: string
-          user_id: string | null
           car_id: string | null
-          start_datetime: string
-          end_datetime: string
-          status: string
-          hold_expires_at: string | null
-          total_amount: number | null
-          payment_id: string | null
-          created_at: string
-          // Added fields from migrations
-          total_amount_in_paise: number | null
+          created_at: string | null
           currency: string | null
+          end_datetime: string
+          hold_expires_at: string | null
+          id: string
+          payment_id: string | null
+          start_datetime: string
+          status: string
+          total_amount: number | null
+          total_amount_in_paise: number | null
+          user_id: string | null
         }
         Insert: {
-          id?: string
-          user_id?: string | null
           car_id?: string | null
-          start_datetime: string
-          end_datetime: string
-          status?: string
-          hold_expires_at?: string | null
-          total_amount?: number | null
-          payment_id?: string | null
-          created_at?: string
-          // Added fields from migrations
-          total_amount_in_paise?: number | null
+          created_at?: string | null
           currency?: string | null
+          end_datetime: string
+          hold_expires_at?: string | null
+          id?: string
+          payment_id?: string | null
+          start_datetime: string
+          status?: string
+          total_amount?: number | null
+          total_amount_in_paise?: number | null
+          user_id?: string | null
         }
         Update: {
-          id?: string
-          user_id?: string | null
           car_id?: string | null
-          start_datetime?: string
-          end_datetime?: string
-          status?: string
-          hold_expires_at?: string | null
-          total_amount?: number | null
-          payment_id?: string | null
-          created_at?: string
-          // Added fields from migrations
-          total_amount_in_paise?: number | null
+          created_at?: string | null
           currency?: string | null
+          end_datetime?: string
+          hold_expires_at?: string | null
+          id?: string
+          payment_id?: string | null
+          start_datetime?: string
+          status?: string
+          total_amount?: number | null
+          total_amount_in_paise?: number | null
+          user_id?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cars: {
         Row: {
+          booked_at: string | null
+          booked_by: string | null
+          booking_status: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          fuel_type: string | null
           id: string
-          title: string
+          image_paths: string[] | null
+          image_urls: string[] | null
+          location_city: string | null
           make: string | null
           model: string | null
-          year: number | null
-          seats: number | null
-          fuel_type: string | null
-          transmission: string | null
+          price_in_paise: number | null
           price_per_day: number
           price_per_hour: number | null
+          seats: number | null
           service_charge: number | null
-          description: string | null
-          location_city: string | null
           status: string | null
-          image_urls: string[] | null
-          image_paths: string[] | null
-          created_at: string | null
-          // Added fields from migrations
-          booking_status: string | null
-          booked_by: string | null
-          booked_at: string | null
-          price_in_paise: number | null
-          currency: string | null
+          title: string
+          transmission: string | null
+          year: number | null
         }
         Insert: {
+          booked_at?: string | null
+          booked_by?: string | null
+          booking_status?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          fuel_type?: string | null
           id?: string
-          title: string
+          image_paths?: string[] | null
+          image_urls?: string[] | null
+          location_city?: string | null
           make?: string | null
           model?: string | null
-          year?: number | null
-          seats?: number | null
-          fuel_type?: string | null
-          transmission?: string | null
+          price_in_paise?: number | null
           price_per_day: number
           price_per_hour?: number | null
+          seats?: number | null
           service_charge?: number | null
-          description?: string | null
-          location_city?: string | null
           status?: string | null
-          image_urls?: string[] | null
-          image_paths?: string[] | null
-          created_at?: string | null
-          // Added fields from migrations
-          booking_status?: string | null
-          booked_by?: string | null
-          booked_at?: string | null
-          price_in_paise?: number | null
-          currency?: string | null
+          title: string
+          transmission?: string | null
+          year?: number | null
         }
         Update: {
+          booked_at?: string | null
+          booked_by?: string | null
+          booking_status?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          fuel_type?: string | null
           id?: string
-          title?: string
+          image_paths?: string[] | null
+          image_urls?: string[] | null
+          location_city?: string | null
           make?: string | null
           model?: string | null
-          year?: number | null
-          seats?: number | null
-          fuel_type?: string | null
-          transmission?: string | null
+          price_in_paise?: number | null
           price_per_day?: number
           price_per_hour?: number | null
+          seats?: number | null
           service_charge?: number | null
-          description?: string | null
-          location_city?: string | null
           status?: string | null
-          image_urls?: string[] | null
-          image_paths?: string[] | null
-          created_at?: string | null
-          // Added fields from migrations
-          booking_status?: string | null
-          booked_by?: string | null
-          booked_at?: string | null
-          price_in_paise?: number | null
-          currency?: string | null
+          title?: string
+          transmission?: string | null
+          year?: number | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "cars_booked_by_fkey"
+            columns: ["booked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       complaints: {
         Row: {
-          id: string
-          user_id: string | null
+          admin_note: string | null
           booking_id: string | null
+          created_at: string | null
+          id: string
           issue: string | null
           status: string | null
-          admin_note: string | null
-          created_at: string
+          user_id: string | null
         }
         Insert: {
-          id?: string
-          user_id?: string | null
+          admin_note?: string | null
           booking_id?: string | null
+          created_at?: string | null
+          id?: string
           issue?: string | null
           status?: string | null
-          admin_note?: string | null
-          created_at?: string
+          user_id?: string | null
         }
         Update: {
-          id?: string
-          user_id?: string | null
+          admin_note?: string | null
           booking_id?: string | null
+          created_at?: string | null
+          id?: string
           issue?: string | null
           status?: string | null
-          admin_note?: string | null
-          created_at?: string
+          user_id?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "complaints_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaints_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       licenses: {
         Row: {
-          id: string
-          user_id: string | null
-          storage_path: string | null
-          ocr_text: string | null
-          ocr_confidence: number | null
+          created_at: string | null
           expires_at: string | null
+          id: string
+          ocr_confidence: number | null
+          ocr_text: string | null
+          storage_path: string | null
+          user_id: string | null
           verified: boolean | null
-          created_at: string
         }
         Insert: {
-          id?: string
-          user_id?: string | null
-          storage_path?: string | null
-          ocr_text?: string | null
-          ocr_confidence?: number | null
+          created_at?: string | null
           expires_at?: string | null
+          id?: string
+          ocr_confidence?: number | null
+          ocr_text?: string | null
+          storage_path?: string | null
+          user_id?: string | null
           verified?: boolean | null
-          created_at?: string
         }
         Update: {
-          id?: string
-          user_id?: string | null
-          storage_path?: string | null
-          ocr_text?: string | null
-          ocr_confidence?: number | null
+          created_at?: string | null
           expires_at?: string | null
+          id?: string
+          ocr_confidence?: number | null
+          ocr_text?: string | null
+          storage_path?: string | null
+          user_id?: string | null
           verified?: boolean | null
-          created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "licenses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       maintenance: {
         Row: {
-          id: string
           car_id: string | null
-          start_date: string
+          created_at: string | null
           end_date: string
+          id: string
           notes: string | null
-          created_at: string
+          start_date: string
         }
         Insert: {
-          id?: string
           car_id?: string | null
-          start_date: string
+          created_at?: string | null
           end_date: string
+          id?: string
           notes?: string | null
-          created_at?: string
+          start_date: string
         }
         Update: {
-          id?: string
           car_id?: string | null
-          start_date?: string
+          created_at?: string | null
           end_date?: string
+          id?: string
           notes?: string | null
-          created_at?: string
+          start_date?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
+          attachments: string[] | null
+          created_at: string | null
           id: string
+          message: string | null
           room_id: string
           sender_id: string | null
-          message: string | null
-          attachments: string[] | null
-          created_at: string
         }
         Insert: {
+          attachments?: string[] | null
+          created_at?: string | null
           id?: string
+          message?: string | null
           room_id: string
           sender_id?: string | null
-          message?: string | null
-          attachments?: string[] | null
-          created_at?: string
         }
         Update: {
+          attachments?: string[] | null
+          created_at?: string | null
           id?: string
+          message?: string | null
           room_id?: string
           sender_id?: string | null
-          message?: string | null
-          attachments?: string[] | null
-          created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
-          id: string
-          booking_id: string | null
-          gateway: string | null
-          provider_transaction_id: string | null
           amount: number | null
-          status: string | null
-          created_at: string
-          // Added fields from migrations
           amount_in_paise: number | null
+          booking_id: string | null
+          created_at: string | null
           currency: string | null
+          gateway: string | null
+          id: string
+          provider_transaction_id: string | null
+          status: string | null
         }
         Insert: {
-          id?: string
-          booking_id?: string | null
-          gateway?: string | null
-          provider_transaction_id?: string | null
           amount?: number | null
-          status?: string | null
-          created_at?: string
-          // Added fields from migrations
           amount_in_paise?: number | null
+          booking_id?: string | null
+          created_at?: string | null
           currency?: string | null
+          gateway?: string | null
+          id?: string
+          provider_transaction_id?: string | null
+          status?: string | null
         }
         Update: {
-          id?: string
-          booking_id?: string | null
-          gateway?: string | null
-          provider_transaction_id?: string | null
           amount?: number | null
-          status?: string | null
-          created_at?: string
-          // Added fields from migrations
           amount_in_paise?: number | null
+          booking_id?: string | null
+          created_at?: string | null
           currency?: string | null
+          gateway?: string | null
+          id?: string
+          provider_transaction_id?: string | null
+          status?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_codes: {
         Row: {
-          id: string
+          active: boolean | null
           code: string
-          discount_percent: number | null
+          created_at: string | null
           discount_flat: number | null
+          discount_percent: number | null
+          id: string
+          last_used_at: string | null
+          times_used: number | null
+          usage_limit: number | null
           valid_from: string | null
           valid_to: string | null
-          active: boolean | null
-          usage_limit: number | null
-          created_at: string
         }
         Insert: {
-          id?: string
+          active?: boolean | null
           code: string
-          discount_percent?: number | null
+          created_at?: string | null
           discount_flat?: number | null
+          discount_percent?: number | null
+          id?: string
+          last_used_at?: string | null
+          times_used?: number | null
+          usage_limit?: number | null
           valid_from?: string | null
           valid_to?: string | null
-          active?: boolean | null
-          usage_limit?: number | null
-          created_at?: string
         }
         Update: {
-          id?: string
+          active?: boolean | null
           code?: string
-          discount_percent?: number | null
+          created_at?: string | null
           discount_flat?: number | null
+          discount_percent?: number | null
+          id?: string
+          last_used_at?: string | null
+          times_used?: number | null
+          usage_limit?: number | null
           valid_from?: string | null
           valid_to?: string | null
-          active?: boolean | null
-          usage_limit?: number | null
-          created_at?: string
         }
+        Relationships: []
       }
-      system_settings: {
+      user_roles: {
         Row: {
-          key: string
-          value: Json | null
-          updated_at: string | null
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
         }
         Insert: {
-          key: string
-          value?: Json | null
-          updated_at?: string | null
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
         }
         Update: {
-          key?: string
-          value?: Json | null
-          updated_at?: string | null
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
+        Relationships: []
       }
       users: {
         Row: {
-          id: string
-          full_name: string | null
-          phone: string | null
-          is_admin: boolean | null
           created_at: string | null
-          license_path: string | null
-          license_verified: boolean | null
-          // Added suspension columns
-          is_suspended: boolean | null
-          suspension_reason: string | null
-          suspended_at: string | null
-          suspended_by: string | null
+          full_name: string | null
+          id: string
+          is_admin: boolean | null
+          phone: string | null
         }
         Insert: {
-          id: string
-          full_name?: string | null
-          phone?: string | null
-          is_admin?: boolean | null
           created_at?: string | null
-          license_path?: string | null
-          license_verified?: boolean | null
-          // Added suspension columns
-          is_suspended?: boolean | null
-          suspension_reason?: string | null
-          suspended_at?: string | null
-          suspended_by?: string | null
+          full_name?: string | null
+          id: string
+          is_admin?: boolean | null
+          phone?: string | null
         }
         Update: {
-          id?: string
-          full_name?: string | null
-          phone?: string | null
-          is_admin?: boolean | null
           created_at?: string | null
-          license_path?: string | null
-          license_verified?: boolean | null
-          // Added suspension columns
-          is_suspended?: boolean | null
-          suspension_reason?: string | null
-          suspended_at?: string | null
-          suspended_by?: string | null
+          full_name?: string | null
+          id?: string
+          is_admin?: boolean | null
+          phone?: string | null
         }
+        Relationships: []
       }
     }
     Views: {
-      [key: string]: {
-        Row: any;
-        Insert: any;
-        Update: any;
-      };
+      [_ in never]: never
     }
     Functions: {
-      [key: string]: {
-        Args: any;
-        Returns: any;
-      };
+      book_car_atomic: {
+        Args: { car_id: string }
+        Returns: Json
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      validate_promo_code: {
+        Args: { code_input: string }
+        Returns: {
+          discount_flat: number
+          discount_percent: number
+          message: string
+          valid: boolean
+        }[]
+      }
     }
     Enums: {
-      [key: string]: any;
+      app_role: "admin" | "moderator" | "user"
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
 
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (Database["public"]["Tables"] & Database["public"]["Views"])
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] &
-      Database["public"]["Views"])
-  ? (Database["public"]["Tables"] &
-      Database["public"]["Views"])[PublicTableNameOrOptions] extends {
-      Row: infer R
-    }
-    ? R
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
     : never
-  : never
 
 export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof Database["public"]["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
-  ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
-      Insert: infer I
-    }
-    ? I
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
     : never
-  : never
 
 export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof Database["public"]["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
-  ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
-      Update: infer U
-    }
-    ? U
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
     : never
-  : never
 
 export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof Database["public"]["Enums"]
-    | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
-    : never = never
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof Database["public"]["Enums"]
-  ? Database["public"]["Enums"][PublicEnumNameOrOptions]
-  : never
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
+  },
+} as const
