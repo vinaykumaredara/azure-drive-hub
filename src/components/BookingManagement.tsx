@@ -70,13 +70,25 @@ const BookingManagement: React.FC = () => {
       
       if (error) throw error;
       
+      // Fetch auth users for emails
+      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error('Error fetching auth users:', authError);
+      }
+
+      // Create email map
+      const emailMap = new Map(
+        authUsers?.map(authUser => [authUser.id, authUser.email]) || []
+      );
+      
       // Map to Booking interface
       const mappedBookings: Booking[] = (data || []).map((booking: any) => ({
         id: booking.id,
         user_id: booking.user_id,
         user_name: booking.users?.full_name || 'Unknown',
-        user_email: '', // Not in schema, would need to fetch separately
-        user_phone: booking.users?.phone || '',
+        user_email: emailMap.get(booking.user_id) || 'No email',
+        user_phone: booking.users?.phone || 'No phone',
         car_id: booking.car_id,
         car_title: booking.cars?.title || 'Unknown Car',
         car_make: booking.cars?.make || null,
@@ -405,10 +417,10 @@ const BookingManagement: React.FC = () => {
                     <Car className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-lg">{booking.id}</h3>
+                        <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-lg">Booking #{booking.id.slice(0, 8)}</h3>
                           <Badge variant={getStatusVariant(booking.status)}>
                             {getStatusText(booking.status)}
                           </Badge>
@@ -416,12 +428,23 @@ const BookingManagement: React.FC = () => {
                             {getPaymentStatusText(booking.payment_status)}
                           </Badge>
                         </div>
-                        <p className="text-muted-foreground text-sm mt-1">
-                          {booking.user_name} ({booking.user_email})
-                        </p>
-                        <p className="text-muted-foreground text-sm">
-                          {booking.car_title} {booking.car_make && `(${booking.car_make} ${booking.car_model})`}
-                        </p>
+                        <div className="mt-2 space-y-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <User className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-medium">{booking.user_name}</span>
+                          </div>
+                          <p className="text-muted-foreground text-sm">
+                            📧 {booking.user_email}
+                          </p>
+                          <p className="text-muted-foreground text-sm flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {booking.user_phone}
+                          </p>
+                          <p className="text-muted-foreground text-sm flex items-center gap-1">
+                            <Car className="w-3 h-3" />
+                            {booking.car_title} {booking.car_make && `(${booking.car_make} ${booking.car_model})`}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-lg">{formatINRFromPaise(booking.total_amount)}</p>
@@ -431,18 +454,28 @@ const BookingManagement: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4 mt-4 p-3 bg-muted/50 rounded-lg">
                       <div>
-                        <p className="text-sm text-muted-foreground">Start Date</p>
-                        <p className="font-medium">{new Date(booking.start_datetime).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground">Start Date & Time</p>
+                        <p className="font-medium text-sm">
+                          {new Date(booking.start_datetime).toLocaleDateString()} 
+                          <span className="text-muted-foreground ml-1">
+                            {new Date(booking.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">End Date</p>
-                        <p className="font-medium">{new Date(booking.end_datetime).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground">End Date & Time</p>
+                        <p className="font-medium text-sm">
+                          {new Date(booking.end_datetime).toLocaleDateString()}
+                          <span className="text-muted-foreground ml-1">
+                            {new Date(booking.end_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Duration</p>
-                        <p className="font-medium">
+                        <p className="text-xs text-muted-foreground">Duration</p>
+                        <p className="font-medium text-sm">
                           {Math.ceil(
                             (new Date(booking.end_datetime).getTime() - 
                              new Date(booking.start_datetime).getTime()) / 
@@ -452,8 +485,8 @@ const BookingManagement: React.FC = () => {
                       </div>
                       {booking.hold_until && (
                         <div>
-                          <p className="text-sm text-muted-foreground">Hold Expires</p>
-                          <p className="font-medium text-warning">
+                          <p className="text-xs text-muted-foreground">Hold Expires</p>
+                          <p className="font-medium text-sm text-warning">
                             {new Date(booking.hold_until).toLocaleString()}
                           </p>
                         </div>

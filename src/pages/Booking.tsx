@@ -548,6 +548,22 @@ const BookingPage: React.FC = () => {
 
                 {step === "payment" && (
                   <div className="space-y-6">
+                    {/* Promo Code Section */}
+                    <div className="mb-4">
+                      <LazyPromoCodeInput
+                        totalAmount={subtotal}
+                        onPromoApplied={(discount, code, type) => {
+                          setPromoDiscount(discount);
+                          setPromoDiscountType(type || 'percent');
+                          setAppliedPromoCode(code);
+                        }}
+                        onPromoRemoved={() => {
+                          setPromoDiscount(0);
+                          setAppliedPromoCode(null);
+                        }}
+                      />
+                    </div>
+
                     <PaymentOptions 
                       payMode={payMode}
                       onPayModeChange={setPayMode}

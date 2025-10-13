@@ -74,13 +74,25 @@ const CustomerManagement: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (usersError) {throw usersError;}
+      if (usersError) throw usersError;
+
+      // Fetch auth users to get emails
+      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error('Error fetching auth users:', authError);
+      }
+
+      // Create a map of auth user emails
+      const emailMap = new Map(
+        authUsers?.map(authUser => [authUser.id, authUser.email]) || []
+      );
 
       // Transform data to match Customer interface
       const transformedCustomers = (usersData as any)?.map((user: any) => ({
         id: user.id,
         full_name: user.full_name,
-        email: user.email || 'user@example.com', // Placeholder - would need to fetch from auth
+        email: emailMap.get(user.id) || 'No email',
         phone: user.phone,
         is_admin: user.is_admin,
         created_at: user.created_at,
@@ -88,7 +100,7 @@ const CustomerManagement: React.FC = () => {
         suspension_reason: user.suspension_reason,
         suspended_at: user.suspended_at,
         suspended_by: user.suspended_by,
-        last_login: null // Placeholder - would need to fetch from auth
+        last_login: null
       })) || [];
 
       setCustomers(transformedCustomers as Customer[]);
