@@ -144,45 +144,8 @@ const AdminCarManagement: React.FC = () => {
 
       if (error) {throw error;}
       
-      // Debug logging
-      console.info('Admin: Fetched cars from DB', {
-        count: data?.length,
-        sampleCar: data?.[0] ? {
-          id: (data[0] as any).id,
-          title: (data[0] as any).title,
-          image_urls: (data[0] as any).image_urls,
-          envUrl: import.meta.env.VITE_SUPABASE_URL || ''
-        } : null
-      });
-      
-      // Log all car image data for debugging
-      data?.forEach((car: any) => {
-        console.log('Admin Car Data:', {
-          id: car.id,
-          title: car.title,
-          image_urls: car.image_urls,
-          image_paths: car.image_paths,
-          image_urls_type: typeof car.image_urls,
-          image_paths_type: typeof car.image_paths,
-          image_urls_length: Array.isArray(car.image_urls) ? car.image_urls.length : 'Not an array',
-          image_paths_length: Array.isArray(car.image_paths) ? car.image_paths.length : 'Not an array'
-        });
-      });
-      
       // Map car data for UI using the new utility function
       const carsWithMappedImages = (data || []).map((car: any) => mapCarForUI(car));
-      
-      // Log mapped images for debugging
-      carsWithMappedImages.forEach((car: any) => {
-        console.log('Mapped Car Images:', {
-          id: car.id,
-          title: car.title,
-          images: car.images,
-          thumbnail: car.thumbnail,
-          images_type: typeof car.images,
-          images_length: Array.isArray(car.images) ? car.images.length : 'Not an array'
-        });
-      });
       
       setCars(carsWithMappedImages as Car[]);
       setFilteredCars(carsWithMappedImages as Car[]);
@@ -307,8 +270,6 @@ const AdminCarManagement: React.FC = () => {
           });
 
           if (response.ok) {
-            const result = await response.json();
-            console.log('Server-side deletion result:', result);
             serverDeleteSuccess = true;
             
             // Show success message
@@ -317,9 +278,6 @@ const AdminCarManagement: React.FC = () => {
               description: "Car deleted successfully from database and storage",
             });
           } else {
-            const errorText = await response.text();
-            console.warn('Server-side deletion failed:', response.status, errorText);
-            
             // Don't return here, try client-side deletion as fallback
             toast({
               title: "Warning",
@@ -327,8 +285,7 @@ const AdminCarManagement: React.FC = () => {
               variant: "default",
             });
           }
-        } catch (serverError) {
-          console.warn('Server-side deletion error:', serverError);
+        } catch (_serverError) {
           // Continue to client-side deletion
         }
       }
@@ -407,12 +364,9 @@ const AdminCarManagement: React.FC = () => {
           false, // Don't remove all old images
           imagesToRemove // Remove specific images selected by admin
         );
-        
-        console.log('Car updated successfully:', updatedCar);
       } else {
         // Create new car
-        const newCar = await createCarWithImages(carData, uploadedImageFiles);
-        console.log('Car created successfully:', newCar);
+        await createCarWithImages(carData, uploadedImageFiles);
       }
 
       // Success - reset form and refresh

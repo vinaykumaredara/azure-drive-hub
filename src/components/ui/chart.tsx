@@ -74,28 +74,48 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
-}
-`
-          )
-          .join("\n"),
-      }}
-    />
-  )
+  // Safely generate CSS without dangerouslySetInnerHTML
+  // Validate and sanitize color values to prevent XSS
+  const sanitizeColor = (color: string): string | null => {
+    // Whitelist: hex colors, rgb(a), hsl(a), and named CSS colors
+    const hexPattern = /^#[0-9A-Fa-f]{3,8}$/;
+    const rgbPattern = /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+\s*)?\)$/;
+    const hslPattern = /^hsla?\(\s*\d+\s*,\s*[\d.]+%\s*,\s*[\d.]+%\s*(,\s*[\d.]+\s*)?\)$/;
+    
+    if (hexPattern.test(color) || rgbPattern.test(color) || hslPattern.test(color)) {
+      return color;
+    }
+    
+    // Allow CSS named colors (basic set)
+    const namedColors = ['transparent', 'currentColor', 'inherit', 'initial', 'unset'];
+    if (namedColors.includes(color.toLowerCase())) {
+      return color;
+    }
+    
+    return null;
+  };
+
+  // Use React's style injection instead of dangerouslySetInnerHTML
+  const styleContent = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const rules = colorConfig
+        .map(([key, itemConfig]) => {
+          const color =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+            itemConfig.color;
+          
+          // Sanitize color value
+          const sanitizedColor = color ? sanitizeColor(color) : null;
+          return sanitizedColor ? `  --color-${key}: ${sanitizedColor};` : null;
+        })
+        .filter(Boolean)
+        .join("\n");
+      
+      return `${prefix} [data-chart=${id}] {\n${rules}\n}`;
+    })
+    .join("\n");
+
+  return <style>{styleContent}</style>;
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip

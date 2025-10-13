@@ -80,29 +80,15 @@ const CarCardModernComponent = ({
     };
   }, []);
 
-  // FIXED: Enhanced handler with race condition guards and comprehensive logging
+  // FIXED: Enhanced handler with race condition guards - logging only in development
   function handleBookNow(e?: React.MouseEvent) {
-    const timestamp = new Date().toISOString();
-    const logPrefix = `[BookNow][${timestamp}][CarModern:${car.id}]`;
-    
-    console.debug(`${logPrefix} 🎯 Button clicked`, { 
-      carId: car.id,
-      hasUser: !!user,
-      hasProfile: !!profile,
-      profileLoading,
-      isBookingLoading,
-      computedIsAvailable
-    });
-    
     // GUARD 1: Prevent concurrent attempts
     if (isBookingLoading) {
-      console.warn(`${logPrefix} ⚠️ Already loading, blocking concurrent click`);
       return;
     }
     
     // GUARD 2: Check if context is still loading
     if (profileLoading) {
-      console.warn(`${logPrefix} ⚠️ Profile still loading, blocking click`);
       toast({
         title: "Please Wait",
         description: "Loading your profile...",
@@ -113,16 +99,9 @@ const CarCardModernComponent = ({
     try {
       e?.stopPropagation();
       e?.preventDefault();
-      
-      console.debug(`${logPrefix} 📋 Context state`, { 
-        user: user ? { id: user.id, email: user.email } : null,
-        profile: profile ? { id: profile.id, hasPhone: !!profile.phone } : null,
-        car: { id: car.id, title: car.title, available: computedIsAvailable }
-      });
 
       // GUARD 3: Validate availability
       if (!computedIsAvailable) {
-        console.warn(`${logPrefix} ⚠️ Car not available`);
         toast({
           title: "Car Not Available",
           description: "This car is not available for booking.",
@@ -133,7 +112,6 @@ const CarCardModernComponent = ({
 
       // GUARD 4: Check authentication
       if (!user) {
-        console.debug(`${logPrefix} 🔐 No user, saving intent and redirecting to auth`);
         bookingIntentStorage.save({
           type: 'BOOK_CAR',
           carId: car.id,
@@ -157,7 +135,6 @@ const CarCardModernComponent = ({
         (user && (user.phone || user.user_metadata?.phone || user.user_metadata?.mobile));
 
       if (!phone) {
-        console.debug(`${logPrefix} 📞 No phone, redirecting to profile`);
         const draft = {
           carId: car.id,
           pickup: { date: '', time: '' },
@@ -180,12 +157,10 @@ const CarCardModernComponent = ({
       }
 
       // All guards passed -> proceed to open modal
-      console.debug(`${logPrefix} ✅ All guards passed, opening modal`);
       setIsBookingLoading(true);
       
       // Safety timeout: reset loading state after 3 seconds if modal hasn't opened
       loadingTimeoutRef.current = setTimeout(() => {
-        console.error(`${logPrefix} ⏱️ TIMEOUT: Modal failed to open within 3 seconds`);
         setIsBookingLoading(false);
         toast({
           title: "Booking Flow Error",
@@ -204,10 +179,7 @@ const CarCardModernComponent = ({
         loadingTimeoutRef.current = null;
       }
       
-      console.debug(`${logPrefix} 🚀 Modal opened successfully`);
-      
     } catch (err) {
-      console.error(`${logPrefix} ❌ ERROR`, err);
       setIsBookingLoading(false);
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
@@ -319,7 +291,6 @@ const CarCardModernComponent = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  console.debug('[Contact] Button clicked', { carId: car.id });
                   handleWhatsAppContact();
                 }}
                 className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
@@ -334,7 +305,6 @@ const CarCardModernComponent = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      console.debug('[BookNow] Button clicked', { carId: car.id, available: computedIsAvailable });
                       handleBookNow(e);
                     }}
                     disabled={!computedIsAvailable || isBookingLoading || profileLoading}
@@ -371,7 +341,6 @@ const CarCardModernComponent = ({
         <BookingModalErrorBoundary 
           carId={car.id}
           onReset={() => {
-            console.debug('[CarCardModern] Resetting booking flow after error');
             setIsBookingFlowOpen(false);
             setIsBookingLoading(false);
           }}
@@ -379,7 +348,6 @@ const CarCardModernComponent = ({
           <EnhancedBookingFlow
             car={carForBooking} 
             onClose={() => {
-              console.debug('[CarCardModern] Closing booking flow');
               setIsBookingFlowOpen(false);
               setIsBookingLoading(false);
             }}

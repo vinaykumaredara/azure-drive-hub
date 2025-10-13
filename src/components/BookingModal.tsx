@@ -82,8 +82,8 @@ const [bookingHold, setBookingHold] = useState<BookingHold | null>(null);
             setStep(draft.step || 1);
           }
           sessionStorage.removeItem('pendingBooking');
-        } catch (e) {
-          console.error('Failed to parse pending booking', e);
+        } catch (_e) {
+          // Silently fail - invalid draft data
         }
       }
     }
@@ -246,7 +246,6 @@ const [bookingHold, setBookingHold] = useState<BookingHold | null>(null);
       });
 
     } catch (error: any) {
-      console.error("Booking hold error:", error);
       toast({
         title: "Booking Failed",
         description: error.message || "Failed to create booking hold",
@@ -305,7 +304,6 @@ const [bookingHold, setBookingHold] = useState<BookingHold | null>(null);
           setStep(1);
           onClose();
         } catch (confirmError: any) {
-          console.error("Payment confirmation error:", confirmError);
           toast({
             title: "Payment Failed",
             description: confirmError.message || "Failed to confirm payment",
@@ -316,7 +314,6 @@ const [bookingHold, setBookingHold] = useState<BookingHold | null>(null);
         }
       }, 2000);
     } catch (error: any) {
-      console.error("Payment processing error:", error);
       toast({
         title: "Payment Failed",
         description: error.message || "Failed to process payment",
