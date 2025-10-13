@@ -75,13 +75,13 @@ export const LicenseStep: React.FC<LicenseStepProps> = ({
       <LicenseUpload onUploaded={onLicenseUploaded} />
 
       {licenseId && (
-        <div className="p-4 bg-success/10 border border-success/20 rounded-lg" role="status" aria-live="polite">
+        <div className="p-4 bg-success/10 border border-success/20 rounded-lg animate-in fade-in duration-300" role="status" aria-live="polite">
           <div className="flex items-center space-x-2">
             <CheckCircle className="w-5 h-5 text-success" />
-            <span className="text-sm font-medium text-success">License uploaded successfully</span>
+            <span className="text-sm font-medium text-success">License uploaded successfully - You can now continue</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Your license has been submitted for verification
+            Your license has been submitted for verification (ID: {licenseId.substring(0, 8)}...)
           </p>
         </div>
       )}

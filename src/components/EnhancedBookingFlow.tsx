@@ -611,10 +611,22 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   };
 
   const handleLicenseUploaded = (licenseId: string) => {
-    setBookingData(prev => ({
-      ...prev,
-      licenseId
-    }));
+    console.debug('[BookingFlow] License uploaded', { 
+      licenseId,
+      timestamp: new Date().toISOString() 
+    });
+    
+    setBookingData(prev => {
+      const updated = {
+        ...prev,
+        licenseId
+      };
+      console.debug('[BookingFlow] License state updated', { 
+        before: prev.licenseId, 
+        after: updated.licenseId 
+      });
+      return updated;
+    });
   };
 
   const handlePaymentSuccess = (_bookingId: string) => {
@@ -783,6 +795,15 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
     telemetry.stepStart(currentStep);
   }, [currentStep]);
 
+  // Monitor license ID changes for debugging
+  useEffect(() => {
+    console.debug('[BookingFlow] License ID changed', { 
+      licenseId: bookingData.licenseId,
+      currentStep,
+      timestamp: new Date().toISOString()
+    });
+  }, [bookingData.licenseId, currentStep]);
+
   return createPortal(
     <div className="booking-flow-portal">
       <motion.div 
@@ -899,7 +920,7 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
 
           {/* Sticky Footer - Always Visible */}
           {currentStep !== 'confirmation' && (
-            <div className="sticky bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center flex-shrink-0">
+            <div className="sticky bottom-0 w-full max-w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center flex-shrink-0 -mx-4 sm:-mx-6">
               <div>
                 {currentStep !== 'dates' && (
                   <Button 

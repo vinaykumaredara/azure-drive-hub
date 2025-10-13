@@ -77,13 +77,19 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
         throw insertError;
       }
 
+      // Notify parent component immediately
+      const uploadedLicenseId = (license as any).id;
+      console.debug('[LicenseUpload] Upload successful', { 
+        licenseId: uploadedLicenseId,
+        timestamp: new Date().toISOString() 
+      });
+      
+      onUploaded(uploadedLicenseId);
+
       toast({
         title: "License Uploaded Successfully!",
         description: "Your license has been uploaded and is awaiting admin verification.",
       });
-
-      // Notify parent component
-      onUploaded((license as any).id);
 
       // Clear file input
       setFile(null);
