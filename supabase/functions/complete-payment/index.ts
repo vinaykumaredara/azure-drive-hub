@@ -43,6 +43,36 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // CRITICAL: Verify webhook signature or require authentication
+    // This endpoint should ONLY be called by payment gateway webhooks or authenticated backend processes
+    const signature = req.headers.get('stripe-signature') || req.headers.get('x-razorpay-signature');
+    const authHeader = req.headers.get('Authorization');
+    
+    // For now, require at least authentication header
+    // TODO: Implement proper webhook signature verification for production
+    if (!authHeader && !signature) {
+      console.warn('Unauthorized payment completion attempt without credentials');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Unauthorized. This endpoint requires authentication or valid webhook signature.' 
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If auth header provided, verify the user (optional for webhooks)
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+      
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid authentication' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Parse and validate input
     const body = await req.json();
     const validation = CompletePaymentSchema.safeParse(body);

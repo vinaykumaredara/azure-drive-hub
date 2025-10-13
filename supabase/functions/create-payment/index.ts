@@ -37,10 +37,30 @@ serve(async (req) => {
   }
 
   try {
+    // Extract and verify JWT token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }), 
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
+
+    // Verify user authentication
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Parse and validate input
     const body = await req.json();
@@ -58,15 +78,27 @@ serve(async (req) => {
 
     const { bookingId, gateway, amount } = validation.data;
 
-    // Get booking details
+    // Verify user owns the booking
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
       .select('*')
       .eq('id', bookingId)
+      .eq('user_id', user.id)
       .single()
 
     if (bookingError || !booking) {
-      throw new Error('Booking not found')
+      return new Response(
+        JSON.stringify({ error: 'Booking not found or access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify booking is in valid state for payment
+    if (booking.status !== 'pending') {
+      return new Response(
+        JSON.stringify({ error: 'Booking is not in a valid state for payment' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     let paymentUrl = ''
