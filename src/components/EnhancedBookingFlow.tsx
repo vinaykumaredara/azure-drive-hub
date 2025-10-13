@@ -611,22 +611,10 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   };
 
   const handleLicenseUploaded = (licenseId: string) => {
-    console.debug('[BookingFlow] License uploaded', { 
-      licenseId,
-      timestamp: new Date().toISOString() 
-    });
-    
-    setBookingData(prev => {
-      const updated = {
-        ...prev,
-        licenseId
-      };
-      console.debug('[BookingFlow] License state updated', { 
-        before: prev.licenseId, 
-        after: updated.licenseId 
-      });
-      return updated;
-    });
+    setBookingData(prev => ({
+      ...prev,
+      licenseId
+    }));
   };
 
   const handlePaymentSuccess = (_bookingId: string) => {
@@ -794,15 +782,6 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
   useEffect(() => {
     telemetry.stepStart(currentStep);
   }, [currentStep]);
-
-  // Monitor license ID changes for debugging
-  useEffect(() => {
-    console.debug('[BookingFlow] License ID changed', { 
-      licenseId: bookingData.licenseId,
-      currentStep,
-      timestamp: new Date().toISOString()
-    });
-  }, [bookingData.licenseId, currentStep]);
 
   return createPortal(
     <div className="booking-flow-portal">

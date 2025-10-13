@@ -79,11 +79,6 @@ export const LicenseUpload: React.FC<LicenseUploadProps> = ({ onUploaded }) => {
 
       // Notify parent component immediately
       const uploadedLicenseId = (license as any).id;
-      console.debug('[LicenseUpload] Upload successful', { 
-        licenseId: uploadedLicenseId,
-        timestamp: new Date().toISOString() 
-      });
-      
       onUploaded(uploadedLicenseId);
 
       toast({
