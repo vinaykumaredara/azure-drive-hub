@@ -48,10 +48,19 @@ export const signUp = async (email: string, password: string) => {
 };
 
 export const signInWithGoogle = async () => {
+  // Use the production URL or current origin for redirect
+  const redirectUrl = window.location.hostname === 'localhost' 
+    ? `${window.location.origin}/`
+    : 'https://rp-cars.lovable.app/';
+  
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/`
+      redirectTo: redirectUrl,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      }
     }
   });
   
