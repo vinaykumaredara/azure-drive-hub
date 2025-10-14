@@ -84,7 +84,7 @@ const BookingPage: React.FC = () => {
         .from('cars')
         .select('*')
         .eq('id', carId)
-        .eq('status', 'active')
+        .or('status.eq.active,status.eq.published')
         .single();
 
       if (fetchError) {

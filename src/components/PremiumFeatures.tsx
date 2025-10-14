@@ -37,19 +37,19 @@ const features = [{
 const testimonials = [{
   name: "Rajesh Kumar",
   rating: 5,
-  comment: "Excellent service! The car was spotless and the booking process was seamless.",
+  review: "Excellent service! The car was spotless and the booking process was seamless.",
   location: "Hyderabad",
   image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face"
 }, {
   name: "Priya Sharma",
   rating: 5,
-  comment: "Amazing experience. The GPS tracking feature gave me confidence during my trip.",
+  review: "Amazing experience. The GPS tracking feature gave me confidence during my trip.",
   location: "Secunderabad",
   image: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face"
 }, {
   name: "Amit Patel",
   rating: 5,
-  comment: "Best car rental service in the city. Highly recommend for everyone!",
+  review: "Best car rental service in the city. Highly recommend for everyone!",
   location: "HITEC City",
   image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face"
 }];
@@ -201,9 +201,27 @@ export const PremiumFeatures = () => {
               stiffness: 300
             }
           }}>
-                <Card className="relative overflow-hidden group">
+              <Card className="relative overflow-hidden group">
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent-purple/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  
+                  <CardContent className="relative z-10 p-6">
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-lg shrink-0">
+                        {testimonial.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-lg">{testimonial.name}</h4>
+                        <p className="text-sm text-muted-foreground">{testimonial.location}</p>
+                      </div>
+                    </div>
+                    <div className="flex mb-3">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-4 h-4 ${i < testimonial.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                      ))}
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">
+                      "{testimonial.review}"
+                    </p>
+                  </CardContent>
                 </Card>
               </motion.div>)}
           </div>

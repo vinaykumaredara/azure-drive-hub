@@ -332,7 +332,13 @@ export const UserCarListing = () => {
 
       // Apply search filter
       if (searchQuery) {
-        filtered = filtered.filter(car => car.title.toLowerCase().includes(searchQuery.toLowerCase()) || car.make?.toLowerCase().includes(searchQuery.toLowerCase()) || car.model?.toLowerCase().includes(searchQuery.toLowerCase()) || car.location.toLowerCase().includes(searchQuery.toLowerCase()));
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(car => 
+          car.title.toLowerCase().includes(query) || 
+          car.make?.toLowerCase().includes(query) || 
+          car.model?.toLowerCase().includes(query) || 
+          car.location.toLowerCase().includes(query)
+        );
       }
 
       // Apply seat filter
@@ -456,12 +462,32 @@ export const UserCarListing = () => {
 
         {/* Results Summary */}
         <div className="flex items-center justify-between mb-6">
-          <p className="text-muted-foreground">
-            Found <span className="font-semibold text-foreground">{processedCars.length} cars</span> available
-          </p>
-          <Button variant="outline" size="sm" className="flex items-center space-x-2">
+          <div className="flex items-center gap-3">
+            <p className="text-muted-foreground">
+              Found <span className="font-semibold text-foreground">{processedCars.length}</span> {processedCars.length === 1 ? 'car' : 'cars'} available
+            </p>
+            {(searchQuery || seatFilter !== "all" || fuelFilter !== "all") && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSeatFilter("all");
+                  setFuelFilter("all");
+                  toast({
+                    title: "Filters Cleared",
+                    description: "All filters have been reset"
+                  });
+                }}
+                className="text-xs"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+          <Button variant="outline" size="sm" className="flex items-center space-x-2" disabled={loading}>
             <SlidersHorizontal className="w-4 h-4" />
-            <span>Advanced Filters</span>
+            <span className="hidden sm:inline">Advanced Filters</span>
           </Button>
         </div>
 

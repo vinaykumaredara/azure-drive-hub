@@ -12,14 +12,17 @@ export const useDashboardData = (userId: string | undefined) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
 
     try {
       // Fetch all data in parallel for better performance
       const [bookingsResult, statsResult, licenseResult] = await Promise.all([
-        // Fetch bookings
+        // Fetch bookings with error handling
         supabase
           .from('bookings')
           .select(`
@@ -37,24 +40,44 @@ export const useDashboardData = (userId: string | undefined) => {
             )
           `)
           .eq('user_id', userId)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .then(result => {
+            if (result.error) {
+              console.error('Bookings fetch error:', result.error);
+              return { data: [], error: result.error };
+            }
+            return result;
+          }),
 
-        // Fetch stats
+        // Fetch stats with error handling
         supabase
           .from('bookings')
           .select('total_amount, total_amount_in_paise, status, cars(make)')
-          .eq('user_id', userId),
+          .eq('user_id', userId)
+          .then(result => {
+            if (result.error) {
+              console.error('Stats fetch error:', result.error);
+              return { data: [], error: result.error };
+            }
+            return result;
+          }),
 
-        // Fetch license
+        // Fetch license with error handling
         supabase
           .from('licenses')
           .select('*')
           .eq('user_id', userId)
           .maybeSingle()
+          .then(result => {
+            if (result.error && result.error.code !== 'PGRST116') {
+              console.error('License fetch error:', result.error);
+            }
+            return result;
+          })
       ]);
 
       // Process bookings
-      if (bookingsResult.data) {
+      if (bookingsResult.data && bookingsResult.data.length > 0) {
         const processedBookings = bookingsResult.data.map((booking: any) => {
           if (booking.cars) {
             let imageUrls: string[] = [];
@@ -76,10 +99,12 @@ export const useDashboardData = (userId: string | undefined) => {
         });
         
         setBookings(processedBookings);
+      } else {
+        setBookings([]);
       }
 
       // Process stats
-      if (statsResult.data) {
+      if (statsResult.data && statsResult.data.length > 0) {
         const totalBookings = statsResult.data.length;
         const totalSpent = statsResult.data.reduce((sum, booking: any) => {
           const amount = booking.total_amount_in_paise 
@@ -106,6 +131,16 @@ export const useDashboardData = (userId: string | undefined) => {
           membershipLevel,
           loyaltyPoints,
           co2Saved
+        });
+      } else {
+        // Set default stats for new users
+        setUserStats({
+          totalBookings: 0,
+          totalSpent: 0,
+          favoriteCarType: 'N/A',
+          membershipLevel: 'Bronze',
+          loyaltyPoints: 0,
+          co2Saved: 0
         });
       }
 
@@ -146,23 +181,29 @@ export const useDashboardData = (userId: string | undefined) => {
 
       // Check for upcoming bookings
       if (bookingsResult.data && bookingsResult.data.length > 0) {
-        const recentBooking = bookingsResult.data[0];
-        const bookingDate = new Date(recentBooking.start_datetime);
         const now = new Date();
-        const diffTime = bookingDate.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-        if (diffDays >= 0 && diffDays <= 1) {
-          const carTitle = recentBooking.cars?.title || 'a car';
+        const upcomingBookings = bookingsResult.data.filter((booking: any) => {
+          const bookingDate = new Date(booking.start_datetime);
+          const diffTime = bookingDate.getTime() - now.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays >= 0 && diffDays <= 2;
+        });
+
+        upcomingBookings.forEach((booking: any, index: number) => {
+          const bookingDate = new Date(booking.start_datetime);
+          const diffTime = bookingDate.getTime() - now.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const carTitle = booking.cars?.title || 'a car';
+          
           generatedNotifications.push({
-            id: 4,
+            id: 4 + index,
             title: 'Upcoming Booking',
-            message: `Your booking for ${carTitle} starts ${diffDays === 0 ? 'today' : 'tomorrow'}`,
+            message: `Your booking for ${carTitle} starts ${diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : `in ${diffDays} days`}`,
             type: 'info',
             time: bookingDate.toLocaleDateString(),
-            created_at: recentBooking.created_at || new Date().toISOString()
+            created_at: booking.created_at || new Date().toISOString()
           });
-        }
+        });
       }
 
       if (generatedNotifications.length === 0) {
@@ -185,11 +226,32 @@ export const useDashboardData = (userId: string | undefined) => {
         userId
       });
       
+      console.error('Dashboard data fetch error:', error);
+      
       toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
+        title: "Error Loading Dashboard",
+        description: "Some data may not be available. Please refresh the page.",
         variant: "destructive",
       });
+
+      // Set minimal default state to prevent crashes
+      setBookings([]);
+      setUserStats({
+        totalBookings: 0,
+        totalSpent: 0,
+        favoriteCarType: 'N/A',
+        membershipLevel: 'Bronze',
+        loyaltyPoints: 0,
+        co2Saved: 0
+      });
+      setNotifications([{
+        id: 1,
+        title: 'Error Loading Data',
+        message: 'Please refresh the page to try again',
+        type: 'warning',
+        time: 'Now',
+        created_at: new Date().toISOString()
+      }]);
     } finally {
       setIsLoading(false);
     }
