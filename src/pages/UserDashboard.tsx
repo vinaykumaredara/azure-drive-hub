@@ -116,6 +116,23 @@ const UserDashboard: React.FC = () => {
     }
   }, [user?.id, profile?.phone, profileLoading]);
 
+  // Auto-trigger phone collection for new Google OAuth users
+  useEffect(() => {
+    if (!user?.id || profileLoading) return;
+    
+    // Check if phone collection is needed after Google OAuth
+    const needsPhone = sessionStorage.getItem('needsPhoneCollection');
+    const isNewUser = sessionStorage.getItem('isNewGoogleUser');
+    
+    if (needsPhone === 'true' && !profile?.phone) {
+      // Open phone modal for new Google users
+      setShowPhoneModal(true);
+      
+      // Clear the needsPhoneCollection flag
+      sessionStorage.removeItem('needsPhoneCollection');
+    }
+  }, [user?.id, profile?.phone, profileLoading]);
+
   const handlePhoneModalComplete = async () => {
     setShowPhoneModal(false);
     await refreshProfile();
@@ -227,8 +244,21 @@ const UserDashboard: React.FC = () => {
 
         {showPhoneModal && (
           <PhoneModal
-            onClose={() => setShowPhoneModal(false)}
+            onClose={() => {
+              // Only allow closing if user already has phone or is not a new user
+              const isNewUser = sessionStorage.getItem('isNewGoogleUser');
+              if (isNewUser === 'true' && !profile?.phone) {
+                toast({
+                  title: "Phone Number Required",
+                  description: "Please add your phone number to continue using RP Cars.",
+                  variant: "destructive",
+                });
+                return;
+              }
+              setShowPhoneModal(false);
+            }}
             onComplete={handlePhoneModalComplete}
+            isFirstTimeSetup={sessionStorage.getItem('isNewGoogleUser') === 'true'}
           />
         )}
 

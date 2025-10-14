@@ -7,7 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 
-export function PhoneModal({ onClose, onComplete }: { onClose: () => void; onComplete?: (profile: any) => void }) {
+export function PhoneModal({ 
+  onClose, 
+  onComplete, 
+  isFirstTimeSetup = false 
+}: { 
+  onClose: () => void; 
+  onComplete?: (profile: any) => void;
+  isFirstTimeSetup?: boolean;
+}) {
   const { user, profile, refreshProfile } = useAuth();
   const [phone, setPhone] = useState(profile?.phone || '');
   const [loading, setLoading] = useState(false);
@@ -57,10 +65,19 @@ export function PhoneModal({ onClose, onComplete }: { onClose: () => void; onCom
         sessionStorage.setItem('profileJustUpdated', '1');
       }
       
-      toast({
-        title: "Phone Number Saved",
-        description: "Your phone number has been successfully saved.",
-      });
+      // Clear the new user flag and show appropriate message
+      if (isFirstTimeSetup) {
+        sessionStorage.removeItem('isNewGoogleUser');
+        toast({
+          title: "Welcome to RP Cars! 🎉",
+          description: "Your account is all set up. Let's find you a perfect car!",
+        });
+      } else {
+        toast({
+          title: "Phone Number Saved",
+          description: "Your phone number has been successfully saved.",
+        });
+      }
       
       if (onComplete) onComplete(data);
       onClose();
@@ -87,12 +104,19 @@ export function PhoneModal({ onClose, onComplete }: { onClose: () => void; onCom
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <Card className="w-full max-w-md mx-4">
         <CardHeader>
-          <CardTitle>Add Phone Number</CardTitle>
+          <CardTitle>
+            {isFirstTimeSetup ? "Complete Your Profile" : "Add Phone Number"}
+          </CardTitle>
+          {isFirstTimeSetup && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Welcome! We need your phone number to confirm bookings and send you important updates.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone">Phone Number *</Label>
               <Input 
                 id="phone"
                 value={phone} 
@@ -101,20 +125,25 @@ export function PhoneModal({ onClose, onComplete }: { onClose: () => void; onCom
                 placeholder="+91 1234567890" 
                 className="w-full"
                 disabled={loading}
+                autoFocus
               />
               {error && (
                 <p className="text-sm text-destructive">{error}</p>
               )}
               <p className="text-xs text-muted-foreground">
-                We need your phone number to confirm your booking and send important updates.
+                {isFirstTimeSetup 
+                  ? "This is required to complete your registration." 
+                  : "We need your phone number to confirm your booking and send important updates."}
               </p>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={onClose} disabled={loading}>
-                Cancel
-              </Button>
+              {!isFirstTimeSetup && (
+                <Button variant="outline" onClick={onClose} disabled={loading}>
+                  Cancel
+                </Button>
+              )}
               <Button onClick={handleSave} disabled={loading || !phone || phone.length < 10}>
-                {loading ? 'Saving...' : 'Save & Continue'}
+                {loading ? 'Saving...' : isFirstTimeSetup ? 'Complete Setup' : 'Save & Continue'}
               </Button>
             </div>
           </div>

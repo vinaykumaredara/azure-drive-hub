@@ -27,6 +27,32 @@ const Auth: React.FC = () => {
       const searchParams = new URLSearchParams(location.search);
       const nextUrl = searchParams.get('next');
       const redirectToProfile = sessionStorage.getItem('redirectToProfileAfterLogin');
+      const isGoogleAuth = user.app_metadata?.provider === 'google';
+      
+      // Handle phone collection for Google users
+      if (profile && !profile.phone && isGoogleAuth) {
+        sessionStorage.setItem('needsPhoneCollection', 'true');
+        sessionStorage.setItem('isNewGoogleUser', 'true');
+      }
+      
+      // Show appropriate welcome message for Google users
+      if (isGoogleAuth && !sessionStorage.getItem('welcomeShown')) {
+        sessionStorage.setItem('welcomeShown', 'true');
+        
+        if (profile?.phone) {
+          // Returning user with phone
+          toast({
+            title: "Welcome back! 👋",
+            description: `Signed in as ${user.email}`,
+          });
+        } else {
+          // New user without phone
+          toast({
+            title: "Welcome to RP Cars! 🎉",
+            description: "Let's complete your profile to get started.",
+          });
+        }
+      }
       
       if (redirectToProfile === 'true') {
         sessionStorage.removeItem('redirectToProfileAfterLogin');
@@ -44,6 +70,13 @@ const Auth: React.FC = () => {
       }
     }
   }, [user, isAdmin, navigate, isLoading, profileLoading, profile, location.search]);
+
+  // Clear welcome shown flag when component unmounts
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem('welcomeShown');
+    };
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
