@@ -49,27 +49,20 @@ export default defineConfig(({ mode }) => ({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: mode === 'production', // Remove console.logs in production
-        drop_debugger: mode === 'production', // Remove debuggers in production
-        pure_funcs: mode === 'production' ? ['console.log', 'console.info', 'console.debug'] : [], // Remove specific functions in production
-        // Optimize for smaller bundle size
-        passes: 2,
-        toplevel: true,
-        unsafe: true,
-        unsafe_comps: true,
+        drop_console: mode === 'production',
+        drop_debugger: mode === 'production',
+        pure_funcs: mode === 'production' ? ['console.log', 'console.info', 'console.debug'] : [],
+        passes: 1,
       },
       mangle: {
-        properties: {
-          regex: '^_',
-        }
+        keep_classnames: true,
+        keep_fnames: true,
       },
       format: {
-        comments: false, // Remove comments
+        comments: false,
       },
-      keep_classnames: false,
-      keep_fnames: false,
     },
-    sourcemap: mode === 'development',
+    sourcemap: false,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       // Handle optional dependencies issue in CI environments
@@ -107,14 +100,8 @@ export default defineConfig(({ mode }) => ({
       'lucide-react',
       'framer-motion'
     ],
-    force: mode === 'development', // Force re-optimization in dev
-    // Enable esbuild optimization
+    force: mode === 'development',
     esbuildOptions: {
-      // Enable tree-shaking
-      treeShaking: true,
-      // Minify in development for better performance
-      minify: mode === 'development',
-      // Target modern browsers
       target: 'es2020',
     },
   },
