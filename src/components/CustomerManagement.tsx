@@ -68,48 +68,25 @@ const CustomerManagement: React.FC = () => {
 
   const fetchCustomers = async () => {
     try {
-      // Fetch users from the users table
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Call secure edge function to fetch customer data
+      const { data, error } = await supabase.functions.invoke('list-customers');
 
-      if (usersError) throw usersError;
-
-      // Fetch auth users to get emails
-      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.error('Error fetching auth users:', authError);
+      if (error) {
+        console.error('Error fetching customers:', error);
+        throw error;
       }
 
-      // Create a map of auth user emails
-      const emailMap = new Map(
-        authUsers?.map(authUser => [authUser.id, authUser.email]) || []
-      );
+      if (!data || !data.customers) {
+        throw new Error('No customer data returned');
+      }
 
-      // Transform data to match Customer interface
-      const transformedCustomers = (usersData as any)?.map((user: any) => ({
-        id: user.id,
-        full_name: user.full_name,
-        email: emailMap.get(user.id) || 'No email',
-        phone: user.phone,
-        is_admin: user.is_admin,
-        created_at: user.created_at,
-        is_suspended: user.is_suspended || false,
-        suspension_reason: user.suspension_reason,
-        suspended_at: user.suspended_at,
-        suspended_by: user.suspended_by,
-        last_login: null
-      })) || [];
-
-      setCustomers(transformedCustomers as Customer[]);
-      setFilteredCustomers(transformedCustomers as Customer[]);
+      setCustomers(data.customers as Customer[]);
+      setFilteredCustomers(data.customers as Customer[]);
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast({
         title: "Error",
-        description: "Failed to load customers",
+        description: "Failed to load customers. Please ensure you have admin permissions.",
         variant: "destructive",
       });
     } finally {

@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { checkRateLimit, getClientIdentifier } from "../_shared/rate-limiter.ts";
+import { createHmac } from "https://deno.land/std@0.177.0/node/crypto.ts";
+import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,7 +49,6 @@ serve(async (req) => {
     const razorpaySignature = req.headers.get('x-razorpay-signature');
     const authHeader = req.headers.get('Authorization');
 
-    // Require either webhook signature OR valid authentication
     if (!stripeSignature && !razorpaySignature && !authHeader) {
       console.error('Unauthorized payment confirmation attempt - no credentials provided');
       return new Response(JSON.stringify({ 
@@ -58,8 +59,81 @@ serve(async (req) => {
       });
     }
 
-    // If auth header provided, verify the user is authenticated
+    // Get request body as text for signature verification
+    const bodyText = await req.text();
+    let body;
     let authenticatedUser = null;
+
+    // Verify Stripe webhook signature
+    if (stripeSignature) {
+      const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+      if (!stripeWebhookSecret) {
+        console.error('STRIPE_WEBHOOK_SECRET not configured');
+        return new Response(
+          JSON.stringify({ error: 'Webhook verification not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+          apiVersion: '2023-10-16',
+          httpClient: Stripe.createFetchHttpClient(),
+        });
+
+        const event = stripe.webhooks.constructEvent(
+          bodyText,
+          stripeSignature,
+          stripeWebhookSecret
+        );
+        
+        console.log('Stripe webhook verified:', event.type);
+        body = event.data.object;
+      } catch (err) {
+        console.error('Stripe signature verification failed:', err.message);
+        return new Response(
+          JSON.stringify({ error: 'Invalid webhook signature' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Verify Razorpay webhook signature
+    if (razorpaySignature) {
+      const razorpayWebhookSecret = Deno.env.get('RAZORPAY_WEBHOOK_SECRET');
+      if (!razorpayWebhookSecret) {
+        console.error('RAZORPAY_WEBHOOK_SECRET not configured');
+        return new Response(
+          JSON.stringify({ error: 'Webhook verification not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        const expectedSignature = createHmac('sha256', razorpayWebhookSecret)
+          .update(bodyText)
+          .digest('hex');
+
+        if (razorpaySignature !== expectedSignature) {
+          console.error('Razorpay signature mismatch');
+          return new Response(
+            JSON.stringify({ error: 'Invalid webhook signature' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log('Razorpay webhook signature verified');
+        body = JSON.parse(bodyText);
+      } catch (err) {
+        console.error('Razorpay signature verification failed:', err.message);
+        return new Response(
+          JSON.stringify({ error: 'Invalid webhook signature' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // If auth header provided (non-webhook call), verify the user
     if (authHeader && !stripeSignature && !razorpaySignature) {
       const token = authHeader.replace('Bearer ', '');
       const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
@@ -75,56 +149,18 @@ serve(async (req) => {
       }
       authenticatedUser = user;
       console.log(`Payment confirmation attempt by authenticated user: ${user.id}`);
-    }
-
-    // Parse and validate input
-    const bodyText = await req.text();
-    let body;
-    try {
-      body = JSON.parse(bodyText);
-    } catch (e) {
-      console.error('Invalid JSON in request body');
-      return new Response(JSON.stringify({ 
-        error: "Invalid request body" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
-    }
-
-    // Verify webhook signatures if provided
-    if (stripeSignature) {
-      const stripeSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-      if (!stripeSecret) {
-        console.error('Stripe webhook secret not configured');
+      
+      try {
+        body = JSON.parse(bodyText);
+      } catch (e) {
+        console.error('Invalid JSON in request body');
         return new Response(JSON.stringify({ 
-          error: "Webhook verification not configured" 
+          error: "Invalid request body" 
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
+          status: 400,
         });
       }
-      
-      // TODO: Implement proper Stripe signature verification
-      // For now, log that signature verification should be implemented
-      console.warn('Stripe signature verification not yet implemented - signature:', stripeSignature);
-    }
-
-    if (razorpaySignature) {
-      const razorpaySecret = Deno.env.get('RAZORPAY_WEBHOOK_SECRET');
-      if (!razorpaySecret) {
-        console.error('Razorpay webhook secret not configured');
-        return new Response(JSON.stringify({ 
-          error: "Webhook verification not configured" 
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        });
-      }
-      
-      // TODO: Implement proper Razorpay signature verification
-      // For now, log that signature verification should be implemented
-      console.warn('Razorpay signature verification not yet implemented - signature:', razorpaySignature);
     }
 
     const validation = ConfirmPaymentSchema.safeParse(body);

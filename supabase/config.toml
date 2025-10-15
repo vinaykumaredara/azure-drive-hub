@@ -30,3 +30,13 @@ enable_confirmations = false
 
 [analytics]
 enabled = false
+
+# Edge Functions Configuration
+[functions.list-customers]
+verify_jwt = true
+
+[functions.complete-payment]
+verify_jwt = false
+
+[functions.confirm-payment]
+verify_jwt = false

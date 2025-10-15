@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { checkRateLimit, getClientIdentifier } from "../_shared/rate-limiter.ts";
+import { createHmac } from "https://deno.land/std@0.177.0/node/crypto.ts";
+import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,13 +46,11 @@ serve(async (req) => {
     );
 
     // CRITICAL: Verify webhook signature or require authentication
-    // This endpoint should ONLY be called by payment gateway webhooks or authenticated backend processes
-    const signature = req.headers.get('stripe-signature') || req.headers.get('x-razorpay-signature');
+    const stripeSignature = req.headers.get('stripe-signature');
+    const razorpaySignature = req.headers.get('x-razorpay-signature');
     const authHeader = req.headers.get('Authorization');
     
-    // For now, require at least authentication header
-    // TODO: Implement proper webhook signature verification for production
-    if (!authHeader && !signature) {
+    if (!authHeader && !stripeSignature && !razorpaySignature) {
       console.warn('Unauthorized payment completion attempt without credentials');
       return new Response(
         JSON.stringify({ 
@@ -60,8 +60,81 @@ serve(async (req) => {
       );
     }
 
-    // If auth header provided, verify the user (optional for webhooks)
-    if (authHeader) {
+    // Get request body as text for signature verification
+    const bodyText = await req.text();
+    let body;
+
+    // Verify Stripe webhook signature
+    if (stripeSignature) {
+      const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+      if (!stripeWebhookSecret) {
+        console.error('STRIPE_WEBHOOK_SECRET not configured');
+        return new Response(
+          JSON.stringify({ error: 'Webhook verification not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+          apiVersion: '2023-10-16',
+          httpClient: Stripe.createFetchHttpClient(),
+        });
+
+        const event = stripe.webhooks.constructEvent(
+          bodyText,
+          stripeSignature,
+          stripeWebhookSecret
+        );
+        
+        console.log('Stripe webhook verified:', event.type);
+        body = event.data.object;
+      } catch (err) {
+        console.error('Stripe signature verification failed:', err.message);
+        return new Response(
+          JSON.stringify({ error: 'Invalid webhook signature' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Verify Razorpay webhook signature
+    if (razorpaySignature) {
+      const razorpayWebhookSecret = Deno.env.get('RAZORPAY_WEBHOOK_SECRET');
+      if (!razorpayWebhookSecret) {
+        console.error('RAZORPAY_WEBHOOK_SECRET not configured');
+        return new Response(
+          JSON.stringify({ error: 'Webhook verification not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        const expectedSignature = createHmac('sha256', razorpayWebhookSecret)
+          .update(bodyText)
+          .digest('hex');
+
+        if (razorpaySignature !== expectedSignature) {
+          console.error('Razorpay signature mismatch');
+          return new Response(
+            JSON.stringify({ error: 'Invalid webhook signature' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log('Razorpay webhook signature verified');
+        body = JSON.parse(bodyText);
+      } catch (err) {
+        console.error('Razorpay signature verification failed:', err.message);
+        return new Response(
+          JSON.stringify({ error: 'Invalid webhook signature' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // If auth header provided (non-webhook call), verify the user
+    if (authHeader && !stripeSignature && !razorpaySignature) {
       const token = authHeader.replace('Bearer ', '');
       const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
       
@@ -71,10 +144,8 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      body = JSON.parse(bodyText);
     }
-
-    // Parse and validate input
-    const body = await req.json();
     const validation = CompletePaymentSchema.safeParse(body);
     
     if (!validation.success) {
