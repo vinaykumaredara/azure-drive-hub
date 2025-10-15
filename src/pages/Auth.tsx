@@ -21,25 +21,43 @@ const Auth: React.FC = () => {
   const location = useLocation();
   const { signIn, signUp, signInWithGoogle, user, isAdmin, profile, profileLoading } = useAuth();
 
-  // Handle post-login redirect logic - NON-BLOCKING VERSION
+  // Handle post-login redirect logic
+  // CRITICAL FIX: Wait for profile to load before setting flags or redirecting
   useEffect(() => {
-    if (user && !isLoading && !profileLoading) {
-      const searchParams = new URLSearchParams(location.search);
-      const nextUrl = searchParams.get('next');
-      const redirectToProfile = sessionStorage.getItem('redirectToProfileAfterLogin');
-      const isGoogleAuth = user.app_metadata?.provider === 'google';
-      
-      // Handle phone collection for Google users
-      if (profile && !profile.phone && isGoogleAuth) {
+    // Only proceed when user is logged in and profile has finished loading
+    if (!user || isLoading || profileLoading) {
+      return;
+    }
+    
+    const searchParams = new URLSearchParams(location.search);
+    const nextUrl = searchParams.get('next');
+    const redirectToProfile = sessionStorage.getItem('redirectToProfileAfterLogin');
+    const isGoogleAuth = user.app_metadata?.provider === 'google';
+    
+    console.log('Post-login redirect logic:', {
+      user: user.email,
+      isGoogleAuth,
+      hasProfile: !!profile,
+      hasPhone: !!profile?.phone,
+      profileLoading
+    });
+    
+    // CRITICAL: Only set flags AFTER we confirm profile exists
+    if (isGoogleAuth && profile) {
+      // Check if this is a new Google user without phone
+      if (!profile.phone) {
+        console.log('Google user needs phone collection');
         sessionStorage.setItem('needsPhoneCollection', 'true');
+        
+        // Check if profile was just created (no phone = likely new user)
         sessionStorage.setItem('isNewGoogleUser', 'true');
       }
       
-      // Show appropriate welcome message for Google users
-      if (isGoogleAuth && !sessionStorage.getItem('welcomeShown')) {
+      // Show appropriate welcome message for Google users (only once)
+      if (!sessionStorage.getItem('welcomeShown')) {
         sessionStorage.setItem('welcomeShown', 'true');
         
-        if (profile?.phone) {
+        if (profile.phone) {
           // Returning user with phone
           toast({
             title: "Welcome back! 👋",
@@ -53,21 +71,31 @@ const Auth: React.FC = () => {
           });
         }
       }
-      
-      if (redirectToProfile === 'true') {
-        sessionStorage.removeItem('redirectToProfileAfterLogin');
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-      
-      // Normal redirect logic
-      if (nextUrl && nextUrl.startsWith('/')) {
-        navigate(nextUrl, { replace: true });
-      } else if (isAdmin) {
-        navigate('/admin', { replace: true });
-      } else {
-        navigate('/dashboard', { replace: true });
-      }
+    } else if (isGoogleAuth && !profile) {
+      // Profile doesn't exist yet - this shouldn't happen but handle gracefully
+      console.error('User logged in but profile not found - trigger may have failed');
+      toast({
+        title: "Setting up your account...",
+        description: "Please wait a moment while we create your profile.",
+      });
+      // Don't redirect yet, wait for next render when profile might be available
+      return;
+    }
+    
+    // Handle redirects
+    if (redirectToProfile === 'true') {
+      sessionStorage.removeItem('redirectToProfileAfterLogin');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    
+    // Normal redirect logic
+    if (nextUrl && nextUrl.startsWith('/')) {
+      navigate(nextUrl, { replace: true });
+    } else if (isAdmin) {
+      navigate('/admin', { replace: true });
+    } else {
+      navigate('/dashboard', { replace: true });
     }
   }, [user, isAdmin, navigate, isLoading, profileLoading, profile, location.search]);
 

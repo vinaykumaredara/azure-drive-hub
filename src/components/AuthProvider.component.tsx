@@ -66,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // Fetch profile whenever user changes or when profileJustUpdated flag is set
+  // CRITICAL FIX: Add retry logic for new users (Google OAuth) whose profile might not exist yet
   useEffect(() => {
     let mounted = true;
     
@@ -87,19 +88,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setProfileLoading(true);
+    
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, phone, full_name')
-          .eq('id', user.id)
-          .single();
+        // Import the helper function dynamically to avoid circular dependencies
+        const { waitForProfileCreation } = await import('@/utils/profileHelpers');
+        
+        // Check if this is a new user (might not have profile yet)
+        const isNewSession = sessionStorage.getItem('isNewGoogleUser') === 'true';
+        
+        if (isNewSession) {
+          // For new users, use retry logic to wait for trigger to complete
+          console.log('New user detected, waiting for profile creation...');
+          const profileData = await waitForProfileCreation(user.id);
+          
+          if (mounted) {
+            if (profileData) {
+              console.log('Profile found after retry:', profileData);
+              setProfile(profileData);
+            } else {
+              console.error('Profile creation timeout - trigger may have failed');
+              setProfile(null);
+              
+              // Show user-friendly error
+              toast({
+                title: "Profile Setup Issue",
+                description: "We're setting up your account. Please refresh the page in a moment.",
+                variant: "destructive",
+              });
+            }
+          }
+        } else {
+          // For existing users, single fetch is sufficient
+          const { data, error } = await supabase
+            .from('users')
+            .select('id, phone, full_name')
+            .eq('id', user.id)
+            .maybeSingle();
 
-        if (mounted) {
-          if (!error) setProfile(data);
-          else {
-            console.warn('Could not fetch profile:', error);
-            setProfile(null);
+          if (mounted) {
+            if (!error && data) {
+              setProfile(data);
+            } else {
+              console.warn('Could not fetch profile:', error);
+              setProfile(null);
+            }
           }
         }
       } catch (err) {

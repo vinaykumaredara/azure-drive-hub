@@ -117,21 +117,39 @@ const UserDashboard: React.FC = () => {
   }, [user?.id, profile?.phone, profileLoading]);
 
   // Auto-trigger phone collection for new Google OAuth users
+  // CRITICAL FIX: Only trigger ONCE when profile is loaded and phone is missing
   useEffect(() => {
-    if (!user?.id || profileLoading) return;
+    // Don't proceed until we have user and profile is fully loaded
+    if (!user?.id || profileLoading) {
+      console.log('Waiting for profile to load...', { userId: user?.id, profileLoading });
+      return;
+    }
     
     // Check if phone collection is needed after Google OAuth
     const needsPhone = sessionStorage.getItem('needsPhoneCollection');
     const isNewUser = sessionStorage.getItem('isNewGoogleUser');
     
-    if (needsPhone === 'true' && !profile?.phone) {
-      // Open phone modal for new Google users
+    console.log('Phone collection check:', {
+      needsPhone,
+      isNewUser,
+      hasProfile: !!profile,
+      hasPhone: !!profile?.phone,
+      showPhoneModal
+    });
+    
+    // Only trigger phone modal if:
+    // 1. Flag says we need phone collection
+    // 2. Profile exists (important!)
+    // 3. Profile doesn't have phone
+    // 4. Modal isn't already showing
+    if (needsPhone === 'true' && profile && !profile.phone && !showPhoneModal) {
+      console.log('Triggering phone modal for new Google user');
       setShowPhoneModal(true);
       
-      // Clear the needsPhoneCollection flag
+      // Clear the needsPhoneCollection flag to prevent repeated triggers
       sessionStorage.removeItem('needsPhoneCollection');
     }
-  }, [user?.id, profile?.phone, profileLoading]);
+  }, [user?.id, profile, profileLoading, showPhoneModal]);
 
   const handlePhoneModalComplete = async () => {
     setShowPhoneModal(false);

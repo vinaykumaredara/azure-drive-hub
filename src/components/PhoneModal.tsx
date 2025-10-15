@@ -36,13 +36,18 @@ export function PhoneModal({
   };
 
   const handleSave = async () => {
-    if (!user) return; // fruitless
+    if (!user) {
+      console.error('No user found in handleSave');
+      return;
+    }
     
     // Validate phone number
     if (!validatePhone(phone)) {
       setError('Please enter a valid 10-digit Indian phone number');
       return;
     }
+    
+    console.log('Saving phone number for user:', user.id, 'isFirstTimeSetup:', isFirstTimeSetup);
     
     setLoading(true);
     setError('');
@@ -52,22 +57,23 @@ export function PhoneModal({
       const updates: any = { id: user.id, phone: cleanedPhone };
       const { data, error } = await supabase.from('users').upsert(updates, { onConflict: 'id' }).select().single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Phone update error:', error);
+        throw error;
+      }
       
       // Add debug logging
       console.log('Phone number saved successfully:', data);
       
-      // Refresh profile after successful save
-      if (refreshProfile) {
-        await refreshProfile();
-      } else {
-        // Fallback: set flag in sessionStorage
-        sessionStorage.setItem('profileJustUpdated', '1');
-      }
+      // Set flag to trigger profile refresh in AuthProvider
+      sessionStorage.setItem('profileJustUpdated', '1');
       
-      // Clear the new user flag and show appropriate message
+      // Clear the new user flags if this is first-time setup
       if (isFirstTimeSetup) {
+        console.log('Clearing new user flags after phone setup');
         sessionStorage.removeItem('isNewGoogleUser');
+        sessionStorage.removeItem('needsPhoneCollection');
+        
         toast({
           title: "Welcome to RP Cars! 🎉",
           description: "Your account is all set up. Let's find you a perfect car!",
@@ -79,7 +85,18 @@ export function PhoneModal({
         });
       }
       
-      if (onComplete) onComplete(data);
+      // Refresh profile after successful save
+      if (refreshProfile) {
+        console.log('Triggering profile refresh...');
+        await refreshProfile();
+      }
+      
+      if (onComplete) {
+        console.log('Calling onComplete callback');
+        onComplete(data);
+      }
+      
+      console.log('Phone save complete, closing modal');
       onClose();
     } catch (err: any) {
       console.error('save phone err', err);

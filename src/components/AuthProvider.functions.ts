@@ -48,15 +48,15 @@ export const signUp = async (email: string, password: string) => {
 };
 
 export const signInWithGoogle = async () => {
-  // Use the production URL or current origin for redirect
-  const redirectUrl = window.location.hostname === 'localhost' 
-    ? `${window.location.origin}/`
-    : 'https://rpcarrental.info/';
+  logInfo('google_signin_initiated', { hostname: window.location.hostname });
   
+  // CRITICAL FIX: Don't specify redirectTo - let Supabase use configured Site URL
+  // Supabase flow: Google → callback URL (https://PROJECT.supabase.co/auth/v1/callback) → Site URL
+  // Site URL should be configured in Supabase Dashboard → Authentication → URL Configuration
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: redirectUrl,
+      // Remove redirectTo - let Supabase handle it based on dashboard config
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
@@ -65,11 +65,14 @@ export const signInWithGoogle = async () => {
   });
   
   if (error) {
+    logError('google_signin_failed', error);
     toast({
       title: "Google Sign In Failed",
       description: error.message,
       variant: "destructive",
     });
+  } else {
+    logInfo('google_signin_redirect_initiated');
   }
   
   return { error };
