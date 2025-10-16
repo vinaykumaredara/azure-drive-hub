@@ -18,15 +18,19 @@ export function PhoneModal({
 }) {
   const { user, profile, refreshProfile } = useAuth();
   const [phone, setPhone] = useState(profile?.phone || '');
+  const [fullName, setFullName] = useState(profile?.full_name || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Update phone state when profile changes
+  // Update phone and name state when profile changes
   useEffect(() => {
     if (profile?.phone) {
       setPhone(profile.phone);
     }
-  }, [profile?.phone]);
+    if (profile?.full_name) {
+      setFullName(profile.full_name);
+    }
+  }, [profile?.phone, profile?.full_name]);
 
   const validatePhone = (phone: string) => {
     // Basic phone number validation (Indian format)
@@ -41,20 +45,29 @@ export function PhoneModal({
       return;
     }
     
-    // Validate phone number
+    // Validate required fields
+    if (!fullName || fullName.trim().length < 2) {
+      setError('Please enter your full name (at least 2 characters)');
+      return;
+    }
+    
     if (!validatePhone(phone)) {
       setError('Please enter a valid 10-digit Indian phone number');
       return;
     }
     
-    console.log('Saving phone number for user:', user.id, 'isFirstTimeSetup:', isFirstTimeSetup);
+    console.log('Saving profile for user:', user.id, 'isFirstTimeSetup:', isFirstTimeSetup);
     
     setLoading(true);
     setError('');
     
     try {
       const cleanedPhone = phone.replace(/\D/g, '');
-      const updates: any = { id: user.id, phone: cleanedPhone };
+      const updates: any = { 
+        id: user.id, 
+        phone: cleanedPhone,
+        full_name: fullName.trim()
+      };
       const { data, error } = await supabase.from('users').upsert(updates, { onConflict: 'id' }).select().single();
       
       if (error) {
@@ -63,14 +76,14 @@ export function PhoneModal({
       }
       
       // Add debug logging
-      console.log('Phone number saved successfully:', data);
+      console.log('Profile saved successfully:', data);
       
       // Set flag to trigger profile refresh in AuthProvider
       sessionStorage.setItem('profileJustUpdated', '1');
       
       // Clear the new user flags if this is first-time setup
       if (isFirstTimeSetup) {
-        console.log('Clearing new user flags after phone setup');
+        console.log('Clearing new user flags after profile setup');
         sessionStorage.removeItem('isNewGoogleUser');
         sessionStorage.removeItem('needsPhoneCollection');
         
@@ -80,8 +93,8 @@ export function PhoneModal({
         });
       } else {
         toast({
-          title: "Phone Number Saved",
-          description: "Your phone number has been successfully saved.",
+          title: "Profile Updated",
+          description: "Your profile has been successfully updated.",
         });
       }
       
@@ -99,11 +112,11 @@ export function PhoneModal({
       console.log('Phone save complete, closing modal');
       onClose();
     } catch (err: any) {
-      console.error('save phone err', err);
-      setError('Could not save phone number. Try again.');
+      console.error('save profile err', err);
+      setError('Could not save profile. Try again.');
       toast({
         title: "Error",
-        description: err?.message || "Could not save phone number. Try again.",
+        description: err?.message || "Could not save profile. Try again.",
         variant: "destructive",
       });
     } finally {
@@ -112,7 +125,7 @@ export function PhoneModal({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !loading && phone) {
+    if (e.key === 'Enter' && !loading && phone && fullName) {
       handleSave();
     }
   };
@@ -133,6 +146,20 @@ export function PhoneModal({
         <CardContent>
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name *</Label>
+              <Input 
+                id="fullName"
+                value={fullName} 
+                onChange={(e) => setFullName(e.target.value)} 
+                onKeyDown={handleKeyDown}
+                placeholder="Enter your full name" 
+                className="w-full"
+                disabled={loading}
+                autoFocus
+              />
+            </div>
+            
+            <div className="space-y-2">
               <Label htmlFor="phone">Phone Number *</Label>
               <Input 
                 id="phone"
@@ -142,24 +169,28 @@ export function PhoneModal({
                 placeholder="+91 1234567890" 
                 className="w-full"
                 disabled={loading}
-                autoFocus
               />
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
               <p className="text-xs text-muted-foreground">
                 {isFirstTimeSetup 
-                  ? "This is required to complete your registration." 
+                  ? "Required to complete your registration and for booking confirmations." 
                   : "We need your phone number to confirm your booking and send important updates."}
               </p>
             </div>
+            
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
+            
             <div className="flex justify-end gap-2">
               {!isFirstTimeSetup && (
                 <Button variant="outline" onClick={onClose} disabled={loading}>
                   Cancel
                 </Button>
               )}
-              <Button onClick={handleSave} disabled={loading || !phone || phone.length < 10}>
+              <Button 
+                onClick={handleSave} 
+                disabled={loading || !phone || phone.length < 10 || !fullName || fullName.trim().length < 2}
+              >
                 {loading ? 'Saving...' : isFirstTimeSetup ? 'Complete Setup' : 'Save & Continue'}
               </Button>
             </div>
