@@ -413,14 +413,24 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
       // Reset retry count on success
       setRetryCount(0);
     } catch (error: unknown) {
-      // Handle booking error
+      // Handle booking error with enhanced error messages
       let errorMessage = 'Failed to book car. Please try again.';
+      let showRetry = true;
+      
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (typeof error === 'object' && error !== null && 'message' in error) {
         errorMessage = (error as { message: string }).message;
       } else if (typeof error === 'string') {
         errorMessage = error;
+      }
+      
+      // Determine if error is retryable based on message
+      const lowerMessage = errorMessage.toLowerCase();
+      if (lowerMessage.includes('not available') || 
+          lowerMessage.includes('already booked') ||
+          lowerMessage.includes('no longer available')) {
+        showRetry = false; // Car availability errors are not retryable
       }
       
       setBookingError(errorMessage);
@@ -430,13 +440,14 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
         carId: car.id,
         retryCount: retryCount + 1,
         advanceBooking,
+        isRetryable: showRetry,
       });
       
       toast({
         title: "Booking Failed",
         description: errorMessage,
         variant: "destructive",
-        action: retryCount < 2 ? (
+        action: showRetry && retryCount < 2 ? (
           <Button 
             variant="outline" 
             size="sm" 
@@ -447,6 +458,23 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
           </Button>
         ) : undefined,
       });
+      
+      // Show additional guidance based on error type
+      if (lowerMessage.includes('not available')) {
+        setTimeout(() => {
+          toast({
+            title: "Suggestion",
+            description: "Try selecting different dates or browse other available cars.",
+          });
+        }, 2000);
+      } else if (lowerMessage.includes('invalid date')) {
+        setTimeout(() => {
+          toast({
+            title: "Suggestion",
+            description: "Please ensure your return date is after the pickup date.",
+          });
+        }, 2000);
+      }
     } finally {
       setIsLoading(false);
     }

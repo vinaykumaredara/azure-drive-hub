@@ -127,12 +127,44 @@ export const useBooking = () => {
 
       if (error) {
         console.error('[useBooking] Edge function error', error);
+        
+        // Handle network errors
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+          toast({
+            title: "Connection Error",
+            description: "Unable to connect to the server. Please check your internet connection and try again.",
+            variant: "destructive",
+          });
+          return null;
+        }
+        
         throw error;
       }
 
       if (!data.success) {
         console.error('[useBooking] Booking hold failed', data);
-        throw new Error(data.error || "Failed to create booking hold");
+        
+        // Parse specific error messages
+        const errorMsg = data.error || "Failed to create booking hold";
+        let userMessage = errorMsg;
+        
+        if (errorMsg.toLowerCase().includes('not available') || errorMsg.toLowerCase().includes('already booked')) {
+          userMessage = "This car is not available for the selected dates. Please choose different dates or another car.";
+        } else if (errorMsg.toLowerCase().includes('invalid date') || errorMsg.toLowerCase().includes('must be after')) {
+          userMessage = "The selected dates are invalid. Please ensure return date is after pickup date.";
+        } else if (errorMsg.toLowerCase().includes('rate limit')) {
+          userMessage = "Too many booking attempts. Please wait a moment and try again.";
+        } else if (errorMsg.toLowerCase().includes('validation') || errorMsg.toLowerCase().includes('invalid input')) {
+          userMessage = "Some booking information is invalid. Please check all fields and try again.";
+        }
+        
+        toast({
+          title: "Booking Failed",
+          description: userMessage,
+          variant: "destructive",
+        });
+        
+        throw new Error(userMessage);
       }
 
       console.debug('[useBooking] Booking hold created successfully', data);
@@ -146,12 +178,20 @@ export const useBooking = () => {
       return data;
     } catch (error: any) {
       console.error('[useBooking] createBookingHold error', error);
-      const errorMessage = error?.message || "Failed to create booking. Please try again.";
-      toast({
-        title: "Booking Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      
+      // If we already showed a toast for this error, don't show another
+      if (!error?.message?.startsWith('This car is not available') && 
+          !error?.message?.startsWith('The selected dates are invalid') &&
+          !error?.message?.startsWith('Too many booking attempts') &&
+          !error?.message?.startsWith('Some booking information is invalid')) {
+        const errorMessage = error?.message || "Failed to create booking. Please try again.";
+        toast({
+          title: "Booking Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+      
       return null;
     }
   };

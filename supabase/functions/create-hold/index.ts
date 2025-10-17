@@ -86,17 +86,64 @@ serve(async (req) => {
       throw new Error("Return date/time must be after pickup date/time");
     }
 
+    // Verify car exists and is available
+    const { data: carData, error: carError } = await supabaseClient
+      .from("cars")
+      .select("id, status, booking_status")
+      .eq("id", carId)
+      .single();
+
+    if (carError || !carData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Car not found",
+        errorCode: "CAR_NOT_FOUND"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404,
+      });
+    }
+
+    if (carData.status !== "published") {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "This car is no longer available for booking",
+        errorCode: "CAR_NOT_AVAILABLE"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
     // Check for existing bookings that conflict
-    const { data: conflicts } = await supabaseClient
+    const { data: conflicts, error: conflictError } = await supabaseClient
       .from("bookings")
-      .select("id")
+      .select("id, status")
       .eq("car_id", carId)
-      .in("payment_status", ["partial_hold", "paid"])
-      .lt("start_datetime", endDateTime.toISOString())
-      .gt("end_datetime", startDateTime.toISOString());
+      .in("status", ["pending", "confirmed"])
+      .or(`and(start_datetime.lte.${endDateTime.toISOString()},end_datetime.gte.${startDateTime.toISOString()})`);
+
+    if (conflictError) {
+      console.error("Error checking conflicts:", conflictError);
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Failed to verify car availability. Please try again.",
+        errorCode: "AVAILABILITY_CHECK_FAILED"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
 
     if (conflicts && conflicts.length > 0) {
-      throw new Error("This car is not available for the selected dates");
+      return new Response(JSON.stringify({
+        success: false,
+        error: "This car is already booked for the selected dates. Please choose different dates or another car.",
+        errorCode: "OVERLAPPING_BOOKING"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 409,
+      });
     }
 
     // Calculate hold amount (10% of total if hold mode)
@@ -156,12 +203,40 @@ serve(async (req) => {
     });
 
   } catch (error) {
+    console.error("Create hold error:", error);
+    
+    // Determine error type and return appropriate response
+    let errorMessage = "Failed to create booking hold. Please try again.";
+    let statusCode = 500;
+    let errorCode = "SERVER_ERROR";
+    
+    if (error.message) {
+      const msg = error.message.toLowerCase();
+      
+      if (msg.includes('duplicate') || msg.includes('unique constraint')) {
+        errorMessage = "A booking already exists for this time slot.";
+        errorCode = "DUPLICATE_BOOKING";
+        statusCode = 409;
+      } else if (msg.includes('foreign key') || msg.includes('violates')) {
+        errorMessage = "Invalid booking data. Please refresh and try again.";
+        errorCode = "INVALID_DATA";
+        statusCode = 400;
+      } else if (msg.includes('timeout') || msg.includes('connection')) {
+        errorMessage = "Database connection timeout. Please try again.";
+        errorCode = "TIMEOUT_ERROR";
+        statusCode = 503;
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
     return new Response(JSON.stringify({
-      success: false, 
-      error: error.message || "Failed to create booking hold" 
+      success: false,
+      error: errorMessage,
+      errorCode: errorCode
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: statusCode,
     });
   }
 });

@@ -2,11 +2,12 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
+import { errorLogger } from '@/utils/errorLogger';
 
 // Enhanced Error Boundary Component
 export class GlobalErrorBoundary extends React.Component<
   { children: React.ReactNode },
-  { hasError: boolean; error?: Error }
+  { hasError: boolean; error?: Error; errorId?: string }
 > {
   constructor(props: { children: React.ReactNode }) {
     super(props);
@@ -18,6 +19,16 @@ export class GlobalErrorBoundary extends React.Component<
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Log with enhanced error logger
+    const errorId = errorLogger.logError(error, {
+      component: 'GlobalErrorBoundary',
+      action: 'componentDidCatch',
+      metadata: {
+        componentStack: errorInfo.componentStack,
+      }
+    }, 'critical');
+
+    this.setState({ errorId });
     console.error('Global Error Boundary:', error, errorInfo);
   }
 
@@ -34,8 +45,21 @@ export class GlobalErrorBoundary extends React.Component<
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                An unexpected error occurred. Please try refreshing the page.
+                An unexpected error occurred. Don't worry, our team has been notified and is working to fix it.
               </p>
+              {this.state.error?.message && (
+                <div className="bg-muted p-3 rounded-md">
+                  <p className="text-xs font-medium mb-1">Error Details:</p>
+                  <p className="text-xs text-muted-foreground font-mono break-words">
+                    {this.state.error.message}
+                  </p>
+                  {this.state.errorId && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ID: {this.state.errorId}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button 
                   onClick={() => window.location.reload()}
@@ -45,7 +69,7 @@ export class GlobalErrorBoundary extends React.Component<
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => this.setState({ hasError: false })}
+                  onClick={() => this.setState({ hasError: false, error: undefined, errorId: undefined })}
                   className="flex-1"
                 >
                   Try Again
