@@ -1,75 +1,89 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/components/AuthProvider";
-import { toast } from "@/hooks/use-toast";
+/**
+ * Custom hook for managing booking operations
+ * @module hooks/useBooking
+ */
 
-interface BookingDraft {
-  carId: string;
-  pickup: {
-    date: string;
-    time: string;
-  };
-  return: {
-    date: string;
-    time: string;
-  };
-  addons: Record<string, boolean>;
-  totals: {
-    subtotal: number;
-    serviceCharge: number;
-    total: number;
-  };
-}
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+import { toast } from '@/hooks/use-toast';
+import type {
+  BookingDraft,
+  SaveDraftOptions,
+  PaymentMode,
+  BookingHoldResult,
+} from '@/types/booking.types';
+import {
+  saveBookingDraft,
+  getBookingDraft,
+  clearBookingDraft as clearDraftStorage,
+  setRedirectToProfile,
+} from '@/utils/booking/storage';
+import { validateBookingDraft } from '@/utils/booking/validation';
+import { logError, logInfo } from '@/utils/logger';
 
-interface SaveDraftOptions {
-  redirectToProfile?: boolean;
-}
-
+/**
+ * Hook for managing booking operations
+ * Provides functionality for draft management, validation, and booking creation
+ * @returns Booking management functions and state
+ */
 export const useBooking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [pendingBooking, setPendingBooking] = useState<BookingDraft | null>(null);
+  const [pendingBooking, setPendingBooking] = useState<BookingDraft | null>(
+    null
+  );
 
-  // Check for pending booking on component mount
+  /**
+   * Load pending booking from session storage on mount
+   */
   useEffect(() => {
-    const draftRaw = sessionStorage.getItem('pendingBooking');
-    if (draftRaw) {
-      try {
-        const draft = JSON.parse(draftRaw);
-        setPendingBooking(draft);
-      } catch (error) {
-        console.error("Failed to parse pending booking:", error);
-        sessionStorage.removeItem('pendingBooking');
-      }
+    const draft = getBookingDraft();
+    if (draft) {
+      setPendingBooking(draft);
+      logInfo('Pending booking loaded from session storage');
     }
   }, []);
 
-  const saveDraftAndRedirect = (draft: BookingDraft, options: SaveDraftOptions = {}) => {
-    // Save booking draft to session storage
-    sessionStorage.setItem('pendingBooking', JSON.stringify(draft));
-    console.debug('[useBooking] Draft saved and redirecting', { draft, options });
-    
-    // Set flags in sessionStorage for post-login handling
-    if (options.redirectToProfile) {
-      sessionStorage.setItem('redirectToProfileAfterLogin', 'true');
-    }
-    
-    // Redirect to login with return URL (single-level param only)
-    navigate(`/auth?next=${encodeURIComponent(window.location.pathname)}`);
-  };
+  /**
+   * Saves booking draft and redirects to login
+   * @param draft - Booking draft to save
+   * @param options - Save options
+   */
+  const saveDraftAndRedirect = useCallback(
+    (draft: BookingDraft, options: SaveDraftOptions = {}) => {
+      saveBookingDraft(draft);
+      logInfo('Booking draft saved, redirecting to login');
 
-  const clearDraft = () => {
-    sessionStorage.removeItem('pendingBooking');
-    sessionStorage.removeItem('redirectToProfileAfterLogin');
+      if (options.redirectToProfile) {
+        setRedirectToProfile(true);
+      }
+
+      navigate(`/auth?next=${encodeURIComponent(window.location.pathname)}`);
+    },
+    [navigate]
+  );
+
+  /**
+   * Clears the booking draft from storage and state
+   */
+  const clearDraft = useCallback(() => {
+    clearDraftStorage();
     setPendingBooking(null);
-  };
+    logInfo('Booking draft cleared');
+  }, []);
 
-  const checkLicenseStatus = async () => {
-    if (!user) {return false;}
+  /**
+   * Checks if user has a verified license
+   * @returns Promise resolving to true if license is verified
+   */
+  const checkLicenseStatus = useCallback(async (): Promise<boolean> => {
+    if (!user) {
+      return false;
+    }
 
     try {
-      // Check if user has uploaded a license and if it's verified
       const { data: licenses, error } = await supabase
         .from('licenses')
         .select('id, verified')
@@ -77,130 +91,197 @@ export const useBooking = () => {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (error) {throw error;}
-
-      // Return true if user has at least one verified license
-      return licenses && licenses.length > 0 && (licenses[0] as any).verified;
-    } catch (error) {
-      console.error("License check error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to check license status",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
-  const createBookingHold = async (draft: BookingDraft, payMode: "full" | "hold") => {
-    console.debug('[useBooking] createBookingHold called', { draft, payMode, user: !!user });
-    
-    if (!user) {
-      saveDraftAndRedirect(draft);
-      return null;
-    }
-
-    // Add defensive validation client-side before calling server
-    if (!draft.carId || !draft.pickup?.date || !draft.pickup?.time || !draft.return?.date || !draft.return?.time) {
-      console.debug('[useBooking] Validation failed - missing fields', draft);
-      toast({
-        title: "Validation Error",
-        description: "Missing required booking information. Please fill in all date and time fields.",
-        variant: "destructive",
-      });
-      return null;
-    }
-
-    try {
-      console.debug('[useBooking] Calling create-hold edge function');
-      // Call Edge Function to create booking hold
-      const { data, error } = await supabase.functions.invoke('create-hold', {
-        body: {
-          carId: draft.carId,
-          pickup: draft.pickup,
-          return: draft.return,
-          addons: draft.addons,
-          totals: draft.totals,
-          payMode
-        }
-      });
-
       if (error) {
-        console.error('[useBooking] Edge function error', error);
-        
-        // Handle network errors
-        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-          toast({
-            title: "Connection Error",
-            description: "Unable to connect to the server. Please check your internet connection and try again.",
-            variant: "destructive",
-          });
-          return null;
-        }
-        
         throw error;
       }
 
-      if (!data.success) {
-        console.error('[useBooking] Booking hold failed', data);
-        
-        // Parse specific error messages
-        const errorMsg = data.error || "Failed to create booking hold";
-        let userMessage = errorMsg;
-        
-        if (errorMsg.toLowerCase().includes('not available') || errorMsg.toLowerCase().includes('already booked')) {
-          userMessage = "This car is not available for the selected dates. Please choose different dates or another car.";
-        } else if (errorMsg.toLowerCase().includes('invalid date') || errorMsg.toLowerCase().includes('must be after')) {
-          userMessage = "The selected dates are invalid. Please ensure return date is after pickup date.";
-        } else if (errorMsg.toLowerCase().includes('rate limit')) {
-          userMessage = "Too many booking attempts. Please wait a moment and try again.";
-        } else if (errorMsg.toLowerCase().includes('validation') || errorMsg.toLowerCase().includes('invalid input')) {
-          userMessage = "Some booking information is invalid. Please check all fields and try again.";
-        }
-        
-        toast({
-          title: "Booking Failed",
-          description: userMessage,
-          variant: "destructive",
-        });
-        
-        throw new Error(userMessage);
-      }
+      const hasVerifiedLicense =
+        licenses &&
+        licenses.length > 0 &&
+        (licenses[0] as { verified: boolean }).verified;
 
-      console.debug('[useBooking] Booking hold created successfully', data);
+      return !!hasVerifiedLicense;
+    } catch (error) {
+      logError('License status check failed', error);
       toast({
-        title: "Booking Hold Created",
-        description: payMode === "hold" 
-          ? "Your booking is reserved for 24 hours. Complete payment within this time." 
-          : "Booking created successfully.",
+        title: 'Error',
+        description: 'Failed to check license status',
+        variant: 'destructive',
       });
-
-      return data;
-    } catch (error: any) {
-      console.error('[useBooking] createBookingHold error', error);
-      
-      // If we already showed a toast for this error, don't show another
-      if (!error?.message?.startsWith('This car is not available') && 
-          !error?.message?.startsWith('The selected dates are invalid') &&
-          !error?.message?.startsWith('Too many booking attempts') &&
-          !error?.message?.startsWith('Some booking information is invalid')) {
-        const errorMessage = error?.message || "Failed to create booking. Please try again.";
-        toast({
-          title: "Booking Failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
-      
-      return null;
+      return false;
     }
-  };
+  }, [user]);
+
+  /**
+   * Creates a booking hold
+   * @param draft - Booking draft data
+   * @param payMode - Payment mode (full or hold)
+   * @returns Promise resolving to booking hold result or null
+   */
+  const createBookingHold = useCallback(
+    async (
+      draft: BookingDraft,
+      payMode: PaymentMode
+    ): Promise<BookingHoldResult | null> => {
+      logInfo('Creating booking hold', { payMode, hasUser: !!user });
+
+      // Redirect to login if user is not authenticated
+      if (!user) {
+        saveDraftAndRedirect(draft);
+        return null;
+      }
+
+      // Validate draft before submission
+      const validationResult = validateBookingDraft(draft);
+      if (!validationResult.valid) {
+        toast({
+          title: 'Validation Error',
+          description: validationResult.error,
+          variant: 'destructive',
+        });
+        return null;
+      }
+
+      try {
+        logInfo('Calling create-hold edge function');
+
+        const { data, error } = await supabase.functions.invoke('create-hold', {
+          body: {
+            carId: draft.carId,
+            pickup: draft.pickup,
+            return: draft.return,
+            addons: draft.addons,
+            totals: draft.totals,
+            payMode,
+          },
+        });
+
+        // Handle network errors
+        if (error) {
+          logError('Edge function invocation error', error);
+
+          if (
+            error.message?.includes('Failed to fetch') ||
+            error.message?.includes('NetworkError')
+          ) {
+            toast({
+              title: 'Connection Error',
+              description:
+                'Unable to connect to the server. Please check your internet connection.',
+              variant: 'destructive',
+            });
+            return null;
+          }
+
+          throw error;
+        }
+
+        // Handle unsuccessful booking creation
+        if (!data?.success) {
+          const errorMsg = data?.error || 'Failed to create booking hold';
+          logError('Booking hold creation failed', new Error(errorMsg));
+
+          toast({
+            title: 'Booking Failed',
+            description: getUserFriendlyError(errorMsg),
+            variant: 'destructive',
+          });
+
+          return {
+            success: false,
+            error: errorMsg,
+            errorCode: data?.errorCode,
+          };
+        }
+
+        // Success
+        logInfo('Booking hold created successfully');
+        toast({
+          title: 'Booking Hold Created',
+          description:
+            payMode === 'hold'
+              ? 'Your booking is reserved for 24 hours. Complete payment within this time.'
+              : 'Booking created successfully.',
+        });
+
+        return data as BookingHoldResult;
+      } catch (error) {
+        logError('Booking hold creation error', error);
+
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'Failed to create booking. Please try again.';
+
+        // Only show toast if we haven't already
+        if (!isErrorAlreadyDisplayed(errorMessage)) {
+          toast({
+            title: 'Booking Failed',
+            description: errorMessage,
+            variant: 'destructive',
+          });
+        }
+
+        return null;
+      }
+    },
+    [user, saveDraftAndRedirect]
+  );
 
   return {
     pendingBooking,
     saveDraftAndRedirect,
     clearDraft,
     checkLicenseStatus,
-    createBookingHold
+    createBookingHold,
   };
+};
+
+/**
+ * Gets user-friendly error message
+ * @param errorMsg - Raw error message
+ * @returns User-friendly error message
+ */
+const getUserFriendlyError = (errorMsg: string): string => {
+    const lowerMsg = errorMsg.toLowerCase();
+
+    if (
+      lowerMsg.includes('not available') ||
+      lowerMsg.includes('already booked')
+    ) {
+      return 'This car is not available for the selected dates. Please choose different dates or another car.';
+    }
+
+    if (
+      lowerMsg.includes('invalid date') ||
+      lowerMsg.includes('must be after')
+    ) {
+      return 'The selected dates are invalid. Please ensure return date is after pickup date.';
+    }
+
+    if (lowerMsg.includes('rate limit')) {
+      return 'Too many booking attempts. Please wait a moment and try again.';
+    }
+
+    if (lowerMsg.includes('validation') || lowerMsg.includes('invalid input')) {
+      return 'Some booking information is invalid. Please check all fields and try again.';
+    }
+
+  return errorMsg;
+};
+
+/**
+ * Checks if error has already been displayed to avoid duplicates
+ * @param errorMessage - Error message to check
+ * @returns True if error was already displayed
+ */
+const isErrorAlreadyDisplayed = (errorMessage: string): boolean => {
+  const displayedErrors = [
+    'This car is not available',
+    'The selected dates are invalid',
+    'Too many booking attempts',
+    'Some booking information is invalid',
+  ];
+
+  return displayedErrors.some((msg) => errorMessage.startsWith(msg));
 };

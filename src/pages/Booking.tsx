@@ -243,7 +243,7 @@ const BookingPage: React.FC = () => {
     const result = await createBookingHold(draft, payMode);
     
     if (result) {
-      setHoldId(result.bookingId);
+      setHoldId(result.bookingId ?? result.holdId ?? null);
       if (payMode === "hold" && result.holdUntil) {
         setHoldExpiry(new Date(result.holdUntil));
       }
