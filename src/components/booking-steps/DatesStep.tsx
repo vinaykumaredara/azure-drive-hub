@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CalendarIcon } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatINRFromPaise } from '@/utils/currency';
+import { validateBookingDuration, formatDuration } from '@/utils/booking/dateValidation';
 
 interface DatesStepProps {
   bookingData: {
@@ -33,6 +34,16 @@ export const DatesStep: React.FC<DatesStepProps> = ({
   onStartTimeChange,
   onEndTimeChange
 }) => {
+  // Validate booking duration (minimum 12 hours)
+  const validation = useMemo(() => {
+    return validateBookingDuration(
+      bookingData.startDate,
+      bookingData.startTime,
+      bookingData.endDate,
+      bookingData.endTime
+    );
+  }, [bookingData.startDate, bookingData.startTime, bookingData.endDate, bookingData.endTime]);
+
   const calculateTotal = () => {
     return (car.price_in_paise ? car.price_in_paise / 100 : car.pricePerDay) * bookingData.totalDays;
   };
@@ -131,19 +142,35 @@ export const DatesStep: React.FC<DatesStepProps> = ({
         </div>
       </div>
 
-      {bookingData.startDate && bookingData.endDate && (
+      {/* Validation feedback */}
+      {bookingData.startDate && bookingData.endDate && !validation.isValid && (
+        <Alert variant="destructive" className="animate-in fade-in-50">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {validation.error}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Success summary */}
+      {validation.isValid && validation.hours && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-3 sm:p-4 bg-primary-light rounded-lg"
+          className="p-3 sm:p-4 bg-primary-light rounded-lg space-y-2"
           role="status"
           aria-live="polite"
         >
-          <p className="text-xs sm:text-sm font-medium text-primary">
-            Total Duration: {bookingData.totalDays} day{bookingData.totalDays > 1 ? 's' : ''}
-          </p>
-          <p className="text-base sm:text-lg font-bold text-primary mt-1">
-            {formatINRFromPaise((car.price_in_paise || car.pricePerDay * 100) * bookingData.totalDays)}
+          <div className="flex justify-between items-center">
+            <p className="text-xs sm:text-sm font-medium text-primary">
+              Duration: {formatDuration(validation.hours)}
+            </p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              ({bookingData.totalDays} day{bookingData.totalDays > 1 ? 's' : ''} billed)
+            </p>
+          </div>
+          <p className="text-base sm:text-lg font-bold text-primary">
+            Total: {formatINRFromPaise((car.price_in_paise || car.pricePerDay * 100) * bookingData.totalDays)}
           </p>
         </motion.div>
       )}

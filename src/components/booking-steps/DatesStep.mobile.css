@@ -1,0 +1,52 @@
+/**
+ * Mobile-specific fixes for booking date/time selection
+ * Ensures buttons are always visible and accessible on small screens
+ */
+
+/* Ensure booking form container has proper spacing on mobile */
+@media (max-width: 640px) {
+  /* Add padding to bottom of forms to prevent Next button from being hidden */
+  .booking-dates-container {
+    padding-bottom: 120px;
+  }
+  
+  /* Ensure Select dropdowns have high z-index and proper background */
+  [role="combobox"],
+  [role="listbox"] {
+    z-index: 50;
+    background-color: hsl(var(--background));
+  }
+  
+  /* Fix for date inputs on iOS */
+  input[type="date"] {
+    -webkit-appearance: none;
+    min-height: 44px; /* iOS touch target minimum */
+  }
+  
+  /* Ensure time selects are accessible */
+  select,
+  [data-radix-select-trigger] {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Fix sticky footer buttons on mobile */
+  .booking-navigation-buttons {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background-color: hsl(var(--background));
+    border-top: 1px solid hsl(var(--border));
+    z-index: 40;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Add safe area insets for iOS devices */
+  @supports (padding: max(0px)) {
+    .booking-navigation-buttons {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+  }
+}

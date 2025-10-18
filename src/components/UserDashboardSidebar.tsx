@@ -1,4 +1,5 @@
-import { Calendar, Heart, Bell, User, Settings, LogOut, TrendingUp } from 'lucide-react';
+import { Calendar, User, LogOut, TrendingUp } from 'lucide-react';
+import { memo } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -15,9 +16,19 @@ interface UserDashboardSidebarProps {
   onSignOut: () => void;
   onTabChange: (tab: string) => void;
   currentTab: string;
+  userName?: string;
 }
 
-export function UserDashboardSidebar({ onSignOut, onTabChange, currentTab }: UserDashboardSidebarProps) {
+/**
+ * User dashboard sidebar with memoization for performance
+ * Displays navigation menu and user info
+ */
+export const UserDashboardSidebar = memo(function UserDashboardSidebar({ 
+  onSignOut, 
+  onTabChange, 
+  currentTab,
+  userName 
+}: UserDashboardSidebarProps) {
   const menuItems = [
     { id: 'overview', title: 'Overview', icon: TrendingUp },
     { id: 'bookings', title: 'My Bookings', icon: Calendar },
@@ -29,6 +40,14 @@ export function UserDashboardSidebar({ onSignOut, onTabChange, currentTab }: Use
   return (
     <Sidebar side="left" variant="sidebar" collapsible="icon">
       <SidebarContent className="bg-background border-r">
+        {/* User Info */}
+        {userName && (
+          <div className="px-4 py-3 border-b">
+            <p className="text-sm font-medium truncate">{userName}</p>
+            <p className="text-xs text-muted-foreground">User Dashboard</p>
+          </div>
+        )}
+        
         {/* Navigation Menu */}
         <SidebarGroup>
           <SidebarGroupLabel className="px-4 py-2 text-sm font-semibold text-muted-foreground">
@@ -66,4 +85,4 @@ export function UserDashboardSidebar({ onSignOut, onTabChange, currentTab }: Use
       </SidebarContent>
     </Sidebar>
   );
-}
+});

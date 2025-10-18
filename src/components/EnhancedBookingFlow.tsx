@@ -36,6 +36,7 @@ import { PaymentStep } from '@/components/booking-steps/PaymentStep';
 import { ConfirmationStep } from '@/components/booking-steps/ConfirmationStep';
 import { telemetry } from '@/utils/telemetry';
 import { BookingStepSkeleton } from '@/components/ui/feedback/LoadingSkeleton';
+import './booking-steps/DatesStep.mobile.css';
 
 interface EnhancedBookingFlowProps {
   car: {

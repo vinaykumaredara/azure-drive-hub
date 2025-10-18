@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from "react";
+import React, { useState, useEffect, lazy, Suspense, useCallback, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { UserDashboardSidebar } from '@/components/UserDashboardSidebar';
+import { SidebarSkeleton } from '@/components/ui/feedback/SidebarSkeleton';
 import { PhoneModal } from '@/components/PhoneModal';
 import { useBookingResume } from '@/hooks/useBookingResume';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -162,9 +163,18 @@ const UserDashboard: React.FC = () => {
     }, 500);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
+      // Clear all session storage
+      sessionStorage.clear();
+      
       await signOut();
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out",
+      });
+      
       navigate('/auth');
     } catch (error) {
       toast({
@@ -173,11 +183,39 @@ const UserDashboard: React.FC = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [signOut, navigate]);
 
+  // Memoize user display name
+  const userDisplayName = useMemo(() => {
+    return profile?.full_name || user?.email || 'User';
+  }, [profile?.full_name, user?.email]);
+
+  // Show loading state while auth is initializing
   if (!user) {
     navigate('/auth');
     return null;
+  }
+
+  // Show skeleton while profile is loading
+  if (profileLoading) {
+    return (
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <SidebarSkeleton />
+          <SidebarInset className="flex-1">
+            <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
+              <SidebarTrigger />
+              <h1 className="text-xl font-semibold">My Dashboard</h1>
+            </header>
+            <main className="flex-1 p-4 sm:p-6">
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              </div>
+            </main>
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+    );
   }
 
   return (
@@ -188,6 +226,7 @@ const UserDashboard: React.FC = () => {
             onSignOut={handleLogout}
             onTabChange={setCurrentTab}
             currentTab={currentTab}
+            userName={userDisplayName}
           />
           
           <SidebarInset className="flex-1">

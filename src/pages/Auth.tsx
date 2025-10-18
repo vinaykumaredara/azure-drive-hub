@@ -118,9 +118,15 @@ const Auth: React.FC = () => {
         description: error.message || "Invalid email or password",
         variant: "destructive",
       });
+      setIsLoading(false);
+    } else {
+      // Success - show welcome message (will redirect via useEffect)
+      toast({
+        title: "Welcome back! 👋",
+        description: "Signing you in...",
+      });
+      // Keep loading state - will clear on redirect
     }
-    
-    setIsLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -148,6 +154,13 @@ const Auth: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    
+    // Show helpful message about what will happen
+    toast({
+      title: "Redirecting to Google...",
+      description: "You'll be asked to sign in or create an account",
+    });
+    
     const { error } = await signInWithGoogle();
     
     if (error) {
@@ -156,9 +169,9 @@ const Auth: React.FC = () => {
         description: error.message || "Failed to sign in with Google",
         variant: "destructive",
       });
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
+    // If successful, user will be redirected by Google OAuth flow
   };
 
   return (
