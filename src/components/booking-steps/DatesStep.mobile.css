@@ -3,24 +3,38 @@
  * Ensures buttons are always visible and accessible on small screens
  */
 
-/* Ensure booking form container has proper spacing on mobile */
+/* Global booking flow mobile fixes */
 @media (max-width: 640px) {
-  /* Add padding to bottom of forms to prevent Next button from being hidden */
-  .booking-dates-container {
-    padding-bottom: 120px;
+  /* Ensure booking modal takes full height on mobile */
+  .booking-flow-modal {
+    padding: 0 !important;
+  }
+  
+  .booking-flow-modal .modal-content {
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+  }
+  
+  /* Add padding to bottom of content to prevent footer overlap */
+  .booking-dates-container,
+  [id*="step-"][role="tabpanel"] {
+    padding-bottom: 100px !important;
   }
   
   /* Ensure Select dropdowns have high z-index and proper background */
   [role="combobox"],
   [role="listbox"] {
-    z-index: 50;
+    z-index: 100 !important;
     background-color: hsl(var(--background));
   }
   
   /* Fix for date inputs on iOS */
-  input[type="date"] {
+  input[type="date"],
+  input[type="time"] {
     -webkit-appearance: none;
     min-height: 44px; /* iOS touch target minimum */
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    padding: 0.75rem;
   }
   
   /* Ensure time selects are accessible */
@@ -30,23 +44,44 @@
     font-size: 16px; /* Prevents iOS zoom on focus */
   }
   
-  /* Fix sticky footer buttons on mobile */
+  /* CRITICAL: Fix sticky footer buttons to always be visible */
+  .booking-flow-modal [class*="sticky bottom-0"],
   .booking-navigation-buttons {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1rem;
-    background-color: hsl(var(--background));
-    border-top: 1px solid hsl(var(--border));
-    z-index: 40;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    padding: 0.75rem 1rem !important;
+    background: hsl(var(--background)) !important;
+    border-top: 1px solid hsl(var(--border)) !important;
+    z-index: 9999 !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+  
+  /* Ensure buttons are visible and touchable */
+  .booking-flow-modal button[data-testid="next-button"],
+  .booking-flow-modal button[data-testid="proceed-to-pay"] {
+    min-height: 44px !important;
+    padding: 0.75rem 1.5rem !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
   
   /* Add safe area insets for iOS devices */
   @supports (padding: max(0px)) {
+    .booking-flow-modal [class*="sticky bottom-0"],
     .booking-navigation-buttons {
-      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
     }
+  }
+  
+  /* Prevent content from being obscured */
+  .booking-flow-modal .overflow-y-auto {
+    padding-bottom: 120px !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }

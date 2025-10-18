@@ -896,13 +896,14 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             </div>
           </div>
 
-          {/* Scrollable Content Area */}
+          {/* Scrollable Content Area with Mobile Bottom Padding */}
           <div 
             ref={contentRef}
-            className="p-4 sm:p-6 overflow-y-auto flex-grow"
+            className="p-4 sm:p-6 overflow-y-auto flex-grow pb-28 sm:pb-6"
             style={{
-              maxHeight: 'calc(100vh - 160px)',
+              maxHeight: 'calc(100vh - 200px)',
               WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain'
             }}
             id={`step-${currentStep}-panel`}
             role="tabpanel"
@@ -926,16 +927,25 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
             </AnimatePresence>
           </div>
 
-          {/* Sticky Footer - Always Visible */}
+          {/* Sticky Footer - Always Visible with Mobile Fix */}
           {currentStep !== 'confirmation' && (
-            <div className="sticky bottom-0 w-full max-w-full bg-white/90 backdrop-blur-md border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center flex-shrink-0 -mx-4 sm:-mx-6">
-              <div>
-                {currentStep !== 'dates' && (
+            <div 
+              className="sticky bottom-0 left-0 right-0 w-full bg-white border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center flex-shrink-0 z-[10000] shadow-[0_-4px_16px_rgba(0,0,0,0.1)]"
+              style={{
+                position: 'sticky',
+                bottom: 0,
+                backdropFilter: 'blur(8px)',
+                backgroundColor: 'rgba(255, 255, 255, 0.98)'
+              }}
+            >
+              <div className="flex-shrink-0">
+                {currentStep !== 'phone' && (
                   <Button 
                     variant="outline" 
                     onClick={handleBack} 
                     disabled={isLoading} 
-                    size="sm"
+                    size="default"
+                    className="min-h-[44px] touch-manipulation"
                     aria-label="Go back to previous step"
                     data-testid="back-button"
                   >
@@ -944,10 +954,10 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                 )}
               </div>
               
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4 flex-grow justify-end">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="font-bold text-lg">
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="font-bold text-base sm:text-lg">
                     {bookingData.advanceBooking 
                       ? formatINRFromPaise(bookingData.advanceAmount * 100)
                       : formatINRFromPaise(calculateTotal() * 100)}
@@ -957,16 +967,12 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                 <Button 
                   onClick={() => {
                     if (currentStep === 'payment') {
-                      // Handle payment based on selected option
                       if (bookingData.advanceBooking) {
-                        // For advance booking, we need to handle the 10% payment
                         handleAdvancePayment();
                       } else {
-                        // For full payment, open the payment gateway
                         setIsPaymentOpen(true);
                       }
                     } else {
-                      // For other steps, proceed to next step
                       handleNext();
                     }
                   }}
@@ -976,20 +982,20 @@ export const EnhancedBookingFlow: React.FC<EnhancedBookingFlowProps> = ({ car, o
                     (currentStep === 'terms' && !bookingData.termsAccepted) ||
                     (currentStep === 'license' && !bookingData.licenseId)
                   }
-                  className="min-w-[80px] sm:min-w-[120px] text-sm sm:text-base"
-                  size="sm"
-                  aria-label={currentStep === 'payment' ? 'Proceed to payment' : currentStep === 'license' ? 'Continue to next step' : 'Continue to next step'}
+                  className="min-w-[100px] sm:min-w-[120px] min-h-[44px] text-base font-semibold touch-manipulation shadow-lg"
+                  size="default"
+                  aria-label={currentStep === 'payment' ? 'Proceed to payment' : 'Continue to next step'}
                   data-testid={currentStep === 'payment' ? 'proceed-to-pay' : 'next-button'}
                 >
                   {isLoading ? (
                     <motion.div 
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full"
+                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                       aria-label="Processing"
                     />
                   ) : (
-                    currentStep === 'payment' ? 'Proceed to Pay' : currentStep === 'license' ? 'Continue' : 'Next'
+                    currentStep === 'payment' ? 'Proceed to Pay' : 'Next'
                   )}
                 </Button>
               </div>
