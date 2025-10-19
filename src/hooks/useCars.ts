@@ -40,7 +40,7 @@ export default function useCars() {
     
     try {
       // Optimized query with pagination and specific field selection
-      const { data, error, count } = await supabase
+      const { data, error } = await supabase
         .from('cars')
         .select(`
           id,
@@ -64,7 +64,7 @@ export default function useCars() {
           booking_status,
           booked_by,
           booked_at
-        `, { count: 'planned' })
+        `)
         .eq('status', 'published')
         .order('created_at', { ascending: false })
         .range(0, 11); // Paginate - load 12 cars at a time (0-11 = 12 items)
@@ -72,7 +72,9 @@ export default function useCars() {
       if (error) {throw error;}
 
       const endTime = performance.now();
-      console.info(`Database query took ${endTime - startTime} milliseconds`);
+      if (import.meta.env.DEV) {
+        console.log(`✅ Database query: ${(endTime - startTime).toFixed(2)}ms | Cars: ${data?.length || 0}`);
+      }
       
       // Simply set the cars without unnecessary validation
       setCars(data ?? []);

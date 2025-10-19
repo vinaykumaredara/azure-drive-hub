@@ -113,7 +113,15 @@ export const HeroSection = () => {
           ease: "easeOut"
         }}>
             <div className="relative">
-              <img src={heroImage} alt="Premium car rental" className="w-full h-auto rounded-2xl shadow-hover object-cover" loading="eager" />
+              <img 
+                src={heroImage} 
+                alt="Premium car rental" 
+                className="w-full h-auto rounded-2xl shadow-hover object-cover" 
+                loading="eager"
+                fetchPriority="high"
+                width={800}
+                height={600}
+              />
               
               {/* Floating Card */}
               <motion.div className="absolute -bottom-6 -left-6 bg-white rounded-xl shadow-hover p-4" initial={{

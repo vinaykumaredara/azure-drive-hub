@@ -1,7 +1,13 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import SimpleImage from '@/components/SimpleImage';
 
-export default function ImageCarousel({ images = [], className = '', debug = false }: { images?: string[], className?: string, debug?: boolean }) {
+interface ImageCarouselProps {
+  images?: string[];
+  className?: string;
+  debug?: boolean;
+}
+
+const ImageCarouselComponent = ({ images = [], className = '', debug = false }: ImageCarouselProps) => {
   const [idx, setIdx] = useState(0);
   
   // Only show debug info in development mode
@@ -61,7 +67,7 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
       <SimpleImage 
         src={validImages[idx]} 
         alt={`Car image ${idx + 1}`} 
-        className="w-full aspect-video object-cover rounded" 
+        className="w-full h-full object-cover" 
       />
       {validImages.length > 1 && (
         <>
@@ -98,4 +104,7 @@ export default function ImageCarousel({ images = [], className = '', debug = fal
       )}
     </div>
   );
-}
+};
+
+// Memoize to prevent unnecessary re-renders
+export default memo(ImageCarouselComponent);

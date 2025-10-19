@@ -220,14 +220,14 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
         className={`group ${className}`}
       >
         <Card className="overflow-hidden bg-white shadow-card hover:shadow-2xl transition-all duration-300 border-0 hover:border hover:border-primary/20">
-          <div className="relative aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden w-full">
-            {/* Use ImageCarousel with standardized images */}
+          {/* FIXED: Responsive image with proper aspect ratio */}
+          <div className="relative aspect-[16/10] sm:aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden w-full bg-muted">
             {car.images && car.images.length > 0 ? (
-              <ImageCarousel images={car.images} className="w-full h-full object-cover" />
+              <ImageCarousel images={car.images} className="w-full h-full" />
             ) : car.image_urls && car.image_urls.length > 0 ? (
-              <ImageCarousel images={car.image_urls} className="w-full h-full object-cover" />
+              <ImageCarousel images={car.image_urls} className="w-full h-full" />
             ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
+              <div className="w-full h-full flex items-center justify-center">
                 <svg className="w-12 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
@@ -331,16 +331,15 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <div>
+              {/* FIXED: Responsive button layout with proper spacing */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 w-full">
+                <div className="flex-shrink-0">
                   <span className="text-2xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}</span>
                   <span className="text-sm text-muted-foreground">/day</span>
                 </div>
-                {/* PHASE A+B: Flex container for buttons - NO OVERLAP */}
-                <div 
-                  className="flex gap-2 sm:gap-3 items-center flex-shrink-0" 
-                  style={{ display: 'flex' }}
-                >
+                
+                {/* Button container with proper flex wrapping */}
+                <div className="flex gap-2 sm:gap-3 items-center flex-shrink-0 w-full sm:w-auto">
                   <Button 
                     type="button"
                     size="sm" 
@@ -350,9 +349,8 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                       handleWhatsAppContact();
                     }} 
                     variant="outline"
-                    className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
+                    className="flex-1 sm:flex-initial text-xs sm:text-sm px-3 py-2 min-w-[80px] whitespace-nowrap"
                     disabled={isBookingLoading}
-                    style={{ position: 'relative', zIndex: 1 }}
                   >
                     Contact
                   </Button>
@@ -369,12 +367,7 @@ export const CarCard = ({ car, className = "", onBookingSuccess }: CarCardProps)
                     aria-busy={isBookingLoading || profileLoading}
                     data-testid={`book-now-${car.id}`}
                     id={`book-now-btn-${car.id}`}
-                    className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
-                    style={{ 
-                      position: 'relative', 
-                      zIndex: 10000,
-                      pointerEvents: 'auto' 
-                    }}
+                    className="flex-1 sm:flex-initial text-xs sm:text-sm px-3 py-2 min-w-[90px] whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isBookingLoading ? 'Opening...' : profileLoading ? 'Loading...' : 'Book Now'}
                   </Button>

@@ -226,8 +226,8 @@ const CarCardModernComponent = ({
         role="article"
         aria-label={`${car.make} ${car.model}`}
       >
-        {/* Image Section */}
-        <div className="relative w-full aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden rounded-xl bg-muted">
+        {/* FIXED: Responsive image section */}
+        <div className="relative w-full aspect-[16/10] sm:aspect-video md:aspect-[4/3] lg:aspect-[16/10] overflow-hidden rounded-xl bg-muted">
           <ImageCarousel 
             images={car.image_urls || car.images || [car.thumbnail || car.image]} 
             className="w-full h-full"
@@ -277,13 +277,11 @@ const CarCardModernComponent = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between mt-3 sm:mt-4">
-            <div className="text-lg sm:text-xl font-bold text-primary">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
-            {/* PHASE A+B: Flex container for buttons - NO OVERLAP */}
-            <div 
-              className="flex gap-2 sm:gap-3 items-center flex-shrink-0" 
-              style={{ display: 'flex' }}
-            >
+          {/* FIXED: Responsive button layout */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-3 sm:mt-4 w-full">
+            <div className="text-lg sm:text-xl font-bold text-primary whitespace-nowrap">₹{car.pricePerDay.toLocaleString('en-IN')}/day</div>
+            
+            <div className="flex gap-2 sm:gap-3 items-center flex-shrink-0 w-full sm:w-auto">
               <Button 
                 type="button"
                 size="sm" 
@@ -293,34 +291,28 @@ const CarCardModernComponent = ({
                   e.preventDefault();
                   handleWhatsAppContact();
                 }}
-                className="text-xs sm:text-sm px-3 py-2 min-w-[80px]"
+                className="flex-1 sm:flex-initial text-xs sm:text-sm px-3 py-2 min-w-[80px] whitespace-nowrap"
                 disabled={isBookingLoading}
-                style={{ position: 'relative', zIndex: 1 }}
               >
                 Contact
               </Button>
-                  <Button 
-                    type="button"
-                    size="sm" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      handleBookNow(e);
-                    }}
-                    disabled={!computedIsAvailable || isBookingLoading || profileLoading}
-                    aria-disabled={!computedIsAvailable || isBookingLoading || profileLoading}
-                    aria-busy={isBookingLoading || profileLoading}
-                    data-testid={`book-now-${car.id}`}
-                    id={`book-now-btn-${car.id}`}
-                    className={`text-xs sm:text-sm px-3 py-2 min-w-[90px] ${computedIsAvailable ? "" : "opacity-50 cursor-not-allowed"}`}
-                    style={{ 
-                      position: 'relative', 
-                      zIndex: 10000,
-                      pointerEvents: 'auto' 
-                    }}
-                  >
-                    {isBookingLoading ? 'Opening...' : profileLoading ? 'Loading...' : 'Book Now'}
-                  </Button>
+              <Button 
+                type="button"
+                size="sm" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleBookNow(e);
+                }}
+                disabled={!computedIsAvailable || isBookingLoading || profileLoading}
+                aria-disabled={!computedIsAvailable || isBookingLoading || profileLoading}
+                aria-busy={isBookingLoading || profileLoading}
+                data-testid={`book-now-${car.id}`}
+                id={`book-now-btn-${car.id}`}
+                className="flex-1 sm:flex-initial text-xs sm:text-sm px-3 py-2 min-w-[90px] whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isBookingLoading ? 'Opening...' : profileLoading ? 'Loading...' : 'Book Now'}
+              </Button>
             </div>
           </div>
         </div>
