@@ -8,15 +8,30 @@ import { applyDeviceOptimizations } from './utils/deviceOptimizations';
 applyDeviceOptimizations();
 
 // Register service worker for caching and offline support
-// Only register in production to avoid conflicts with HMR in development
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
-        console.log('Service Worker registered with scope:', registration.scope);
+        console.log('✅ Service Worker registered:', registration.scope);
+        
+        // Listen for messages from SW
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === 'SYNC_COMPLETE') {
+            console.log('✅ Background sync completed');
+          }
+        });
+
+        // Request sync when online (fallback for browsers without Background Sync)
+        if (import.meta.env.PROD) {
+          window.addEventListener('online', () => {
+            if (registration.active) {
+              registration.active.postMessage({ type: 'SYNC_OUTBOX' });
+            }
+          });
+        }
       })
       .catch((error) => {
-        console.log('Service Worker registration failed:', error);
+        console.error('❌ Service Worker registration failed:', error);
       });
   });
 }
