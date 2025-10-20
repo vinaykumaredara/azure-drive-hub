@@ -90,9 +90,12 @@ const Auth: React.FC = () => {
     }
     
     // Normal redirect logic
+    console.log('Auth redirect check:', { isAdmin, user: user?.email, nextUrl });
+    
     if (nextUrl && nextUrl.startsWith('/')) {
       navigate(nextUrl, { replace: true });
     } else if (isAdmin) {
+      console.log('Redirecting to admin dashboard');
       navigate('/admin', { replace: true });
     } else {
       navigate('/dashboard', { replace: true });
@@ -346,14 +349,6 @@ const Auth: React.FC = () => {
                 <Chrome className="mr-2 h-4 w-4" />
                 Google
               </Button>
-            </div>
-            
-            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground text-center">
-                <strong>Demo Admin Access:</strong><br />
-                Email: rpcars2025@gmail.com<br />
-                Create account first, then admin status will be auto-assigned.
-              </p>
             </div>
           </CardContent>
         </Card>

@@ -74,51 +74,38 @@ export const useAuthStatus = (): AuthStatus => {
     checkAuthStatus();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) {return;}
       
-      // Only update state if there's a meaningful change
+      // Set loading state while checking admin status
       if (session?.user) {
+        setStatus(prev => ({ ...prev, isLoading: true }));
+        
         // Check admin status using user_roles table
-        supabase
+        const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
           .eq('role', 'admin')
-          .maybeSingle()
-          .then(({ data: roleData }) => {
-            if (mounted) {
-              // Only update if there's a real change
-              setStatus(prev => {
-                const newIsAdmin = !!roleData;
-                if (prev.user?.id === session.user.id && 
-                    prev.isAdmin === newIsAdmin && 
-                    !prev.error) {
-                  // No meaningful change, don't trigger re-render
-                  return prev;
-                }
-                return {
-                  user: session.user,
-                  isAdmin: newIsAdmin,
-                  isLoading: false,
-                  error: null
-                };
-              });
-            }
-          });
-      } else if (mounted) {
-        // Only update if there's a real change
-        setStatus(prev => {
-          if (!prev.user && !prev.error) {
-            // Already in the correct state
-            return prev;
-          }
-          return {
-            user: null,
-            isAdmin: false,
+          .maybeSingle();
+        
+        if (mounted) {
+          const newIsAdmin = !!roleData;
+          console.log('Admin check complete:', { userId: session.user.id, email: session.user.email, isAdmin: newIsAdmin });
+          
+          setStatus({
+            user: session.user,
+            isAdmin: newIsAdmin,
             isLoading: false,
             error: null
-          };
+          });
+        }
+      } else if (mounted) {
+        setStatus({
+          user: null,
+          isAdmin: false,
+          isLoading: false,
+          error: null
         });
       }
     });
