@@ -22,10 +22,14 @@ const Auth: React.FC = () => {
   const { signIn, signUp, signInWithGoogle, user, isAdmin, profile, profileLoading } = useAuth();
 
   // Handle post-login redirect logic
-  // CRITICAL FIX: Wait for profile to load before setting flags or redirecting
   useEffect(() => {
-    // Only proceed when user is logged in and profile has finished loading
-    if (!user || isLoading || profileLoading) {
+    // Wait for auth to complete loading
+    if (isLoading || profileLoading) {
+      return;
+    }
+    
+    // Only redirect if user is authenticated
+    if (!user) {
       return;
     }
     

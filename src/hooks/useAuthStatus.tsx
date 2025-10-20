@@ -74,32 +74,36 @@ export const useAuthStatus = (): AuthStatus => {
     checkAuthStatus();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted) {return;}
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       
-      // Set loading state while checking admin status
       if (session?.user) {
+        // Set loading state immediately
         setStatus(prev => ({ ...prev, isLoading: true }));
         
-        // Check admin status using user_roles table
-        const { data: roleData } = await supabase
+        // Check admin status using user_roles table (don't block the callback)
+        supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
           .eq('role', 'admin')
-          .maybeSingle();
-        
-        if (mounted) {
-          const newIsAdmin = !!roleData;
-          console.log('Admin check complete:', { userId: session.user.id, email: session.user.email, isAdmin: newIsAdmin });
-          
-          setStatus({
-            user: session.user,
-            isAdmin: newIsAdmin,
-            isLoading: false,
-            error: null
+          .maybeSingle()
+          .then(({ data: roleData, error: roleError }) => {
+            if (mounted) {
+              if (roleError) {
+                console.error('Admin check failed:', roleError);
+              }
+              const newIsAdmin = !!roleData;
+              console.log('Admin check complete:', { userId: session.user.id, email: session.user.email, isAdmin: newIsAdmin });
+              
+              setStatus({
+                user: session.user,
+                isAdmin: newIsAdmin,
+                isLoading: false,
+                error: null
+              });
+            }
           });
-        }
       } else if (mounted) {
         setStatus({
           user: null,
