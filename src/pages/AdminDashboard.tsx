@@ -536,8 +536,14 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+    try {
+      await signOut();
+      // signOut will handle redirect via window.location.href
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Force redirect even on error
+      window.location.href = '/';
+    }
   };
 
   const quickStats = [

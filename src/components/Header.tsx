@@ -12,15 +12,16 @@ export const Header = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
-    if (isSigningOut) {return;} // Prevent double clicks
+    if (isSigningOut) return; // Prevent double clicks
     
     setIsSigningOut(true);
     try {
       await signOut();
+      // signOut will handle redirect via window.location.href
     } catch (error) {
       console.error('Sign out error:', error);
-    } finally {
-      setIsSigningOut(false);
+      // Force redirect even on error
+      window.location.href = '/';
     }
   };
 

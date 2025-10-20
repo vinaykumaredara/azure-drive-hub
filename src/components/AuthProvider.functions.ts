@@ -83,18 +83,21 @@ export const signOut = async () => {
     logInfo('sign_out_initiated');
     const { error } = await supabase.auth.signOut();
     
-    if (error) {
+    // If session is missing, user is already signed out - this is fine
+    if (error && !error.message?.includes('session')) {
       logError('sign_out_failed', error);
       toast({
         title: "Sign Out Failed",
         description: error.message,
         variant: "destructive",
       });
-      throw error;
     }
 
-    // Clear any cached data
+    // Always clear cached data regardless of Supabase response
     clearAuthCache();
+    
+    // Clear all session storage
+    sessionStorage.clear();
     
     toast({
       title: "Signed Out",
@@ -102,8 +105,14 @@ export const signOut = async () => {
     });
     
     logInfo('sign_out_success');
+    
+    // Force page reload to clear all state
+    window.location.href = '/';
   } catch (error) {
     logError('sign_out_exception', error);
-    // The auth listener will handle updating the state
+    // Even on error, try to clear local state and redirect
+    clearAuthCache();
+    sessionStorage.clear();
+    window.location.href = '/';
   }
 };

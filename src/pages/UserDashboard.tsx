@@ -165,25 +165,14 @@ const UserDashboard: React.FC = () => {
 
   const handleLogout = useCallback(async () => {
     try {
-      // Clear all session storage
-      sessionStorage.clear();
-      
       await signOut();
-      
-      toast({
-        title: "Signed Out",
-        description: "You have been successfully signed out",
-      });
-      
-      navigate('/auth');
+      // signOut will handle redirect via window.location.href
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to sign out",
-        variant: "destructive",
-      });
+      console.error('Sign out error:', error);
+      // Force redirect even on error
+      window.location.href = '/';
     }
-  }, [signOut, navigate]);
+  }, [signOut]);
 
   // Memoize user display name
   const userDisplayName = useMemo(() => {
