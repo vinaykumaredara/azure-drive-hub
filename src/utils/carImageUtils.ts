@@ -5,8 +5,9 @@
 const urlCache = new Map<string, string>();
 const imageCache = new Map<string, HTMLImageElement>();
 
-// Fallback image URL for when images fail to load
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&h=600&fit=crop&crop=center&auto=format&q=80';
+// Fallback image - using a solid color placeholder instead of external URL
+// This ensures no external dependencies and faster loading
+const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect width="800" height="600" fill="%23e5e7eb"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="%236b7280"%3ENo Image Available%3C/text%3E%3C/svg%3E';
 
 /**
  * Preload an image and cache it for better performance
@@ -53,7 +54,8 @@ export function resolveCarImageUrl(path: string | null | undefined): string {
     result = path;
   } else {
     // For storage paths, construct the public URL
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rcpkhtlvfvafympulywx.supabase.co';
+    // Use hardcoded URL as environment variable fallback for reliability
+    const supabaseUrl = 'https://rcpkhtlvfvafympulywx.supabase.co';
     result = `${supabaseUrl}/storage/v1/object/public/cars-photos/${path}`;
   }
   

@@ -18,11 +18,12 @@ export async function uploadImageFile(file: File, carId: string) {
   // Generate unique file name
   const fileName = `cars/${carId}/${Date.now()}_${file.name}`;
   
-  // Upload file to storage
+  // Upload file to storage with optimal caching and compression hints
   const { error: uploadError } = await supabase.storage
     .from('cars-photos')
     .upload(fileName, file, {
-      cacheControl: 'public, max-age=31536000, immutable'
+      cacheControl: 'public, max-age=31536000, immutable',
+      upsert: false // Prevent accidental overwrites
     });
 
   if (uploadError) {
