@@ -237,6 +237,36 @@ export type Database = {
           },
         ]
       }
+      idempotency_keys: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          key: string
+          request_body: Json | null
+          response_body: Json | null
+          status_code: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          key: string
+          request_body?: Json | null
+          response_body?: Json | null
+          status_code?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          key?: string
+          request_body?: Json | null
+          response_body?: Json | null
+          status_code?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       licenses: {
         Row: {
           created_at: string | null
@@ -460,21 +490,18 @@ export type Database = {
           created_at: string | null
           full_name: string | null
           id: string
-          is_admin: boolean | null
           phone: string | null
         }
         Insert: {
           created_at?: string | null
           full_name?: string | null
           id: string
-          is_admin?: boolean | null
           phone?: string | null
         }
         Update: {
           created_at?: string | null
           full_name?: string | null
           id?: string
-          is_admin?: boolean | null
           phone?: string | null
         }
         Relationships: []
@@ -487,6 +514,10 @@ export type Database = {
       book_car_atomic: {
         Args: { car_id: string }
         Returns: Json
+      }
+      cleanup_expired_idempotency_keys: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       has_role: {
         Args: {

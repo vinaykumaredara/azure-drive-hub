@@ -31,14 +31,15 @@ serve(async (req) => {
     
     if (!user) throw new Error("User not authenticated");
 
-    // Check if user is admin
-    const { data: userRecord } = await supabaseClient
-      .from("users")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
+    // Check if user has admin role (SECURE: uses user_roles table)
+    const { data: roleData } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
 
-    if (!userRecord?.is_admin) {
+    if (!roleData) {
       throw new Error("Access denied - admin only");
     }
 

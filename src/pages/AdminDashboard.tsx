@@ -493,7 +493,7 @@ const AdminDashboard: React.FC = () => {
       ] = await Promise.all([
         supabase.from('cars').select('*', { count: 'planned', head: true }),
         supabase.from('bookings').select('*', { count: 'planned', head: true }).in('status', ['confirmed', 'active']),
-        supabase.from('users').select('*', { count: 'planned', head: true }).eq('is_admin', false),
+        supabase.from('users').select('*', { count: 'planned', head: true }),
         supabase.from('licenses').select('*', { count: 'planned', head: true }).eq('verification_status', 'pending'),
         supabase.from('licenses').select('*', { count: 'planned', head: true }).eq('verification_status', 'verified'),
         supabase.from('promo_codes').select('*', { count: 'planned', head: true }).eq('active', true),
