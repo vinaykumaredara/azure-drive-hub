@@ -9,16 +9,16 @@ const APP_SHELL = [
   '/index.html',
 ];
 
-// Cache configuration
+// Cache configuration - optimized for mobile
 const CACHE_CONFIG = {
   images: {
     name: 'rp-cars-images-v2',
-    maxEntries: 100,
+    maxEntries: 50, // Reduced for mobile
     maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
   },
   api: {
     name: 'rp-cars-api-v2',
-    maxEntries: 50,
+    maxEntries: 30, // Reduced for mobile
     maxAgeSeconds: 5 * 60, // 5 minutes
   },
   static: {

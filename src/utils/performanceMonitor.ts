@@ -1,180 +1,143 @@
-// src/utils/performanceMonitor.ts
-// Utility for monitoring application performance
+// Performance monitoring utility for mobile devices
 
 interface PerformanceMetrics {
-  fcp?: number; // First Contentful Paint
-  lcp?: number; // Largest Contentful Paint
-  fid?: number; // First Input Delay
-  cls?: number; // Cumulative Layout Shift
-  ttfb?: number; // Time to First Byte
+  fcp?: number;
+  lcp?: number;
+  fid?: number;
+  cls?: number;
+  ttfb?: number;
 }
 
-// Extend PerformanceEntry types
-interface PerformanceEntryExtended extends PerformanceEntry {
-  processingStart?: number;
-  value?: number;
-  hadRecentInput?: boolean;
-}
+const metrics: PerformanceMetrics = {};
 
-class PerformanceMonitor {
-  private metrics: PerformanceMetrics = {};
-  private observers: MutationObserver[] = [];
-
-  constructor() {
-    // Only run in browser environment
-    if (typeof window !== 'undefined') {
-      this.init();
-    }
+export const trackPerformance = () => {
+  if (typeof window === 'undefined' || !('performance' in window)) {
+    return;
   }
 
-  private init() {
-    // Measure Core Web Vitals when page is fully loaded
-    if (document.readyState === 'complete') {
-      this.measureCoreWebVitals();
-    } else {
-      window.addEventListener('load', () => {
-        this.measureCoreWebVitals();
+  // Measure initial load
+  window.addEventListener('load', () => {
+    try {
+      const perfData = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      
+      if (!perfData) return;
+      
+      metrics.ttfb = Math.round(perfData.responseStart - perfData.requestStart);
+      
+      console.log('📊 Performance Metrics:', {
+        dns: Math.round(perfData.domainLookupEnd - perfData.domainLookupStart),
+        tcp: Math.round(perfData.connectEnd - perfData.connectStart),
+        ttfb: metrics.ttfb,
+        download: Math.round(perfData.responseEnd - perfData.responseStart),
+        domInteractive: Math.round(perfData.domInteractive - perfData.fetchStart),
+        domComplete: Math.round(perfData.domComplete - perfData.fetchStart),
+        loadComplete: Math.round(perfData.loadEventEnd - perfData.fetchStart),
       });
-    }
-
-    // Measure Time to First Byte
-    this.measureTTFB();
-  }
-
-  private measureCoreWebVitals() {
-    // First Contentful Paint
-    if ('performance' in window && 'getEntriesByName' in performance) {
-      const fcpEntries = performance.getEntriesByName('first-contentful-paint');
-      if (fcpEntries.length > 0) {
-        this.metrics.fcp = fcpEntries[0].startTime;
+      
+      // Alert if load time > 3s on mobile
+      const isMobile = window.innerWidth < 768;
+      const loadComplete = Math.round(perfData.loadEventEnd - perfData.fetchStart);
+      if (loadComplete > 3000 && isMobile) {
+        console.warn('⚠️ Slow load detected on mobile device:', loadComplete + 'ms');
       }
+      
+      // Track Core Web Vitals
+      trackCoreWebVitals();
+    } catch (error) {
+      console.error('Performance tracking error:', error);
     }
+  });
+};
 
-    // Largest Contentful Paint
-    if ('PerformanceObserver' in window && 'LargestContentfulPaint' in window) {
-      try {
-        const lcpObserver = new PerformanceObserver((entryList) => {
-          const entries = entryList.getEntries();
-          const lastEntry = entries[entries.length - 1];
-          this.metrics.lcp = lastEntry.startTime;
-        });
-
-        lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
-      } catch (e) {
-        console.warn('LCP observation failed:', e);
-      }
-    }
-
-    // First Input Delay
-    if ('PerformanceObserver' in window && 'firstInput' in PerformanceObserver.supportedEntryTypes) {
-      try {
-        const fidObserver = new PerformanceObserver((entryList) => {
-          const entries = entryList.getEntries();
-          if (entries.length > 0) {
-            const entry = entries[0] as PerformanceEntryExtended;
-            if (entry.processingStart) {
-              this.metrics.fid = entry.processingStart - entry.startTime;
-            }
-          }
-        });
-
-        fidObserver.observe({ entryTypes: ['first-input'] });
-      } catch (e) {
-        console.warn('FID observation failed:', e);
-      }
-    }
-
-    // Cumulative Layout Shift
-    if ('PerformanceObserver' in window && 'LayoutShift' in window) {
-      try {
-        let clsValue = 0;
-        const clsObserver = new PerformanceObserver((entryList) => {
-          for (const entry of entryList.getEntries()) {
-            const extendedEntry = entry as PerformanceEntryExtended;
-            if (!extendedEntry.hadRecentInput) {
-              clsValue += extendedEntry.value || 0;
-            }
-          }
-          this.metrics.cls = clsValue;
-        });
-
-        clsObserver.observe({ entryTypes: ['layout-shift'] });
-      } catch (e) {
-        console.warn('CLS observation failed:', e);
-      }
-    }
-  }
-
-  private measureTTFB() {
-    if ('performance' in window && 'timing' in performance) {
-      const timing = performance.timing;
-      this.metrics.ttfb = timing.responseStart - timing.requestStart;
-    }
-  }
-
-  // Log performance metrics to console
-  public logMetrics() {
-    console.table({
-      'First Contentful Paint (FCP)': `${this.metrics.fcp?.toFixed(2) || 'N/A'} ms`,
-      'Largest Contentful Paint (LCP)': `${this.metrics.lcp?.toFixed(2) || 'N/A'} ms`,
-      'First Input Delay (FID)': `${this.metrics.fid?.toFixed(2) || 'N/A'} ms`,
-      'Cumulative Layout Shift (CLS)': `${this.metrics.cls?.toFixed(4) || 'N/A'}`,
-      'Time to First Byte (TTFB)': `${this.metrics.ttfb?.toFixed(2) || 'N/A'} ms`
+// Track Core Web Vitals (LCP, FID, CLS)
+const trackCoreWebVitals = () => {
+  try {
+    // Largest Contentful Paint (LCP)
+    const lcpObserver = new PerformanceObserver((list) => {
+      const entries = list.getEntries();
+      const lastEntry = entries[entries.length - 1];
+      metrics.lcp = Math.round(lastEntry.startTime);
+      console.log('📊 LCP:', metrics.lcp, 'ms');
     });
-  }
+    lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
 
-  // Get performance metrics
-  public getMetrics(): PerformanceMetrics {
-    return { ...this.metrics };
-  }
+    // First Input Delay (FID)
+    const fidObserver = new PerformanceObserver((list) => {
+      const entries = list.getEntries();
+      entries.forEach((entry: any) => {
+        metrics.fid = Math.round(entry.processingStart - entry.startTime);
+        console.log('📊 FID:', metrics.fid, 'ms');
+      });
+    });
+    fidObserver.observe({ entryTypes: ['first-input'] });
 
-  // Measure component render time
-  public measureRenderTime(componentName: string, callback: () => void): number {
+    // Cumulative Layout Shift (CLS)
+    let clsScore = 0;
+    const clsObserver = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (!(entry as any).hadRecentInput) {
+          clsScore += (entry as any).value;
+        }
+      }
+      metrics.cls = parseFloat(clsScore.toFixed(3));
+      console.log('📊 CLS:', metrics.cls);
+    });
+    clsObserver.observe({ entryTypes: ['layout-shift'] });
+  } catch (error) {
+    // Observer API not supported
+    console.debug('Core Web Vitals tracking not supported');
+  }
+};
+
+// Export performance monitor object for compatibility
+export const performanceMonitor = {
+  getMetrics: (): PerformanceMetrics => {
+    return { ...metrics };
+  },
+  measureFunctionTime: <T>(name: string, fn: () => T): T => {
     const start = performance.now();
-    callback();
+    const result = fn();
     const end = performance.now();
-    const duration = end - start;
-    
-    console.log(`Render time for ${componentName}: ${duration.toFixed(2)} ms`);
-    return duration;
-  }
-
-  // Measure function execution time
-  public measureFunctionTime<T>(functionName: string, callback: () => T): T {
-    const start = performance.now();
-    const result = callback();
-    const end = performance.now();
-    const duration = end - start;
-    
-    console.log(`Execution time for ${functionName}: ${duration.toFixed(2)} ms`);
+    if (import.meta.env.DEV) {
+      console.log(`⚡ ${name} took ${Math.round(end - start)}ms`);
+    }
     return result;
   }
+};
 
-  // Send metrics to analytics service
-  public sendMetricsToAnalytics(metrics: PerformanceMetrics) {
-    // In a real application, you would send these metrics to your analytics service
-    console.log('Sending performance metrics to analytics:', metrics);
-    
-    // Example implementation:
-    // fetch('/api/performance-metrics', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify(metrics),
-    // });
-  }
-
-  // Clean up observers
-  public destroy() {
-    this.observers.forEach(observer => observer.disconnect());
-    this.observers = [];
-  }
-}
-
-// Export singleton instance
-export const performanceMonitor = new PerformanceMonitor();
-
-// Export utility functions
-export const measureRenderTime = performanceMonitor.measureRenderTime.bind(performanceMonitor);
-export const measureFunctionTime = performanceMonitor.measureFunctionTime.bind(performanceMonitor);
+// Track component render performance
+export const measureComponentRender = (componentName: string) => {
+  if (typeof window === 'undefined' || !performance.mark) return;
+  
+  const startMark = `${componentName}-start`;
+  const endMark = `${componentName}-end`;
+  const measureName = `${componentName}-render`;
+  
+  return {
+    start: () => {
+      try {
+        performance.mark(startMark);
+      } catch (e) {
+        // Ignore errors
+      }
+    },
+    end: () => {
+      try {
+        performance.mark(endMark);
+        performance.measure(measureName, startMark, endMark);
+        
+        const measure = performance.getEntriesByName(measureName)[0];
+        if (measure) {
+          console.log(`⚡ ${componentName} rendered in ${Math.round(measure.duration)}ms`);
+        }
+        
+        // Clean up marks
+        performance.clearMarks(startMark);
+        performance.clearMarks(endMark);
+        performance.clearMeasures(measureName);
+      } catch (e) {
+        // Ignore errors
+      }
+    },
+  };
+};

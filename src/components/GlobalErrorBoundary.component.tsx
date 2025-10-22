@@ -32,6 +32,27 @@ export class GlobalErrorBoundary extends React.Component<
     console.error('Global Error Boundary:', error, errorInfo);
   }
 
+  private getUserFriendlyMessage(error?: Error): string {
+    if (!error) return "An unexpected error occurred.";
+    
+    const message = error.message.toLowerCase();
+    
+    if (message.includes('network') || message.includes('fetch')) {
+      return "We couldn't connect to the server. Please check your internet connection.";
+    }
+    if (message.includes('timeout')) {
+      return "The request took too long. Please try again.";
+    }
+    if (message.includes('unauthorized') || message.includes('auth')) {
+      return "Your session expired. Please sign in again.";
+    }
+    if (message.includes('not found')) {
+      return "We couldn't find what you're looking for.";
+    }
+    
+    return "Something unexpected happened. Please try refreshing the page.";
+  }
+
   override render() {
     if (this.state.hasError) {
       return (
@@ -40,26 +61,23 @@ export class GlobalErrorBoundary extends React.Component<
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive">
                 <AlertCircle className="h-5 w-5" />
-                Application Error
+                Oops! Something went wrong
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                An unexpected error occurred. Don't worry, our team has been notified and is working to fix it.
+                We're having trouble loading this page. Don't worry - your data is safe, and our team has been notified.
               </p>
-              {this.state.error?.message && (
-                <div className="bg-muted p-3 rounded-md">
-                  <p className="text-xs font-medium mb-1">Error Details:</p>
-                  <p className="text-xs text-muted-foreground font-mono break-words">
-                    {this.state.error.message}
-                  </p>
-                  {this.state.errorId && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      ID: {this.state.errorId}
-                    </p>
-                  )}
-                </div>
-              )}
+              
+              {/* User-friendly error message (NOT technical) */}
+              <div className="bg-muted p-3 rounded-md">
+                <p className="text-sm font-medium mb-1">What happened?</p>
+                <p className="text-sm text-muted-foreground">
+                  {this.getUserFriendlyMessage(this.state.error)}
+                </p>
+              </div>
+              
+              {/* Action buttons */}
               <div className="flex gap-2">
                 <Button 
                   onClick={() => window.location.reload()}
@@ -69,12 +87,25 @@ export class GlobalErrorBoundary extends React.Component<
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => this.setState({ hasError: false, error: undefined, errorId: undefined })}
+                  onClick={() => window.location.href = '/'}
                   className="flex-1"
                 >
-                  Try Again
+                  Go Home
                 </Button>
               </div>
+              
+              {/* Technical details HIDDEN by default (for support only) */}
+              {import.meta.env.DEV && (
+                <details className="mt-4">
+                  <summary className="text-xs text-muted-foreground cursor-pointer">
+                    Technical Details (for developers)
+                  </summary>
+                  <pre className="text-xs text-muted-foreground font-mono mt-2 bg-muted p-2 rounded overflow-auto max-h-32">
+                    {this.state.error?.message}
+                    {this.state.errorId && `\nError ID: ${this.state.errorId}`}
+                  </pre>
+                </details>
+              )}
             </CardContent>
           </Card>
         </div>

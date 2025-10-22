@@ -3,9 +3,15 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { applyDeviceOptimizations } from './utils/deviceOptimizations';
+import { trackPerformance } from './utils/performanceMonitor';
 
 // Apply device-specific optimizations
 applyDeviceOptimizations();
+
+// Track performance metrics (only in production)
+if (import.meta.env.PROD) {
+  trackPerformance();
+}
 
 // Register service worker for caching and offline support
 if ('serviceWorker' in navigator) {

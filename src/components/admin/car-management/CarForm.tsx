@@ -15,6 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useCarMutations } from '@/hooks/data/useCarMutations';
 import { Car as CarType } from '@/services/api/car.types';
 import SimpleImage from '@/components/SimpleImage';
+import { toast } from '@/hooks/use-toast';
 
 const carFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -118,26 +119,41 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
     setUploadingImages(true);
 
     try {
-      // Convert FileList to File[] if needed
       const fileArray = Array.isArray(files) ? files : Array.from(files);
       
-      // Validate that all files are images
+      // Enhanced validation for mobile
       for (let i = 0; i < fileArray.length; i++) {
         const file = fileArray[i];
+        
+        // Validate file type
         if (!file.type.startsWith('image/')) {
-          throw new Error(`File ${file.name} is not a valid image. Please upload only image files (JPEG, PNG, GIF, etc.).`);
+          throw new Error(`File ${file.name} is not a valid image.`);
+        }
+        
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`File ${file.name} is too large. Maximum size is 10MB.`);
         }
       }
 
-      // Generate previews for the uploaded files
+      // Generate optimized previews
       const previews = fileArray.map(file => URL.createObjectURL(file));
       
-      // Update state with new files and previews
       setUploadedImageFiles(prev => [...prev, ...fileArray]);
       setUploadedImagePreviews(prev => [...prev, ...previews]);
       
+      toast({
+        title: "Success",
+        description: `${fileArray.length} image(s) ready to upload`,
+      });
+      
     } catch (error: any) {
       console.error('Error uploading images:', error);
+      toast({
+        title: "Upload Error",
+        description: error.message || "Failed to upload images",
+        variant: "destructive"
+      });
     } finally {
       setUploadingImages(false);
     }
@@ -160,7 +176,6 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
   const onSubmit = async (data: CarFormValues) => {
     try {
       if (car) {
-        // Update existing car
         await updateMutation.mutateAsync({
           id: car.id,
           carData: {
@@ -169,18 +184,43 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
             removeOldImages: true
           }
         });
+        
+        toast({
+          title: "Success",
+          description: "Car updated successfully",
+        });
       } else {
-        // Create new car
         await createMutation.mutateAsync({
           ...data,
           images: uploadedImageFiles
         });
+        
+        toast({
+          title: "Success",
+          description: "Car added successfully",
+        });
       }
       
-      // Success - close dialog
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving car:', error);
+      
+      // User-friendly error message
+      let errorMessage = "Failed to save car. Please try again.";
+      
+      if (error.message?.includes('image')) {
+        errorMessage = "There was a problem uploading the images. Please try with smaller images.";
+      } else if (error.message?.includes('permission') || error.message?.includes('unauthorized')) {
+        errorMessage = "You don't have permission to perform this action.";
+      } else if (error.message?.includes('network')) {
+        errorMessage = "Network error. Please check your connection and try again.";
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
     }
   };
 
@@ -272,10 +312,10 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Fuel Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select fuel type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -295,10 +335,10 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Transmission</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select transmission" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -316,10 +356,10 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -444,6 +484,7 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                     type="file"
                     multiple
                     accept="image/*"
+                    capture="environment"
                     onChange={(e) => {
                       const files = e.target.files;
                       if (files && files.length > 0) {

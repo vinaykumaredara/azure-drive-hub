@@ -141,26 +141,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         
         if (usersError) {throw usersError;}
         
-        // Calculate stats
+        // Calculate REAL stats (no defaults, no mocks)
         const totalCars = carsData?.length || 0;
-        const carsAvailable = carsData?.filter((car: CarData) => car.status === 'active').length || 0;
-        const carsInUse = carsData?.filter((car: CarData) => car.status === 'booked').length || 0;
+        const carsAvailable = carsData?.filter((car: CarData) => 
+          car.status === 'published' || car.status === 'active'
+        ).length || 0;
+        const carsInUse = carsData?.filter((car: CarData) => 
+          car.status === 'booked'
+        ).length || 0;
         
         const activeBookings = bookingsData?.filter((booking: BookingData) => 
           ['pending', 'confirmed'].includes(booking.status)
-        ).length || 0;
-        
-        const pendingBookings = bookingsData?.filter((booking: BookingData) => 
-          booking.status === 'pending'
         ).length || 0;
         
         const completedBookings = bookingsData?.filter((booking: BookingData) => 
           booking.status === 'completed'
         ).length || 0;
         
-        const monthlyRevenue = bookingsData?.reduce((sum: number, booking: BookingData) => 
-          booking.status === 'completed' ? sum + (booking.total_amount || 0) : sum, 0
-        ) || 0;
+        const pendingBookings = bookingsData?.filter((booking: BookingData) => 
+          booking.status === 'pending'
+        ).length || 0;
+        
+        // Calculate monthly revenue (current month only)
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthlyRevenue = bookingsData
+          ?.filter((booking: BookingData) => {
+            const bookingDate = new Date(booking.start_datetime);
+            return bookingDate >= monthStart && booking.status === 'completed';
+          })
+          .reduce((sum: number, booking: BookingData) => 
+            sum + (booking.total_amount || 0), 0) || 0;
         
         setStats({
           totalCars,
