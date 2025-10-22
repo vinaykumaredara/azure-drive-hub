@@ -76,10 +76,10 @@ const createIntegrationWrapper = (initialEntries?: string[]) => {
 };
 
 // Mock data for integration tests
+// NOTE: is_admin is no longer a database column, it's computed from user_roles table
 const mockAdminUser = {
   id: 'admin-123',
   email: 'admin@test.com',
-  is_admin: true,
   full_name: 'Test Admin'
 };
 

@@ -6,13 +6,21 @@
 
 export async function checkApiHealth(): Promise<boolean> {
   try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase environment variables for health check');
+      return false;
+    }
+    
     // Try to reach Supabase as health check
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL || 'https://rcpkhtlvfvafympulywx.supabase.co'}/rest/v1/`,
+      `${supabaseUrl}/rest/v1/`,
       {
         method: 'HEAD',
         headers: {
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+          'apikey': supabaseKey,
         },
       }
     );

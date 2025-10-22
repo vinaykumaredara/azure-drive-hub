@@ -54,8 +54,11 @@ export function resolveCarImageUrl(path: string | null | undefined): string {
     result = path;
   } else {
     // For storage paths, construct the public URL
-    // Use hardcoded URL as environment variable fallback for reliability
-    const supabaseUrl = 'https://rcpkhtlvfvafympulywx.supabase.co';
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!supabaseUrl) {
+      console.error('VITE_SUPABASE_URL not configured for image URL resolution');
+      return FALLBACK_IMAGE;
+    }
     result = `${supabaseUrl}/storage/v1/object/public/cars-photos/${path}`;
   }
   

@@ -84,11 +84,10 @@ describe('Atomic Booking Implementation', () => {
   });
 
   it('should allow admins to insert cars', async () => {
-    // First, make the test user an admin
+    // First, make the test user an admin via user_roles table
     const { error: adminError } = await (supabase
-      .from('users') as any)
-      .update({ is_admin: true })
-      .eq('id', testUserId);
+      .from('user_roles') as any)
+      .insert({ user_id: testUserId, role: 'admin' });
 
     expect(adminError).toBeNull();
 

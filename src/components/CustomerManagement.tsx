@@ -15,7 +15,9 @@ interface Customer {
   full_name: string | null;
   email: string;
   phone: string | null;
-  is_admin: boolean | null;
+  // NOTE: is_admin is populated by the list-customers edge function from user_roles table
+  // This is a read-only computed field, not a database column
+  is_admin: boolean;
   created_at: string | null;
   is_suspended: boolean;
   suspension_reason?: string | null;
