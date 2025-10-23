@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Car, Users, Calendar, DollarSign, Settings, Plus, 
@@ -202,7 +202,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     fetchDashboardData();
   }, []);
 
-  const StatCard = ({ icon: Icon, title, value, change, color = 'primary' }: any) => (
+  const StatCard = React.memo<{ icon: any; title: string; value: string | number; change?: number; color?: string }>(({ icon: Icon, title, value, change, color = 'primary' }) => (
     <motion.div
       whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 300 }}
@@ -213,7 +213,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">{title}</p>
               <p className="text-2xl font-bold">{value}</p>
-              {change && (
+              {change !== undefined && (
                 <p className={`text-xs ${change > 0 ? 'text-success' : 'text-destructive'}`}>
                   {change > 0 ? '+' : ''}{change}% from last month
                 </p>
@@ -226,7 +226,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         </CardContent>
       </Card>
     </motion.div>
-  );
+  ));
 
   const renderOverview = () => (
     <div className="space-y-6">

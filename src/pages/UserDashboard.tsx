@@ -36,6 +36,7 @@ const UserDashboard: React.FC = () => {
   const { user, signOut, profile, profileLoading, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { resumedCar, clearResumedCar } = useBookingResume();
+  // Optimized dashboard data fetching with caching
   const { bookings, userStats, notifications, isLoading, refetch } = useDashboardData(user?.id);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +45,28 @@ const UserDashboard: React.FC = () => {
   const [shouldOpenBooking, setShouldOpenBooking] = useState(false);
   const [selectedCarForBooking, setSelectedCarForBooking] = useState<any>(null);
   const [currentTab, setCurrentTab] = useState('overview');
+
+  // Check for phone collection flag from login
+  useEffect(() => {
+    if (!user) return;
+    
+    const checkPhone = sessionStorage.getItem('checkPhoneAfterLogin');
+    if (checkPhone && !profileLoading) {
+      sessionStorage.removeItem('checkPhoneAfterLogin');
+      if (profile && !profile.phone) {
+        sessionStorage.setItem('needsPhoneCollection', 'true');
+        toast({
+          title: "Welcome to RP Cars! 🎉",
+          description: "Let's complete your profile to get started.",
+        });
+      } else if (profile?.phone) {
+        toast({
+          title: "Welcome back! 👋",
+          description: `Signed in as ${user.email}`,
+        });
+      }
+    }
+  }, [user, profile, profileLoading]);
 
   // Handle resumed car
   useEffect(() => {
@@ -163,13 +186,24 @@ const UserDashboard: React.FC = () => {
     }, 500);
   };
 
+  // Memoized filtered bookings for performance
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(booking => {
+      const matchesSearch = searchTerm === '' || 
+        (booking as any).users?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (booking as any).cars?.title?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [bookings, searchTerm, statusFilter]);
+
   const handleLogout = useCallback(async () => {
     try {
       await signOut();
-      // signOut will handle redirect via window.location.href
     } catch (error) {
       console.error('Sign out error:', error);
-      // Force redirect even on error
       window.location.href = '/';
     }
   }, [signOut]);

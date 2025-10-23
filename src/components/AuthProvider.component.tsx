@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Fetch profile whenever user changes
+  // Fetch profile whenever user changes - OPTIMIZED
   useEffect(() => {
     let mounted = true;
     
@@ -83,22 +83,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Set loading true but don't block the UI
     setProfileLoading(true);
     
-    // Simple, fast profile fetch
-    supabase
-      .from('users')
-      .select('id, phone, full_name')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
+    // Fast, non-blocking profile fetch with timeout
+    const fetchWithTimeout = Promise.race([
+      supabase
+        .from('users')
+        .select('id, phone, full_name')
+        .eq('id', user.id)
+        .maybeSingle(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
+      )
+    ]);
+    
+    fetchWithTimeout
+      .then((result: any) => {
         if (mounted) {
+          const { data, error } = result;
           if (!error && data) {
             setProfile(data);
           } else if (error) {
             console.warn('Could not fetch profile:', error);
             setProfile(null);
           }
+          setProfileLoading(false);
+        }
+      })
+      .catch((error) => {
+        if (mounted) {
+          console.warn('Profile fetch failed:', error);
+          setProfile(null);
           setProfileLoading(false);
         }
       });

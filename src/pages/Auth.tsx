@@ -21,10 +21,10 @@ const Auth: React.FC = () => {
   const location = useLocation();
   const { signIn, signUp, signInWithGoogle, user, isAdmin, profile, profileLoading } = useAuth();
 
-  // Handle post-login redirect logic
+  // Handle post-login redirect logic - FAST redirect without waiting for profile
   useEffect(() => {
-    // Wait for auth to complete loading
-    if (isLoading || profileLoading) {
+    // Wait ONLY for auth to complete loading, NOT profile
+    if (isLoading) {
       return;
     }
     
@@ -35,76 +35,36 @@ const Auth: React.FC = () => {
     
     const searchParams = new URLSearchParams(location.search);
     const nextUrl = searchParams.get('next');
-    const redirectToProfile = sessionStorage.getItem('redirectToProfileAfterLogin');
     const isGoogleAuth = user.app_metadata?.provider === 'google';
     
-    console.log('Post-login redirect logic:', {
+    console.log('🚀 Fast redirect logic:', {
       user: user.email,
+      isAdmin,
       isGoogleAuth,
-      hasProfile: !!profile,
-      hasPhone: !!profile?.phone,
       profileLoading
     });
     
-    // CRITICAL: Only set flags AFTER we confirm profile exists
-    if (isGoogleAuth && profile) {
-      // Check if this is a new Google user without phone
-      if (!profile.phone) {
-        console.log('Google user needs phone collection');
+    // Set Google auth flags for later phone collection (non-blocking)
+    if (isGoogleAuth) {
+      // Check phone status after redirect (non-blocking)
+      if (profileLoading) {
+        sessionStorage.setItem('checkPhoneAfterLogin', 'true');
+      } else if (profile && !profile.phone) {
         sessionStorage.setItem('needsPhoneCollection', 'true');
-        
-        // Check if profile was just created (no phone = likely new user)
-        sessionStorage.setItem('isNewGoogleUser', 'true');
       }
-      
-      // Show appropriate welcome message for Google users (only once)
-      if (!sessionStorage.getItem('welcomeShown')) {
-        sessionStorage.setItem('welcomeShown', 'true');
-        
-        if (profile.phone) {
-          // Returning user with phone
-          toast({
-            title: "Welcome back! 👋",
-            description: `Signed in as ${user.email}`,
-          });
-        } else {
-          // New user without phone
-          toast({
-            title: "Welcome to RP Cars! 🎉",
-            description: "Let's complete your profile to get started.",
-          });
-        }
-      }
-    } else if (isGoogleAuth && !profile) {
-      // Profile doesn't exist yet - this shouldn't happen but handle gracefully
-      console.error('User logged in but profile not found - trigger may have failed');
-      toast({
-        title: "Setting up your account...",
-        description: "Please wait a moment while we create your profile.",
-      });
-      // Don't redirect yet, wait for next render when profile might be available
-      return;
     }
     
-    // Handle redirects
-    if (redirectToProfile === 'true') {
-      sessionStorage.removeItem('redirectToProfileAfterLogin');
-      navigate('/dashboard', { replace: true });
-      return;
-    }
-    
-    // Normal redirect logic
-    console.log('Auth redirect check:', { isAdmin, user: user?.email, nextUrl });
-    
+    // IMMEDIATE redirect based on role
     if (nextUrl && nextUrl.startsWith('/')) {
       navigate(nextUrl, { replace: true });
     } else if (isAdmin) {
-      console.log('Redirecting to admin dashboard');
+      console.log('✅ Redirecting to admin dashboard');
       navigate('/admin', { replace: true });
     } else {
+      console.log('✅ Redirecting to user dashboard');
       navigate('/dashboard', { replace: true });
     }
-  }, [user, isAdmin, navigate, isLoading, profileLoading, profile, location.search]);
+  }, [user, isAdmin, navigate, isLoading, location.search]);
 
   // Clear welcome shown flag when component unmounts
   useEffect(() => {
@@ -126,14 +86,8 @@ const Auth: React.FC = () => {
         variant: "destructive",
       });
       setIsLoading(false);
-    } else {
-      // Success - show welcome message (will redirect via useEffect)
-      toast({
-        title: "Welcome back! 👋",
-        description: "Signing you in...",
-      });
-      // Keep loading state - will clear on redirect
     }
+    // No else block - let useEffect handle redirect immediately
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
