@@ -99,27 +99,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     images: [] as string[]
   });
   
-  // Real-time dashboard data
+  // Real-time dashboard data with proper types
   const [stats, setStats] = useState<DashboardStats>(initialStats);
-  const [cars, setCars] = useState<any[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [cars, setCars] = useState<CarData[]>([]);
+  const [bookings, setBookings] = useState<BookingData[]>([]);
   const [_loading, setLoading] = useState(true);
 
-  // Fetch real-time dashboard data
+  // Fetch real-time dashboard data with caching
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
         
-        // Fetch cars with all needed fields
-        const { data: carsData, error: carsError } = await supabase
+        // Check cache first (30 seconds)
+        const cachedData = sessionStorage.getItem('admin_dashboard_data');
+        const cacheTimestamp = sessionStorage.getItem('admin_dashboard_timestamp');
+        
+        if (cachedData && cacheTimestamp) {
+          const age = Date.now() - parseInt(cacheTimestamp);
+          if (age < 30000) { // 30 seconds
+            const parsed = JSON.parse(cachedData);
+            setStats(parsed.stats);
+            setCars(parsed.cars);
+            setBookings(parsed.bookings);
+            setLoading(false);
+            
+            // Fetch fresh data in background
+            setTimeout(() => fetchFreshData(), 100);
+            return;
+          }
+        }
+        
+        await fetchFreshData();
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive",
+        });
+        setLoading(false);
+      }
+    };
+    
+    const fetchFreshData = async () => {
+      // Parallel data fetching for better performance
+      const [carsResult, bookingsResult, usersResult] = await Promise.all([
+        supabase
           .from('cars')
-          .select('id, title, model, make, location_city, price_per_day, status');
-        
-        if (carsError) {throw carsError;}
-        
-        // Fetch bookings with user and car info
-        const { data: bookingsData, error: bookingsError } = await supabase
+          .select('id, title, model, make, location_city, price_per_day, status'),
+        supabase
           .from('bookings')
           .select(`
             id, 
@@ -130,16 +159,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             hold_expires_at,
             cars(title),
             users(full_name)
-          `);
-        
-        if (bookingsError) {throw bookingsError;}
-        
-        // Fetch users count
-        const { count: usersCount, error: usersError } = await supabase
+          `),
+        supabase
           .from('users')
-          .select('*', { count: 'exact', head: true });
-        
-        if (usersError) {throw usersError;}
+          .select('*', { count: 'exact', head: true })
+      ]);
+      
+      const { data: carsData, error: carsError } = carsResult;
+      const { data: bookingsData, error: bookingsError } = bookingsResult;
+      const { count: usersCount, error: usersError } = usersResult;
+      
+      if (carsError) throw carsError;
+      if (bookingsError) throw bookingsError;
+      if (usersError) throw usersError;
         
         // Calculate REAL stats (no defaults, no mocks)
         const totalCars = carsData?.length || 0;
@@ -187,22 +219,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         // Set cars and bookings for display
         setCars(carsData || []);
         setBookings(bookingsData || []);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load dashboard data",
-          variant: "destructive",
-        });
-      } finally {
+        
+        // Cache the results
+        sessionStorage.setItem('admin_dashboard_data', JSON.stringify({
+          stats: {
+            totalCars,
+            activeBookings,
+            monthlyRevenue,
+            totalUsers: usersCount || 0,
+            carsAvailable,
+            carsInUse,
+            pendingBookings,
+            completedBookings
+          },
+          cars: carsData || [],
+          bookings: bookingsData || []
+        }));
+        sessionStorage.setItem('admin_dashboard_timestamp', Date.now().toString());
+        
         setLoading(false);
-      }
     };
     
     fetchDashboardData();
+    
+    // Clean up cache on unmount
+    return () => {
+      sessionStorage.removeItem('admin_dashboard_data');
+      sessionStorage.removeItem('admin_dashboard_timestamp');
+    };
   }, []);
 
-  const StatCard = React.memo<{ icon: any; title: string; value: string | number; change?: number; color?: string }>(({ icon: Icon, title, value, change, color = 'primary' }) => (
+  // Static color mapping for Tailwind JIT compilation
+  const colorClasses: Record<string, string> = {
+    primary: 'bg-primary/10 text-primary',
+    success: 'bg-green-500/10 text-green-500',
+    warning: 'bg-yellow-500/10 text-yellow-500',
+    destructive: 'bg-destructive/10 text-destructive',
+    info: 'bg-blue-500/10 text-blue-500'
+  };
+
+  const StatCard = React.memo<{ icon: any; title: string; value: string | number; change?: number; color?: keyof typeof colorClasses }>(({ icon: Icon, title, value, change, color = 'primary' }) => (
     <motion.div
       whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 300 }}
@@ -214,13 +270,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
               <p className="text-sm font-medium text-muted-foreground">{title}</p>
               <p className="text-2xl font-bold">{value}</p>
               {change !== undefined && (
-                <p className={`text-xs ${change > 0 ? 'text-success' : 'text-destructive'}`}>
+                <p className={`text-xs ${change > 0 ? 'text-green-500' : 'text-destructive'}`}>
                   {change > 0 ? '+' : ''}{change}% from last month
                 </p>
               )}
             </div>
-            <div className={`p-3 rounded-lg bg-${color}/10`}>
-              <Icon className={`w-6 h-6 text-${color}`} />
+            <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
+              <Icon className="w-6 h-6" />
             </div>
           </div>
         </CardContent>
@@ -335,7 +391,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   <XCircle className="w-4 h-4 text-destructive" />
                   <span>Maintenance</span>
                 </span>
-                <span className="font-bold">{cars.length - stats.carsAvailable - stats.carsInUse}</span>
+                <span className="font-bold">{Math.max(0, cars.length - stats.carsAvailable - stats.carsInUse)}</span>
               </div>
             </div>
           </CardContent>

@@ -65,9 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Fetch profile whenever user changes - OPTIMIZED
+  // Fetch profile whenever user changes - OPTIMIZED with AbortController
   useEffect(() => {
     let mounted = true;
+    const abortController = new AbortController();
     
     // Check if profile was just updated
     const profileJustUpdated = sessionStorage.getItem('profileJustUpdated');
@@ -86,40 +87,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set loading true but don't block the UI
     setProfileLoading(true);
     
-    // Fast, non-blocking profile fetch with timeout
-    const fetchWithTimeout = Promise.race([
-      supabase
-        .from('users')
-        .select('id, phone, full_name')
-        .eq('id', user.id)
-        .maybeSingle(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
-      )
-    ]);
+    // Fast, non-blocking profile fetch with timeout and cancellation
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+    }, 2000);
     
-    fetchWithTimeout
-      .then((result: any) => {
-        if (mounted) {
-          const { data, error } = result;
+    const fetchProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, phone, full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        clearTimeout(timeoutId);
+        
+        if (mounted && !abortController.signal.aborted) {
           if (!error && data) {
             setProfile(data);
-          } else if (error) {
+          } else if (error && process.env.NODE_ENV === 'development') {
             console.warn('Could not fetch profile:', error);
-            setProfile(null);
           }
           setProfileLoading(false);
         }
-      })
-      .catch((error) => {
-        if (mounted) {
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        
+        if (mounted && !abortController.signal.aborted && process.env.NODE_ENV === 'development') {
           console.warn('Profile fetch failed:', error);
+        }
+        
+        if (mounted) {
           setProfile(null);
           setProfileLoading(false);
         }
-      });
+      }
+    };
+    
+    fetchProfile();
 
-    return () => { mounted = false; };
+    return () => { 
+      mounted = false;
+      abortController.abort();
+      clearTimeout(timeoutId);
+    };
   }, [user]);
 
   // Show error toast if auth initialization fails

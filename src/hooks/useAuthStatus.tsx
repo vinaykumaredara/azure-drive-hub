@@ -96,15 +96,18 @@ export const useAuthStatus = (): AuthStatus => {
             .maybeSingle()
             .then(({ data: roleData, error: roleError }) => {
               if (mounted) {
-                if (roleError) {
+                if (roleError && process.env.NODE_ENV === 'development') {
                   console.error('Admin check failed:', roleError);
                 }
                 const newIsAdmin = !!roleData;
-                console.log('✅ Admin check complete:', { 
-                  userId: session.user.id, 
-                  email: session.user.email, 
-                  isAdmin: newIsAdmin 
-                });
+                
+                // Only log in development mode to prevent data exposure
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Admin check complete:', { 
+                    userId: session.user.id, 
+                    isAdmin: newIsAdmin 
+                  });
+                }
                 
                 setStatus(prev => ({
                   ...prev,

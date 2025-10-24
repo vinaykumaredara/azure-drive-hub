@@ -109,11 +109,11 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
       setUploadedImagePreviews([]);
     }
     
-    // Clean up object URLs
+    // Clean up object URLs on unmount only
     return () => {
       uploadedImagePreviews.forEach(url => URL.revokeObjectURL(url));
     };
-  }, [car, form, uploadedImagePreviews]);
+  }, [car, form]); // Removed uploadedImagePreviews from dependencies to fix memory leak
 
   const handleImageUpload = async (files: File[] | FileList) => {
     setUploadingImages(true);
@@ -122,6 +122,8 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
       const fileArray = Array.isArray(files) ? files : Array.from(files);
       
       // Enhanced validation for mobile
+      let totalSize = 0;
+      
       for (let i = 0; i < fileArray.length; i++) {
         const file = fileArray[i];
         
@@ -130,10 +132,17 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
           throw new Error(`File ${file.name} is not a valid image.`);
         }
         
-        // Validate file size (max 10MB)
+        // Validate individual file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
           throw new Error(`File ${file.name} is too large. Maximum size is 10MB.`);
         }
+        
+        totalSize += file.size;
+      }
+      
+      // Validate total upload size (max 50MB total)
+      if (totalSize > 50 * 1024 * 1024) {
+        throw new Error('Total file size exceeds 50MB. Please select fewer or smaller images.');
       }
 
       // Generate optimized previews

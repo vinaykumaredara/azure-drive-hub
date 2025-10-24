@@ -37,13 +37,6 @@ const Auth: React.FC = () => {
     const nextUrl = searchParams.get('next');
     const isGoogleAuth = user.app_metadata?.provider === 'google';
     
-    console.log('🚀 Fast redirect logic:', {
-      user: user.email,
-      isAdmin,
-      isGoogleAuth,
-      profileLoading
-    });
-    
     // Set Google auth flags for later phone collection (non-blocking)
     if (isGoogleAuth) {
       // Check phone status after redirect (non-blocking)
@@ -58,18 +51,19 @@ const Auth: React.FC = () => {
     if (nextUrl && nextUrl.startsWith('/')) {
       navigate(nextUrl, { replace: true });
     } else if (isAdmin) {
-      console.log('✅ Redirecting to admin dashboard');
       navigate('/admin', { replace: true });
     } else {
-      console.log('✅ Redirecting to user dashboard');
       navigate('/dashboard', { replace: true });
     }
-  }, [user, isAdmin, navigate, isLoading, location.search]);
+  }, [user, isAdmin, navigate, isLoading, location.search, profile, profileLoading]);
 
-  // Clear welcome shown flag when component unmounts
+  // Clean up all session storage flags when component unmounts
   useEffect(() => {
     return () => {
       sessionStorage.removeItem('welcomeShown');
+      sessionStorage.removeItem('isNewGoogleUser');
+      sessionStorage.removeItem('checkPhoneAfterLogin');
+      sessionStorage.removeItem('needsPhoneCollection');
     };
   }, []);
 

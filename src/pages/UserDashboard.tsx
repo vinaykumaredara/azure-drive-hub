@@ -18,6 +18,7 @@ import { UserDashboardOverview } from '@/components/dashboard/UserDashboardOverv
 import { UserDashboardBookings } from '@/components/dashboard/UserDashboardBookings';
 import { UserDashboardProfile } from '@/components/dashboard/UserDashboardProfile';
 import ErrorBoundary from '@/components/ui/feedback/ErrorBoundary';
+import { BookingWithRelations } from '@/types/booking.extended.types';
 
 // Lazy load heavy components
 const EnhancedBookingFlow = lazy(() => 
@@ -141,25 +142,14 @@ const UserDashboard: React.FC = () => {
   }, [user?.id, profile?.phone, profileLoading]);
 
   // Auto-trigger phone collection for new Google OAuth users
-  // CRITICAL FIX: Only trigger ONCE when profile is loaded and phone is missing
   useEffect(() => {
     // Don't proceed until we have user and profile is fully loaded
     if (!user?.id || profileLoading) {
-      console.log('Waiting for profile to load...', { userId: user?.id, profileLoading });
       return;
     }
     
     // Check if phone collection is needed after Google OAuth
     const needsPhone = sessionStorage.getItem('needsPhoneCollection');
-    const isNewUser = sessionStorage.getItem('isNewGoogleUser');
-    
-    console.log('Phone collection check:', {
-      needsPhone,
-      isNewUser,
-      hasProfile: !!profile,
-      hasPhone: !!profile?.phone,
-      showPhoneModal
-    });
     
     // Only trigger phone modal if:
     // 1. Flag says we need phone collection
@@ -167,7 +157,6 @@ const UserDashboard: React.FC = () => {
     // 3. Profile doesn't have phone
     // 4. Modal isn't already showing
     if (needsPhone === 'true' && profile && !profile.phone && !showPhoneModal) {
-      console.log('Triggering phone modal for new Google user');
       setShowPhoneModal(true);
       
       // Clear the needsPhoneCollection flag to prevent repeated triggers
@@ -186,12 +175,17 @@ const UserDashboard: React.FC = () => {
     }, 500);
   };
 
-  // Memoized filtered bookings for performance
+  // Memoized filtered bookings for performance with proper typing
   const filteredBookings = useMemo(() => {
-    return bookings.filter(booking => {
+    return bookings.filter((booking: any) => {
+      // Type-safe access to joined data
+      const userFullName = booking.users?.full_name?.toLowerCase() || '';
+      const carTitle = booking.cars?.title?.toLowerCase() || '';
+      const searchLower = searchTerm.toLowerCase();
+      
       const matchesSearch = searchTerm === '' || 
-        (booking as any).users?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (booking as any).cars?.title?.toLowerCase().includes(searchTerm.toLowerCase());
+        userFullName.includes(searchLower) ||
+        carTitle.includes(searchLower);
       
       const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
       
