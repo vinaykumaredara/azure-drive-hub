@@ -21,15 +21,10 @@ const Auth: React.FC = () => {
   const location = useLocation();
   const { signIn, signUp, signInWithGoogle, user, isAdmin, profile, profileLoading } = useAuth();
 
-  // Handle post-login redirect logic - FAST redirect without waiting for profile
+  // Handle post-login redirect logic - Wait for auth AND admin status
   useEffect(() => {
-    // Wait ONLY for auth to complete loading, NOT profile
-    if (isLoading) {
-      return;
-    }
-    
-    // Only redirect if user is authenticated
-    if (!user) {
+    // Don't redirect if still loading or no user
+    if (isLoading || !user) {
       return;
     }
     
@@ -47,7 +42,7 @@ const Auth: React.FC = () => {
       }
     }
     
-    // IMMEDIATE redirect based on role
+    // Redirect based on role - admin check is now complete
     if (nextUrl && nextUrl.startsWith('/')) {
       navigate(nextUrl, { replace: true });
     } else if (isAdmin) {

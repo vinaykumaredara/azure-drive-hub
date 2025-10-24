@@ -78,44 +78,35 @@ export const useAuthStatus = (): AuthStatus => {
       if (!mounted) return;
       
       if (session?.user) {
-        // FAST path: Set user immediately, check admin status async
+        // Keep loading true until admin status is determined
         setStatus(prev => ({
           ...prev,
           user: session.user,
-          isLoading: false, // Set to false immediately for faster redirects
           error: null
         }));
         
-        // Check admin status asynchronously (non-blocking)
-        setTimeout(() => {
-          supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .eq('role', 'admin')
-            .maybeSingle()
-            .then(({ data: roleData, error: roleError }) => {
-              if (mounted) {
-                if (roleError && process.env.NODE_ENV === 'development') {
-                  console.error('Admin check failed:', roleError);
-                }
-                const newIsAdmin = !!roleData;
-                
-                // Only log in development mode to prevent data exposure
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('Admin check complete:', { 
-                    userId: session.user.id, 
-                    isAdmin: newIsAdmin 
-                  });
-                }
-                
-                setStatus(prev => ({
-                  ...prev,
-                  isAdmin: newIsAdmin
-                }));
+        // Check admin status immediately and WAIT for it
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .maybeSingle()
+          .then(({ data: roleData, error: roleError }) => {
+            if (mounted) {
+              if (roleError && process.env.NODE_ENV === 'development') {
+                console.error('Admin check failed:', roleError);
               }
-            });
-        }, 0);
+              const newIsAdmin = !!roleData;
+              
+              // Set both admin status AND loading false together
+              setStatus(prev => ({
+                ...prev,
+                isAdmin: newIsAdmin,
+                isLoading: false
+              }));
+            }
+          });
       } else if (mounted) {
         setStatus({
           user: null,
