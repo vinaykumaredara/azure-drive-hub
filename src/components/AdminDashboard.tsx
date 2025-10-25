@@ -613,21 +613,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-12">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="bookings">Bookings</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="license">License</TabsTrigger>
-            <TabsTrigger value="promo">Promo Codes</TabsTrigger>
-            <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-            <TabsTrigger value="customers">Customers</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="staff">Staff</TabsTrigger>
-            <TabsTrigger value="financial">Financial</TabsTrigger>
-            <TabsTrigger value="fleet">Fleet</TabsTrigger>
-            <TabsTrigger value="communication">Communication</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-2">
+            <TabsList className="inline-flex w-auto min-w-full">
+              <TabsTrigger value="overview" className="whitespace-nowrap">Overview</TabsTrigger>
+              <TabsTrigger value="bookings" className="whitespace-nowrap">Bookings</TabsTrigger>
+              <TabsTrigger value="analytics" className="whitespace-nowrap">Analytics</TabsTrigger>
+              <TabsTrigger value="license" className="whitespace-nowrap">License</TabsTrigger>
+              <TabsTrigger value="promo" className="whitespace-nowrap">Promo Codes</TabsTrigger>
+              <TabsTrigger value="maintenance" className="whitespace-nowrap">Maintenance</TabsTrigger>
+              <TabsTrigger value="customers" className="whitespace-nowrap">Customers</TabsTrigger>
+              <TabsTrigger value="settings" className="whitespace-nowrap">Settings</TabsTrigger>
+              <TabsTrigger value="security" className="whitespace-nowrap">Security</TabsTrigger>
+              <TabsTrigger value="staff" className="whitespace-nowrap">Staff</TabsTrigger>
+              <TabsTrigger value="financial" className="whitespace-nowrap">Financial</TabsTrigger>
+              <TabsTrigger value="fleet" className="whitespace-nowrap">Fleet</TabsTrigger>
+              <TabsTrigger value="communication" className="whitespace-nowrap">Communication</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="mt-6">
             {renderOverview()}
