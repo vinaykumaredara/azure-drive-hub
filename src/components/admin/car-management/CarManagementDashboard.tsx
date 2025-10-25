@@ -1,6 +1,7 @@
 // src/components/admin/car-management/CarManagementDashboard.tsx
 import { useState } from 'react';
-import { Plus, Car, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Car, Filter, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCarQueries } from '@/hooks/queries/useCarQueries';
@@ -12,6 +13,7 @@ import DeleteCarDialog from './DeleteCarDialog';
 import { Car as CarType } from '@/services/api/car.types';
 
 const CarManagementDashboard = () => {
+  const navigate = useNavigate();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedCar, setSelectedCar] = useState<CarType | null>(null);
@@ -93,16 +95,29 @@ const CarManagementDashboard = () => {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Car Management</h1>
-          <p className="text-muted-foreground">Manage your car inventory</p>
-        </div>
-        <Button onClick={handleAddCar}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Car
+    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="flex items-center gap-4 mb-8">
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => navigate('/admin')}
+          className="shrink-0"
+        >
+          <ArrowLeft className="w-5 h-5" />
         </Button>
+        <div className="flex-1 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Car Management</h1>
+            <p className="text-sm text-muted-foreground">Manage your car inventory</p>
+          </div>
+          <Button onClick={handleAddCar} className="hidden sm:flex">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Car
+          </Button>
+          <Button onClick={handleAddCar} size="icon" className="sm:hidden">
+            <Plus className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

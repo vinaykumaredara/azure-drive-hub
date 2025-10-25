@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Search, Download, Eye, User, LogIn, Car, FileText, Settings } from 'lucide-react';
+import { Shield, Search, Download, Eye, User, LogIn, Car, FileText, Settings, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -235,11 +235,21 @@ const SecurityCompliance: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold">Security & Compliance</h2>
-        <p className="text-muted-foreground">
-          Audit logs and KYC management
-        </p>
+      <div className="flex items-center gap-4">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => window.location.href = '/admin'}
+          className="hover:bg-primary hover:text-primary-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h2 className="text-2xl font-bold">Security & Compliance</h2>
+          <p className="text-muted-foreground">
+            Audit logs and KYC management
+          </p>
+        </div>
       </div>
       
       {/* Tabs */}

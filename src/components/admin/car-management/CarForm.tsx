@@ -25,7 +25,7 @@ const carFormSchema = z.object({
   seats: z.number().min(1).max(20),
   fuel_type: z.string().min(1, 'Fuel type is required'),
   transmission: z.string().min(1, 'Transmission is required'),
-  price_per_day: z.number().min(0),
+  price_per_day: z.number().min(1, 'Price per day must be at least ₹1'),
   price_per_hour: z.number().min(0).optional(),
   service_charge: z.number().min(0).optional(),
   description: z.string().optional(),
@@ -59,8 +59,8 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
       seats: 5,
       fuel_type: 'petrol',
       transmission: 'automatic',
-      price_per_day: 0,
-      price_per_hour: 0,
+      price_per_day: undefined as any,
+      price_per_hour: undefined,
       service_charge: 0,
       description: '',
       location_city: '',
@@ -98,8 +98,8 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
         seats: 5,
         fuel_type: 'petrol',
         transmission: 'automatic',
-        price_per_day: 0,
-        price_per_hour: 0,
+        price_per_day: undefined as any,
+        price_per_hour: undefined,
         service_charge: 0,
         description: '',
         location_city: '',
@@ -235,13 +235,13 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle>{car ? 'Edit Car' : 'Add New Car'}</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">{car ? 'Edit Car' : 'Add New Car'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <FormField
                 control={form.control}
                 name="title"
@@ -386,12 +386,16 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                 name="price_per_day"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price per Day (₹)</FormLabel>
+                    <FormLabel>Price per Day (₹) *</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
-                        {...field} 
-                        onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                        placeholder="Enter price"
+                        value={field.value || ''}
+                        onChange={e => {
+                          const value = e.target.value;
+                          field.onChange(value === '' ? undefined : parseFloat(value) || 0);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -406,9 +410,13 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                     <FormLabel>Price per Hour (₹)</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        {...field} 
-                        onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                        type="number"
+                        placeholder="Optional"
+                        value={field.value || ''}
+                        onChange={e => {
+                          const value = e.target.value;
+                          field.onChange(value === '' ? undefined : parseFloat(value) || 0);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -467,13 +475,13 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                 {car && car.image_urls && car.image_urls.length > 0 && (
                   <div className="mb-4">
                     <p className="text-sm text-muted-foreground mb-2">Current Images:</p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {car.image_urls.map((url, index) => (
                         <div key={index} className="relative">
                           <SimpleImage
                             src={url}
                             alt={`Current car image ${index + 1}`}
-                            className="w-full h-24 object-cover rounded"
+                            className="w-full h-20 sm:h-24 object-cover rounded"
                           />
                         </div>
                       ))}
@@ -481,12 +489,12 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                   </div>
                 )}
                 
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                  <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-2">
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 sm:p-6 text-center">
+                  <Upload className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+                  <p className="text-sm sm:text-base text-muted-foreground mb-2">
                     {uploadingImages ? 'Uploading...' : 'Drag and drop images here, or click to select files'}
                   </p>
-                  <p className="text-xs text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground mb-3 sm:mb-4">
                     PNG, JPG, GIF up to 10MB
                   </p>
                   <Input
@@ -515,19 +523,19 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
                 {uploadedImagePreviews.length > 0 && (
                   <div className="mt-4">
                     <p className="text-sm text-muted-foreground mb-2">New Images:</p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {uploadedImagePreviews.map((preview, index) => (
                         <div key={index} className="relative group">
                           <img
                             src={preview}
                             alt={`Uploaded car image ${index + 1}`}
-                            className="w-full h-24 object-cover rounded"
+                            className="w-full h-20 sm:h-24 object-cover rounded"
                           />
                           <Button
                             type="button"
                             variant="destructive"
                             size="sm"
-                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-1 right-1 h-6 w-6 p-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                             onClick={() => removeUploadedImage(index)}
                           >
                             <Trash2 className="w-3 h-3" />
@@ -540,11 +548,15 @@ const CarForm = ({ open, onOpenChange, car }: CarFormProps) => {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button type="submit" disabled={uploadingImages || createMutation.isPending || updateMutation.isPending}>
+              <Button 
+                type="submit" 
+                disabled={uploadingImages || createMutation.isPending || updateMutation.isPending}
+                className="w-full sm:w-auto"
+              >
                 {uploadingImages || createMutation.isPending || updateMutation.isPending ? 'Saving...' : (car ? 'Update Car' : 'Add Car')}
               </Button>
             </div>
