@@ -43,8 +43,8 @@ const Auth: React.FC = () => {
 
   // Handle post-login redirect logic - Wait for auth AND admin status
   useEffect(() => {
-    // Don't redirect if still loading or no user
-    if (isLoading || !user) {
+    // Don't redirect if still checking auth status or profile loading
+    if (!user || profileLoading) {
       return;
     }
     
@@ -70,7 +70,7 @@ const Auth: React.FC = () => {
     } else {
       navigate('/dashboard', { replace: true });
     }
-  }, [user, isAdmin, navigate, isLoading, location.search, profile, profileLoading]);
+  }, [user, isAdmin, navigate, location.search, profile, profileLoading]);
 
   // Clean up all session storage flags when component unmounts
   useEffect(() => {
