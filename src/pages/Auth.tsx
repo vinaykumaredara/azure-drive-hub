@@ -21,6 +21,26 @@ const Auth: React.FC = () => {
   const location = useLocation();
   const { signIn, signUp, signInWithGoogle, user, isAdmin, profile, profileLoading } = useAuth();
 
+  // Clear corrupted session on mount
+  useEffect(() => {
+    const clearCorruptedSession = async () => {
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          // Clear any corrupted data
+          localStorage.removeItem('sb-rcpkhtlvfvafympulywx-auth-token');
+          sessionStorage.clear();
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+    };
+    clearCorruptedSession();
+  }, []);
+
   // Handle post-login redirect logic - Wait for auth AND admin status
   useEffect(() => {
     // Don't redirect if still loading or no user
@@ -66,17 +86,27 @@ const Auth: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    const { error } = await signIn(email.trim(), password);
-    
-    if (error) {
+    try {
+      const { error } = await signIn(email.trim(), password);
+      
+      if (error) {
+        toast({
+          title: "Sign In Failed",
+          description: error.message || "Invalid email or password",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      }
+      // Success case - let useEffect handle redirect
+    } catch (error: any) {
+      console.error('Sign in error:', error);
       toast({
-        title: "Sign In Failed",
-        description: error.message || "Invalid email or password",
+        title: "Sign In Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
       setIsLoading(false);
     }
-    // No else block - let useEffect handle redirect immediately
   };
 
   const handleSignUp = async (e: React.FormEvent) => {

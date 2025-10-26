@@ -84,17 +84,23 @@ const CarList = ({ cars, isLoading, onEdit, onDelete }: CarListProps) => {
                   <span className="capitalize">{car.fuel_type}</span>
                 </div>
               </div>
-              <div className="flex justify-between">
-                <Button variant="outline" size="sm" onClick={() => onEdit(car)}>
-                  <Edit className="w-4 h-4 mr-2" />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={() => onEdit(car)}
+                  className="flex-1"
+                >
+                  <Edit className="w-4 h-4 mr-1" />
                   Edit
                 </Button>
                 <Button 
-                  variant="outline" 
+                  variant="destructive" 
                   size="sm" 
                   onClick={() => onDelete(car)}
+                  className="flex-1"
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 h-4 mr-1" />
                   Delete
                 </Button>
               </div>
