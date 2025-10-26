@@ -61,11 +61,11 @@ const CarList = ({ cars, isLoading, onEdit, onDelete }: CarListProps) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
-            <div className="relative flex-shrink-0">
+          <Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+            <div className="relative flex-shrink-0 h-48 overflow-hidden">
               {/* Use ImageCarousel for consistent image display */}
-              <ImageCarousel images={car.image_urls || []} className="h-48" />
-              <div className="absolute top-2 right-2 z-10">
+              <ImageCarousel images={car.image_urls || []} className="h-full w-full" />
+              <div className="absolute top-2 right-2 z-20">
                 {getStatusBadge(car.status)}
               </div>
             </div>

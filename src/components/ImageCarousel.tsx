@@ -74,23 +74,23 @@ const ImageCarouselComponent = ({ images = [], className = '', debug = false }: 
           <button 
             onClick={prev} 
             aria-label="Previous" 
-            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 rounded-full p-2 shadow-md hover:bg-white transition-all active:scale-95 sm:p-1"
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 rounded-full p-2 shadow-md hover:bg-white transition-all active:scale-95 sm:p-1 z-10"
           >
             <span className="text-gray-800 text-lg font-bold sm:text-base">‹</span>
           </button>
           <button 
             onClick={next} 
             aria-label="Next" 
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 rounded-full p-2 shadow-md hover:bg-white transition-all active:scale-95 sm:p-1"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 rounded-full p-2 shadow-md hover:bg-white transition-all active:scale-95 sm:p-1 z-10"
           >
             <span className="text-gray-800 text-lg font-bold sm:text-base">›</span>
           </button>
-          <div className="flex gap-1 sm:gap-2 justify-center mt-2">
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 sm:gap-2 justify-center z-10">
             {validImages.map((_, i) => (
               <button 
                 key={i} 
                 onClick={() => setIdx(i)} 
-                className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all ${i === idx ? 'bg-primary scale-125' : 'bg-gray-300'}`}
+                className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all ${i === idx ? 'bg-primary scale-125' : 'bg-white shadow-md'}`}
                 aria-label={`Go to image ${i + 1}`}
               />
             ))}
