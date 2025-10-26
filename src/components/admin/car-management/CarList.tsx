@@ -61,20 +61,20 @@ const CarList = ({ cars, isLoading, onEdit, onDelete }: CarListProps) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative">
+          <Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
+            <div className="relative flex-shrink-0">
               {/* Use ImageCarousel for consistent image display */}
               <ImageCarousel images={car.image_urls || []} className="h-48" />
-              <div className="absolute top-2 right-2">
+              <div className="absolute top-2 right-2 z-10">
                 {getStatusBadge(car.status)}
               </div>
             </div>
-            <CardContent className="p-4">
+            <CardContent className="p-4 flex flex-col flex-grow">
               <h3 className="font-semibold text-lg mb-1">{car.title}</h3>
               <p className="text-muted-foreground text-sm mb-2">
                 {car.make} {car.model} ({car.year})
               </p>
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex justify-between items-center mb-4">
                 <span className="font-bold text-primary">
                   {formatINRFromPaise(car.price_in_paise || toPaise(car.price_per_day))}
                 </span>
@@ -84,12 +84,12 @@ const CarList = ({ cars, isLoading, onEdit, onDelete }: CarListProps) => {
                   <span className="capitalize">{car.fuel_type}</span>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="flex gap-2 mt-auto pt-2">
                 <Button 
                   variant="default" 
                   size="sm" 
                   onClick={() => onEdit(car)}
-                  className="flex-1"
+                  className="flex-1 bg-primary hover:bg-primary/90"
                 >
                   <Edit className="w-4 h-4 mr-1" />
                   Edit
